@@ -1,17 +1,17 @@
 <template>
-  <div class="relative min-h-screen w-screen overflow-hidden bg-gradient-to-br from-fuchsia-500 via-purple-600 to-pink-500">
+  <div class="fixed inset-0 overflow-hidden bg-gradient-to-br from-fuchsia-500 via-purple-600 to-pink-500">
     <!-- Animated background elements -->
     <div class="absolute inset-0 overflow-hidden">
       <div class="absolute top-0 left-0 w-[600px] h-[600px] bg-pink-400/30 rounded-full filter blur-3xl -translate-x-1/2 -translate-y-1/2 animate-blob"></div>
-      <div class="absolute bottom-0 right-0 w-[600px] h-[600px] bg-purple-400/30 rounded-full filter blur-3xl translate-x-1/2 translate-y-1/2 animate-blob animation-delay-2000"></div>
-      <div class="absolute top-1/2 left-1/2 w-[600px] h-[600px] bg-fuchsia-400/30 rounded-full filter blur-3xl -translate-x-1/2 -translate-y-1/2 animate-blob animation-delay-4000"></div>
+      <div class="absolute bottom-0 right-0 w-[600px] h-[600px] bg-purple-400/30 rounded-full filter blur-3xl translate-x-1/2 translate-y-1/2 animate-blob delay-2000"></div>
+      <div class="absolute top-1/2 left-1/2 w-[600px] h-[600px] bg-fuchsia-400/30 rounded-full filter blur-3xl -translate-x-1/2 -translate-y-1/2 animate-blob delay-4000"></div>
     </div>
 
     <!-- Main content -->
-    <div class="relative flex items-center min-h-screen">
+    <div class="absolute inset-0 flex items-center">
       <!-- Left side - Home content -->
       <div class="w-1/2 p-12 animate-fade-in" :class="{ 'opacity-70': showLogin }">
-        <div class="max-w-2xl">
+        <div class="max-w-2xl ml-auto mr-0">
           <div class="relative group mb-12">
             <div class="absolute inset-0 bg-white/30 rounded-full blur-xl group-hover:blur-2xl transition-all duration-500"></div>
             <img src="/logo.png" alt="Logo" class="relative w-32 h-auto transform group-hover:scale-110 transition-transform duration-500" />
@@ -46,7 +46,9 @@
       <!-- Right side - Login form -->
       <div class="w-1/2 p-12 transform transition-all duration-500"
            :class="showLogin ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'">
-        <Login v-if="showLogin" class="w-full max-w-md mx-auto" />
+        <div class="max-w-md mx-auto">
+          <Login v-if="showLogin" class="w-full animate-slide-in bg-white/10 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20" />
+        </div>
       </div>
     </div>
   </div>
