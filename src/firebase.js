@@ -2,6 +2,7 @@
 
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
+import { getAuth } from 'firebase/auth'
 
 // Replace the placeholder values with your own from the config snippet
 const firebaseConfig = {
@@ -20,5 +21,8 @@ const firebaseApp = initializeApp(firebaseConfig)
 // Initialize Firestore
 const db = getFirestore(firebaseApp)
 
+// Auth
+const auth = getAuth(firebaseApp)
+
 // Export the Firestore instance to use it elsewhere
-export { db }
+export { db,auth }
