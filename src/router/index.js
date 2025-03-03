@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 //import HomeView from '../views/HomeView.vue'
 import Login from '@/views/Login.vue' // Assuming this exists
 import Home from '@/views/Home.vue'
+import Dashboard from '@/views/Dashboard.vue'
+import { useUserStore } from '@/stores/userStore'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -25,12 +27,45 @@ const router = createRouter({
     //   // which is lazy-loaded when the route is visited.
     //   component: () => import('../views/AboutView.vue'),
     // },
+    {
+      path: '/dashboard',
+      name: 'dashboard',
+      component: Dashboard, // You'll need to create this
+      meta: { requiresAuth: true }, // Protected route
+    },
+    {
+      path: '/account-management',
+      name: 'account-management',
+      component: () => import('@/views/AccountManagement.vue'),
+      meta: { 
+        requiresAuth: true,
+        requiresAdmin: true
+      }
+    },
     // {
-    //   path: '/dashboard',
-    //   name: 'dashboard',
-    //   component: () => import('../views/DashboardView.vue'), // You'll need to create this
-    //   meta: { requiresAuth: true } // Protected route
+    //   path: '/projects',
+    //   name: 'projects',
+    //   component: () => import('@/views/Projects.vue'),
+    //   meta: { requiresAuth: true }
     // },
+    // {
+    //   path: '/feedback',
+    //   name: 'feedback',
+    //   component: () => import('@/views/Feedback.vue'),
+    //   meta: { requiresAuth: true }
+    // },
+    // {
+    //   path: '/progress',
+    //   name: 'progress',
+    //   component: () => import('@/views/Progress.vue'),
+    //   meta: { requiresAuth: true }
+    // },
+    // {
+    //   path: '/project-settings',
+    //   name: 'project-settings',
+    //   component: () => import('@/views/ProjectSettings.vue'),
+    //   meta: { requiresAuth: true }
+    // }
     // {
     //   path: '/profile',
     //   name: 'profile',
@@ -47,20 +82,25 @@ const router = createRouter({
 
 // Navigation guards
 router.beforeEach(async (to, from, next) => {
-  // This assumes you'll implement a user store as described in Step 3
-  // Import it at the top of the file when you create it
-  // import { useUserStore } from '../stores/userStore'
+  const userStore = useUserStore()
   
-  // For now, we'll use localStorage as a simple way to check authentication
-  const isAuthenticated = localStorage.getItem('authToken') !== null
+  // Initialize auth if not already done
+  if (!userStore.initialized) {
+    await userStore.initializeAuth()
+  }
   
-  // Once you implement the user store, replace the above with:
-  // const userStore = useUserStore()
-  // const isAuthenticated = userStore.isAuthenticated
+  const isAuthenticated = userStore.isAuthenticated
+  const userRole = userStore.userRole
   
   // Route requires authentication
   if (to.meta.requiresAuth && !isAuthenticated) {
     next({ name: 'login', query: { redirect: to.fullPath } })
+    return
+  }
+  
+  // Route requires admin role
+  if (to.meta.requiresAdmin && userRole !== 'admin') {
+    next({ name: 'dashboard' }) // Redirect to dashboard if not admin
     return
   }
   

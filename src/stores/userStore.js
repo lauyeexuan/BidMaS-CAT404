@@ -1,106 +1,134 @@
 import { defineStore } from 'pinia'
-import { useAuthService } from '@/services/AuthService'
 import { ref, computed } from 'vue'
+import { auth, db } from '@/firebase'
+import { 
+  onAuthStateChanged, 
+  signInWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail
+} from 'firebase/auth'
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 
 export const useUserStore = defineStore('user', () => {
-  const authService = useAuthService()
-  
-  // State
   const currentUser = ref(null)
+  const initialized = ref(false)
   const loading = ref(true)
   const error = ref(null)
-  
-  // Getters
+
   const isAuthenticated = computed(() => !!currentUser.value)
-  const userRole = computed(() => currentUser.value?.role || null)
-  const isAdmin = computed(() => userRole.value === 'admin')
-  
-  // Actions
+  const userRole = computed(() => currentUser.value?.role || 'student')
+
+  // Initialize auth state
   const initializeAuth = () => {
     return new Promise((resolve) => {
-      const unsubscribe = authService.onAuthStateChange(async (firebaseUser) => {
+      // Set up auth state listener
+      const unsubscribe = onAuthStateChanged(auth, async (user) => {
         loading.value = true
         
-        try {
-          if (firebaseUser) {
-            const userProfile = await authService.getUserProfile(firebaseUser.uid)
-            currentUser.value = {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              emailVerified: firebaseUser.emailVerified,
-              ...userProfile
+        if (user) {
+          try {
+            // Get additional user data from Firestore
+            const userDoc = await getDoc(doc(db, 'users', user.uid))
+            if (userDoc.exists()) {
+              currentUser.value = {
+                uid: user.uid,
+                email: user.email,
+                name: userDoc.data().name,
+                role: userDoc.data().role,
+                lastLogin: userDoc.data().lastLogin,
+                ...userDoc.data()
+              }
+              
+              // Update last login time
+              await setDoc(doc(db, 'users', user.uid), {
+                lastLogin: serverTimestamp()
+              }, { merge: true })
+            } else {
+              console.error('User document not found in Firestore')
+              currentUser.value = null
             }
-          } else {
+          } catch (error) {
+            console.error('Error fetching user data:', error)
             currentUser.value = null
           }
-          error.value = null
-        } catch (err) {
-          error.value = err.message
+        } else {
           currentUser.value = null
-        } finally {
-          loading.value = false
-          resolve()
         }
+        
+        loading.value = false
+        initialized.value = true
+        resolve()
       })
-      
-      // Return unsubscribe function to prevent memory leaks
-      return unsubscribe
+
+      // Clean up subscription on store disposal
+      if (import.meta.hot) {
+        import.meta.hot.dispose(() => {
+          unsubscribe()
+        })
+      }
     })
   }
-  
-  const register = async (userData) => {
-    try {
-      await authService.register(userData)
-      error.value = null
-    } catch (err) {
-      error.value = err.message
-      throw err
-    }
-  }
-  
+
+  // Login
   const login = async (email, password) => {
     try {
-      await authService.signIn(email, password)
+      loading.value = true
       error.value = null
+      await signInWithEmailAndPassword(auth, email, password)
     } catch (err) {
       error.value = err.message
       throw err
+    } finally {
+      loading.value = false
     }
   }
-  
+
+  // Logout
   const logout = async () => {
     try {
-      await authService.logOut()
+      loading.value = true
+      error.value = null
+      await signOut(auth)
       currentUser.value = null
-      error.value = null
     } catch (err) {
       error.value = err.message
       throw err
+    } finally {
+      loading.value = false
     }
   }
-  
-  const resetUserPassword = async (email) => {
+
+  // Reset password
+  const resetPassword = async (email) => {
     try {
-      await authService.resetPassword(email)
+      loading.value = true
       error.value = null
-      return true
+      await sendPasswordResetEmail(auth, email)
     } catch (err) {
       error.value = err.message
       throw err
+    } finally {
+      loading.value = false
     }
   }
-  
+
+  // Clear user data
+  const clearUser = () => {
+    currentUser.value = null
+    error.value = null
+  }
+
   return {
     currentUser,
-    loading,
-    error,
     isAuthenticated,
     userRole,
-    isAdmin,
+    loading,
+    error,
+    initialized,
     initializeAuth,
-    register,
     login,
     logout,
-    resetUserPassword
+    resetPassword,
+    clearUser
   }
 })
