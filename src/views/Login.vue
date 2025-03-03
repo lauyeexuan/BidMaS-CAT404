@@ -1,7 +1,7 @@
 <template>
-  <div class="bg-white/90 backdrop-blur p-8 rounded-2xl shadow-lg max-w-md mx-auto">
-    <div class="flex justify-between items-center mb-6">
-      <h2 class="text-2xl font-bold text-gray-800">
+  <div class="bg-white/90 backdrop-blur p-6 rounded-2xl shadow-lg w-full max-w-md mx-auto">
+    <div class="flex justify-between items-center mb-5">
+      <h2 class="text-xl font-bold text-gray-800">
         {{ isRegistering ? 'Create Account' : 'Welcome Back' }}
       </h2>
       <button 
@@ -12,32 +12,32 @@
       </button>
     </div>
     
-    <form @submit.prevent="handleSubmit" class="space-y-6">
+    <form @submit.prevent="handleSubmit" class="space-y-4">
       <!-- Registration fields -->
       <template v-if="isRegistering">
-        <div class="space-y-2">
+        <div class="space-y-1">
           <label for="name" class="block text-sm font-medium text-gray-700">Full Name</label>
           <input 
             id="name" 
             v-model="form.name" 
             type="text" 
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             required
           />
         </div>
         
-        <div class="space-y-2">
+        <div class="space-y-1">
           <label for="phone" class="block text-sm font-medium text-gray-700">Phone Number</label>
           <input 
             id="phone" 
             v-model="form.phone" 
             type="tel" 
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             required
           />
         </div>
         
-        <div class="space-y-2">
+        <div class="space-y-1">
           <label for="year" class="block text-sm font-medium text-gray-700">Year</label>
           <input 
             id="year" 
@@ -45,43 +45,43 @@
             type="number" 
             min="1" 
             max="4"
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             required
           />
         </div>
       </template>
       
       <!-- Common fields -->
-      <div class="space-y-2">
+      <div class="space-y-1">
         <label for="email" class="block text-sm font-medium text-gray-700">Email Address</label>
         <input 
           id="email" 
           v-model="form.email" 
           type="email" 
-          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           required
         />
       </div>
       
-      <div class="space-y-2">
+      <div class="space-y-1">
         <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
         <input 
           id="password" 
           v-model="form.password" 
           type="password" 
-          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           required
         />
       </div>
       
-      <div v-if="error" class="error-message">
+      <div v-if="error" class="text-red-500 text-sm">
         {{ error }}
       </div>
       
-      <div class="space-y-4">
+      <div class="space-y-3">
         <button 
           type="submit" 
-          class="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-lg
+          class="w-full py-2 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-lg
                  hover:shadow-lg transition-all duration-300 disabled:opacity-50"
           :disabled="loading"
         >
