@@ -35,14 +35,33 @@
         <h2 class="text-2xl font-semibold text-gray-900 mb-6">Existing Project Settings</h2>
         <div class="space-y-6">
           <div v-for="setting in existingSettings" :key="setting.academicYear" class="border rounded-lg p-6">
-            <h3 class="text-xl font-medium text-gray-900 mb-4">Academic Year: 20{{ setting.academicYear.slice(0,2) }}/20{{ setting.academicYear.slice(2) }}</h3>
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-xl font-medium text-gray-900">Academic Year: 20{{ setting.academicYear.slice(0,2) }}/20{{ setting.academicYear.slice(2) }}</h3>
+              <div class="flex gap-2">
+                <button 
+                  @click="editSetting(setting)"
+                  class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Edit
+                </button>
+                <button 
+                  @click="() => {
+                    selectedAcademicYear = setting.academicYear;
+                    showAddMajorModal = true;
+                  }"
+                  class="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+                >
+                  Add Major
+                </button>
+              </div>
+            </div>
             
             <!-- Add checkbox if there are multiple majors -->
             <div v-if="setting.majors.length > 1" class="mb-4">
               <label class="inline-flex items-center">
                 <input 
                   type="checkbox" 
-                  v-model="applyToAllMajors"
+                  v-model="applyToAllMajorsMap[setting.academicYear]"
                   class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
                 >
                 <span class="ml-2 text-sm text-gray-600">Apply same project headers to all majors</span>
@@ -52,7 +71,18 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div v-for="major in setting.majors" :key="major.name" 
                    class="bg-gray-50 p-4 rounded-lg">
-                <h4 class="font-medium text-gray-900">{{ major.name }}</h4>
+                <div class="flex justify-between items-center mb-2">
+                  <h4 class="font-medium text-gray-900">{{ major.name }}</h4>
+                  <button 
+                    @click="confirmDelete(major.name, setting.academicYear)"
+                    class="text-red-600 hover:text-red-800"
+                    title="Delete major"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
                 <p class="text-gray-600">Quota: {{ major.quota }}</p>
                 <div class="mt-4">
                   <button 
@@ -342,13 +372,148 @@
         </div>
       </Dialog>
     </TransitionRoot>
+
+    <!-- Add Major Modal -->
+    <TransitionRoot appear :show="showAddMajorModal" as="template">
+      <Dialog as="div" @close="showAddMajorModal = false" class="relative z-50">
+        <TransitionChild
+          as="template"
+          enter="duration-300 ease-out"
+          enter-from="opacity-0"
+          enter-to="opacity-100"
+          leave="duration-200 ease-in"
+          leave-from="opacity-100"
+          leave-to="opacity-0"
+        >
+          <div class="fixed inset-0 bg-black bg-opacity-25" />
+        </TransitionChild>
+
+        <div class="fixed inset-0 overflow-y-auto">
+          <div class="flex min-h-full items-center justify-center p-4 text-center">
+            <TransitionChild
+              as="template"
+              enter="duration-300 ease-out"
+              enter-from="opacity-0 scale-95"
+              enter-to="opacity-100 scale-100"
+              leave="duration-200 ease-in"
+              leave-from="opacity-100 scale-100"
+              leave-to="opacity-0 scale-95"
+            >
+              <DialogPanel class="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                <DialogTitle as="h3" class="text-lg font-medium leading-6 text-gray-900 mb-4">
+                  Add New Major Field
+                </DialogTitle>
+
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Major Name</label>
+                    <input 
+                      type="text" 
+                      v-model="newMajorName"
+                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                      placeholder="Enter major name"
+                    >
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Quota</label>
+                    <input 
+                      type="number" 
+                      v-model="newMajorQuota"
+                      min="0"
+                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    >
+                  </div>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3">
+                  <button 
+                    @click="showAddMajorModal = false"
+                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    @click="addMajorToExisting(selectedAcademicYear)"
+                    :disabled="!newMajorName || newMajorQuota < 0"
+                    class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Add Major
+                  </button>
+                </div>
+              </DialogPanel>
+            </TransitionChild>
+          </div>
+        </div>
+      </Dialog>
+    </TransitionRoot>
+
+    <!-- Delete Confirmation Modal -->
+    <TransitionRoot appear :show="showDeleteConfirmModal" as="template">
+      <Dialog as="div" @close="showDeleteConfirmModal = false" class="relative z-50">
+        <TransitionChild
+          as="template"
+          enter="duration-300 ease-out"
+          enter-from="opacity-0"
+          enter-to="opacity-100"
+          leave="duration-200 ease-in"
+          leave-from="opacity-100"
+          leave-to="opacity-0"
+        >
+          <div class="fixed inset-0 bg-black bg-opacity-25" />
+        </TransitionChild>
+
+        <div class="fixed inset-0 overflow-y-auto">
+          <div class="flex min-h-full items-center justify-center p-4 text-center">
+            <TransitionChild
+              as="template"
+              enter="duration-300 ease-out"
+              enter-from="opacity-0 scale-95"
+              enter-to="opacity-100 scale-100"
+              leave="duration-200 ease-in"
+              leave-from="opacity-100 scale-100"
+              leave-to="opacity-0 scale-95"
+            >
+              <DialogPanel class="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                <DialogTitle as="h3" class="text-lg font-medium leading-6 text-gray-900 mb-4">
+                  Confirm Deletion
+                </DialogTitle>
+
+                <div class="mt-2">
+                  <p class="text-sm text-gray-500">
+                    Are you sure you want to delete the major "{{ majorToDelete?.name }}"? This action cannot be undone.
+                  </p>
+                  <p class="text-sm text-gray-500 mt-2">
+                    All project headers and settings for this major will be permanently deleted.
+                  </p>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3">
+                  <button 
+                    @click="showDeleteConfirmModal = false"
+                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    @click="handleDeleteConfirm"
+                    class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                  >
+                    Delete Major
+                  </button>
+                </div>
+              </DialogPanel>
+            </TransitionChild>
+          </div>
+        </div>
+      </Dialog>
+    </TransitionRoot>
   </div>
 </template>
   
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { db } from '@/firebase'
-import { doc, collection, setDoc, getDocs, query, getDoc, updateDoc } from 'firebase/firestore'
+import { doc, collection, setDoc, getDocs, query, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { useUserStore } from '@/stores/userStore'
 import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from '@headlessui/vue'
 
@@ -365,8 +530,12 @@ const newHeader = ref({ name: '', type: 'string', values: [] })
 const tempValue = ref('')
 const isEditMode = ref(false)
 
-// Add new ref for the checkbox state
-const applyToAllMajors = ref(false)
+// Replace the single applyToAllMajors ref with a map
+const applyToAllMajorsMap = ref({})
+
+// Add these refs after other modal refs
+const showDeleteConfirmModal = ref(false)
+const majorToDelete = ref(null)
 
 // Fetch existing settings
 const fetchSettings = async () => {
@@ -515,42 +684,69 @@ const showToast = (message, type = 'success') => {
   
 const saveSettings = async () => {
   try {
-    // Get the current school from user store
     const schoolId = userStore.currentUser.school
     console.log('Saving settings for school:', schoolId)
 
-    // Format academic year for document ID (e.g., "2223" for 2022/2023)
+    // Format academic year for document ID
     const yearStart = academicYear.value.start.toString().slice(-2)
     const yearEnd = academicYear.value.end.toString().slice(-2)
     const academicYearId = yearStart + yearEnd
     console.log('Academic Year ID:', academicYearId)
 
-    // Create or update the academic year document in projects subcollection
+    // Get existing settings for this academic year if any
     const projectsRef = doc(db, 'schools', schoolId, 'projects', academicYearId)
-    
-    // Create the academic year document with majors list
+    const existingDoc = await getDoc(projectsRef)
+    const existingMajors = existingDoc.exists() ? existingDoc.data().majors : []
+
+    // Create or update the academic year document
     await setDoc(projectsRef, {
-      createdAt: new Date(),
+      createdAt: existingDoc.exists() ? existingDoc.data().createdAt : new Date(),
       academicYear: `${academicYear.value.start}/${academicYear.value.end}`,
-      majors: fields.value.map(f => f.name)  // Store the list of majors
-    })
-    console.log('Created academic year document:', academicYearId)
+      majors: fields.value.map(f => f.name)
+    }, { merge: true })
+    console.log('Updated academic year document:', academicYearId)
 
-    // For each major field, create a subcollection and store quota
+    // Handle majors that need to be removed (in case of edit)
+    if (existingDoc.exists()) {
+      const removedMajors = existingMajors.filter(
+        existingMajor => !fields.value.find(f => f.name === existingMajor)
+      )
+      
+      // Delete removed majors' subcollections
+      for (const majorName of removedMajors) {
+        const majorRef = collection(db, 'schools', schoolId, 'projects', academicYearId, majorName)
+        const majorDocs = await getDocs(majorRef)
+        for (const doc of majorDocs.docs) {
+          await deleteDoc(doc.ref)
+        }
+      }
+    }
+
+    // Update or create each major's quota
     for (const field of fields.value) {
-      console.log('Creating major:', field.name, 'with quota:', field.quota)
-      // Create a document with random ID in the major's subcollection
+      console.log('Processing major:', field.name, 'with quota:', field.quota)
       const majorRef = collection(db, 'schools', schoolId, 'projects', academicYearId, field.name)
-      const docRef = doc(majorRef) // This creates a document with auto-generated ID
-
-      // Set the quota for this major
-      await setDoc(docRef, {
-        quota: parseInt(field.quota)
-      })
-      console.log('Created quota document for major:', field.name)
+      
+      // Check if major already has documents
+      const existingMajorDocs = await getDocs(majorRef)
+      
+      if (existingMajorDocs.empty) {
+        // Create new document for new major
+        const docRef = doc(majorRef)
+        await setDoc(docRef, {
+          quota: parseInt(field.quota)
+        })
+        console.log('Created new quota document for major:', field.name)
+      } else {
+        // Update existing document
+        const existingDoc = existingMajorDocs.docs[0]
+        await updateDoc(existingDoc.ref, {
+          quota: parseInt(field.quota)
+        })
+        console.log('Updated quota document for major:', field.name)
+      }
     }
     
-    // Refresh the settings list
     await fetchSettings()
     showNewSettingsForm.value = false
     showToast('Project settings saved successfully')
@@ -620,14 +816,14 @@ const saveHeaders = async () => {
     const headers = {}
     currentHeaders.value.forEach(header => {
       headers[header.name] = {
-        type: header.type === 'label' ? 'array' : header.type,  // Store label as array type
+        type: header.type === 'label' ? 'array' : header.type,
         values: header.type === 'array' ? header.values : 
                 header.type === 'label' ? [] : null
       }
     })
 
-    // If applying to all majors is checked, save headers to all majors in the same academic year
-    if (applyToAllMajors.value) {
+    // If applying to all majors is checked for this academic year
+    if (applyToAllMajorsMap.value[currentMajor.value.academicYear]) {
       const currentSetting = existingSettings.value.find(s => s.academicYear === currentMajor.value.academicYear)
       if (currentSetting) {
         // Save headers to all majors
@@ -642,10 +838,11 @@ const saveHeaders = async () => {
             major.docId || 'default'
           )
 
+          // Replace the entire document to ensure removed headers are deleted
           await setDoc(majorRef, { 
             headers,
             quota: major.quota || 0
-          }, { merge: true })
+          })
         }
         showToast('Project headers saved to all majors successfully')
       }
@@ -661,10 +858,11 @@ const saveHeaders = async () => {
         currentMajor.value.docId || 'default'
       )
 
+      // Replace the entire document to ensure removed headers are deleted
       await setDoc(majorRef, { 
         headers,
         quota: currentMajor.value.quota || 0
-      }, { merge: true })
+      })
       showToast('Project headers saved successfully')
     }
     
@@ -675,6 +873,114 @@ const saveHeaders = async () => {
     showToast('Failed to save project headers', 'error')
   }
 }
+
+const editSetting = (setting) => {
+  // Populate the form with existing setting data
+  academicYear.value = {
+    start: parseInt('20' + setting.academicYear.slice(0, 2)),
+    end: parseInt('20' + setting.academicYear.slice(2))
+  }
+  numFields.value = setting.majors.length
+  fields.value = setting.majors.map(major => ({
+    name: major.name,
+    quota: major.quota
+  }))
+  showNewSettingsForm.value = true
+}
+
+const confirmDelete = (major, academicYear) => {
+  majorToDelete.value = { name: major, academicYear }
+  showDeleteConfirmModal.value = true
+}
+
+const handleDeleteConfirm = async () => {
+  try {
+    const schoolId = userStore.currentUser.school
+    const { name: majorName, academicYear } = majorToDelete.value
+    
+    // Delete the major's subcollection
+    const majorRef = collection(db, 'schools', schoolId, 'projects', academicYear, majorName)
+    const majorDocs = await getDocs(majorRef)
+    
+    // Delete all documents in the major's subcollection
+    for (const doc of majorDocs.docs) {
+      await deleteDoc(doc.ref)
+    }
+
+    // Update the majors list in the academic year document
+    const projectRef = doc(db, 'schools', schoolId, 'projects', academicYear)
+    const projectDoc = await getDoc(projectRef)
+    if (projectDoc.exists()) {
+      const data = projectDoc.data()
+      const updatedMajors = data.majors.filter(m => m !== majorName)
+      await updateDoc(projectRef, { majors: updatedMajors })
+    }
+
+    showDeleteConfirmModal.value = false
+    await fetchSettings()
+    showToast('Major field deleted successfully')
+  } catch (error) {
+    console.error('Error deleting major:', error)
+    showToast('Failed to delete major field', 'error')
+  }
+}
+
+const addMajorToExisting = async (academicYear) => {
+  try {
+    const schoolId = userStore.currentUser.school
+    const projectRef = doc(db, 'schools', schoolId, 'projects', academicYear)
+    const projectDoc = await getDoc(projectRef)
+    
+    if (projectDoc.exists()) {
+      const data = projectDoc.data()
+      const newMajor = {
+        name: newMajorName.value,
+        quota: parseInt(newMajorQuota.value)
+      }
+
+      // Update majors list in academic year document
+      await updateDoc(projectRef, {
+        majors: [...data.majors, newMajor.name]
+      })
+
+      // Create major subcollection with quota
+      const majorRef = collection(db, 'schools', schoolId, 'projects', academicYear, newMajor.name)
+      const docRef = doc(majorRef)
+      
+      // Copy headers from an existing major if available
+      let headers = null
+      if (data.majors.length > 0) {
+        const existingMajorRef = collection(db, 'schools', schoolId, 'projects', academicYear, data.majors[0])
+        const existingMajorDocs = await getDocs(existingMajorRef)
+        if (!existingMajorDocs.empty) {
+          const existingMajorData = existingMajorDocs.docs[0].data()
+          headers = existingMajorData.headers || null
+        }
+      }
+
+      // Save the document with quota and headers if available
+      await setDoc(docRef, {
+        quota: newMajor.quota,
+        ...(headers && { headers })
+      })
+
+      newMajorName.value = ''
+      newMajorQuota.value = 0
+      showAddMajorModal.value = false
+      await fetchSettings()
+      showToast('New major field added successfully')
+    }
+  } catch (error) {
+    console.error('Error adding new major:', error)
+    showToast('Failed to add new major field', 'error')
+  }
+}
+
+// Add new refs for managing majors
+const showAddMajorModal = ref(false)
+const newMajorName = ref('')
+const newMajorQuota = ref(0)
+const selectedAcademicYear = ref('')
 </script>
   
 <style scoped>
