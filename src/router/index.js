@@ -92,15 +92,31 @@ router.beforeEach(async (to, from, next) => {
   const isAuthenticated = userStore.isAuthenticated
   const userRole = userStore.userRole
   
+  // If coming from home page with authentication, go directly to dashboard
+  if (from.path === '/' && isAuthenticated && to.path === '/login') {
+    next({ name: 'dashboard' })
+    return
+  }
+  
+  // If user is authenticated and tries to access login page, redirect to dashboard
+  if (to.name === 'login' && isAuthenticated) {
+    next({ name: 'dashboard' })
+    return
+  }
+
   // Route requires authentication
   if (to.meta.requiresAuth && !isAuthenticated) {
-    next({ name: 'login', query: { redirect: to.fullPath } })
+    // If we're on the home page, don't redirect to login
+    if (from.path === '/') {
+      return
+    }
+    next({ name: 'login' })
     return
   }
   
   // Route requires admin role
   if (to.meta.requiresAdmin && userRole !== 'admin') {
-    next({ name: 'dashboard' }) // Redirect to dashboard if not admin
+    next({ name: 'dashboard' })
     return
   }
   

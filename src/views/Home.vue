@@ -47,7 +47,12 @@
       <div class="w-1/2 p-12 transform transition-all duration-500"
            :class="showLogin ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'">
         <div class="max-w-md mx-auto">
-          <Login v-if="showLogin" class="w-full animate-slide-in bg-white/10 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20" />
+          <Login 
+            v-if="showLogin" 
+            class="w-full animate-slide-in bg-white/10 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20"
+            @close="showLogin = false"
+            @login-success="handleLoginSuccess"
+          />
         </div>
       </div>
     </div>
@@ -56,11 +61,37 @@
 
 <script>
 import Login from "@/views/Login.vue";
+import { useRouter } from 'vue-router';
+import { ref } from 'vue';
+import { useUserStore } from '@/stores/userStore';
 
 export default {
-  data() {
+  setup() {
+    const router = useRouter();
+    const userStore = useUserStore();
+    const showLogin = ref(false);
+    
+    const handleLoginSuccess = async () => {
+      // Wait for authentication state to be fully initialized
+      if (!userStore.isAuthenticated) {
+        // Wait for auth state to update
+        await new Promise(resolve => {
+          const checkAuth = setInterval(() => {
+            if (userStore.isAuthenticated) {
+              clearInterval(checkAuth)
+              resolve()
+            }
+          }, 100)
+        })
+      }
+      
+      // Navigate to dashboard after successful login
+      router.push('/dashboard');
+    };
+    
     return {
-      showLogin: false,
+      showLogin,
+      handleLoginSuccess
     };
   },
   components: {

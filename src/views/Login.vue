@@ -101,7 +101,8 @@ import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/userStore'
 
 export default {
-  setup() {
+  emits: ['close', 'login-success'],
+  setup(props, { emit }) {
     const userStore = useUserStore()
     const router = useRouter()
     const route = useRoute()
@@ -141,11 +142,25 @@ export default {
         } else {
           // Login
           await userStore.login(form.value.email, form.value.password)
+          
+          // Wait for authentication state to be fully initialized
+          // This ensures the router guard will recognize the user as authenticated
+          if (!userStore.isAuthenticated) {
+            // Wait for auth state to update
+            await new Promise(resolve => {
+              const checkAuth = setInterval(() => {
+                if (userStore.isAuthenticated) {
+                  clearInterval(checkAuth)
+                  resolve()
+                }
+              }, 100)
+            })
+          }
         }
         
-        // Redirect after successful authentication
-        const redirectPath = route.query.redirect || '/dashboard'
-        router.push(redirectPath)
+        // Only emit success event and let parent handle navigation
+        emit('login-success')
+        
       } catch (err) {
         // Handle common Firebase Auth errors
         switch (err.code) {
