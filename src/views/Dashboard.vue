@@ -5,7 +5,7 @@
         <div class="p-4 flex items-center">
           <img src="/logo.png" alt="BidMaS Logo" class="h-10" />
         </div>
-        <nav class="mt-4">
+        <nav class="mt-4 flex flex-col h-[calc(100%-80px)]">
           <ul>
             <li v-for="item in filteredMenuItems" 
                 :key="item.name" 
@@ -18,6 +18,17 @@
               </span>
             </li>
           </ul>
+          
+          <!-- Logout button at the bottom -->
+          <div class="mt-auto border-t pt-2">
+            <li 
+              class="p-3 hover:bg-red-100 cursor-pointer text-red-600 flex items-center gap-2"
+              @click="handleLogout"
+            >
+              <i class="fas fa-sign-out-alt"></i>
+              Logout
+            </li>
+          </div>
         </nav>
       </aside>
   
@@ -153,6 +164,16 @@ export default {
         router.push({ name: item.route })
       }
     }
+    
+    // Logout handler
+    const handleLogout = async () => {
+      try {
+        await userStore.logout()
+        router.push('/')
+      } catch (error) {
+        console.error('Logout failed:', error)
+      }
+    }
 
     // Get current user for display
     const currentUser = computed(() => userStore.currentUser)
@@ -162,6 +183,7 @@ export default {
       currentPageTitle,
       isActiveRoute,
       navigateToRoute,
+      handleLogout,
       currentUser
     }
   }

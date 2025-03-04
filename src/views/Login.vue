@@ -27,27 +27,18 @@
         </div>
         
         <div class="space-y-1">
-          <label for="phone" class="block text-sm font-medium text-gray-700">Phone Number</label>
-          <input 
-            id="phone" 
-            v-model="form.phone" 
-            type="tel" 
+          <label for="school" class="block text-sm font-medium text-gray-700">School</label>
+          <select 
+            id="school" 
+            v-model="form.school" 
             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             required
-          />
-        </div>
-        
-        <div class="space-y-1">
-          <label for="year" class="block text-sm font-medium text-gray-700">Year</label>
-          <input 
-            id="year" 
-            v-model="form.year" 
-            type="number" 
-            min="1" 
-            max="4"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            required
-          />
+          >
+            <option value="" disabled>Select your school</option>
+            <option v-for="school in schools" :key="school" :value="school">
+              {{ school }}
+            </option>
+          </select>
         </div>
       </template>
       
@@ -119,12 +110,12 @@ export default {
     const isRegistering = ref(false)
     const loading = ref(false)
     const error = ref('')
+    const schools = ref(['Computer Sciences', 'Art', 'Maths'])
     const form = ref({
       email: '',
       password: '',
       name: '',
-      phone: '',
-      year: ''
+      school: ''
     })
     
     // Method to toggle between login and registration
@@ -145,8 +136,7 @@ export default {
             email: form.value.email,
             password: form.value.password,
             name: form.value.name,
-            phone: form.value.phone,
-            year: form.value.year
+            school: form.value.school
           })
         } else {
           // Login
@@ -204,6 +194,7 @@ export default {
       isRegistering,
       loading,
       error,
+      schools,
       form,
       toggleAuthMode,
       handleSubmit,
