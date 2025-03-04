@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.7.2",
+    "@headlessui/vue": "^1.7.23",
     "@mdi/font": "^7.4.47",
     "firebase": "^11.4.0",
     "flowbite": "^3.1.2",
