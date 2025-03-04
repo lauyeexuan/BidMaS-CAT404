@@ -4,54 +4,57 @@
       <h1 class="text-4xl font-bold text-gray-900 mb-8">Project Settings</h1>
       
       <div class="bg-white rounded-lg shadow-lg p-8">
-        <!-- Academic Year Section -->
-        <div class="mb-12">
-          <h2 class="text-2xl font-semibold text-gray-900 mb-6">Academic Year</h2>
+        <!-- Top Section with Academic Year and Fields Configuration -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+          <!-- Academic Year Section -->
           <div>
-            <label for="academicYear" class="block mb-2 text-sm font-medium text-gray-900">Current Academic Year:</label>
-            <div class="flex items-center space-x-2">
+            <h2 class="text-2xl font-semibold text-gray-900 mb-6">Academic Year</h2>
+            <div>
+              <label for="academicYear" class="block mb-2 text-sm font-medium text-gray-900">Current Academic Year:</label>
+              <div class="flex items-center space-x-2">
+                <input 
+                  type="number" 
+                  id="academicYearStart" 
+                  v-model="academicYear.start" 
+                  min="2000"
+                  max="2100"
+                  @input="validateAcademicYear"
+                  class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-32 p-2.5"
+                  :class="{'border-red-500': yearError}"
+                  placeholder="2022"
+                >
+                <span class="text-gray-500">/</span>
+                <input 
+                  type="number" 
+                  id="academicYearEnd" 
+                  v-model="academicYear.end" 
+                  min="2000"
+                  max="2100"
+                  @input="validateAcademicYear"
+                  class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-32 p-2.5"
+                  :class="{'border-red-500': yearError}"
+                  placeholder="2023"
+                >
+              </div>
+              <p class="mt-1 text-sm text-gray-500">Format: YYYY/YYYY (e.g., 2022/2023)</p>
+              <p v-if="yearError" class="mt-1 text-sm text-red-500">{{ yearError }}</p>
+            </div>
+          </div>
+
+          <!-- Fields Configuration Section -->
+          <div>
+            <h2 class="text-2xl font-semibold text-gray-900 mb-6">Configure Project Fields</h2>
+            <div>
+              <label for="numFields" class="block mb-2 text-sm font-medium text-gray-900">Number of Major Fields:</label>
               <input 
                 type="number" 
-                id="academicYearStart" 
-                v-model="academicYear.start" 
-                min="2000"
-                max="2100"
-                @input="validateAcademicYear"
-                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-32 p-2.5"
-                :class="{'border-red-500': yearError}"
-                placeholder="2022"
-              >
-              <span class="text-gray-500">/</span>
-              <input 
-                type="number" 
-                id="academicYearEnd" 
-                v-model="academicYear.end" 
-                min="2000"
-                max="2100"
-                @input="validateAcademicYear"
-                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-32 p-2.5"
-                :class="{'border-red-500': yearError}"
-                placeholder="2023"
+                id="numFields" 
+                v-model="numFields" 
+                min="1"
+                @change="updateFields"
+                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
               >
             </div>
-            <p class="mt-1 text-sm text-gray-500">Format: YYYY/YYYY (e.g., 2022/2023)</p>
-            <p v-if="yearError" class="mt-1 text-sm text-red-500">{{ yearError }}</p>
-          </div>
-        </div>
-
-        <!-- Fields Configuration Section -->
-        <div class="mb-12">
-          <h2 class="text-2xl font-semibold text-gray-900 mb-6">Configure Project Fields</h2>
-          <div>
-            <label for="numFields" class="block mb-2 text-sm font-medium text-gray-900">Number of Major Fields:</label>
-            <input 
-              type="number" 
-              id="numFields" 
-              v-model="numFields" 
-              min="1"
-              @change="updateFields"
-              class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-            >
           </div>
         </div>
 
