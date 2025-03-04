@@ -36,6 +36,19 @@
         <div class="space-y-6">
           <div v-for="setting in existingSettings" :key="setting.academicYear" class="border rounded-lg p-6">
             <h3 class="text-xl font-medium text-gray-900 mb-4">Academic Year: 20{{ setting.academicYear.slice(0,2) }}/20{{ setting.academicYear.slice(2) }}</h3>
+            
+            <!-- Add checkbox if there are multiple majors -->
+            <div v-if="setting.majors.length > 1" class="mb-4">
+              <label class="inline-flex items-center">
+                <input 
+                  type="checkbox" 
+                  v-model="applyToAllMajors"
+                  class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                >
+                <span class="ml-2 text-sm text-gray-600">Apply same project headers to all majors</span>
+              </label>
+            </div>
+
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div v-for="major in setting.majors" :key="major.name" 
                    class="bg-gray-50 p-4 rounded-lg">
@@ -44,9 +57,14 @@
                 <div class="mt-4">
                   <button 
                     @click="openHeadersModal(major, setting.academicYear)"
-                    class="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    :class="[
+                      'w-full px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2',
+                      major.docId && major.headers 
+                        ? 'text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+                        : 'text-white bg-red-500 hover:bg-red-600 focus:ring-red-500 animate-pulse font-semibold'
+                    ]"
                   >
-                    {{ major.docId && major.headers ? 'View Project Headers' : 'Complete Project Headers' }}
+                    {{ major.docId && major.headers ? 'View Project Headers' : '⚠️ Project Headers Not Set' }}
                   </button>
                 </div>
               </div>
@@ -211,15 +229,23 @@
                     <div v-for="(header, index) in currentHeaders" :key="index" 
                          class="flex items-start justify-between p-4 bg-gray-50 rounded-lg">
                       <div>
-                        <p class="font-medium">{{ header.name }}</p>
-                        <p class="text-sm text-gray-600">Type: {{ header.type }}</p>
+                        <p class="font-medium text-gray-900">{{ header.name }}</p>
                         <div v-if="header.type === 'array'" class="mt-2">
-                          <p class="text-sm text-gray-600">Values:</p>
-                          <ul class="list-disc list-inside">
-                            <li v-for="value in header.values" :key="value" class="text-sm">
+                          <div class="flex flex-wrap gap-2">
+                            <span 
+                              v-for="value in header.values" 
+                              :key="value" 
+                              class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                            >
                               {{ value }}
-                            </li>
-                          </ul>
+                            </span>
+                          </div>
+                        </div>
+                        <div v-else-if="header.type === 'label'" class="mt-1">
+                          <span class="text-sm text-gray-500 italic">Label field</span>
+                        </div>
+                        <div v-else class="mt-1">
+                          <span class="text-sm text-gray-500 italic">Free text input</span>
                         </div>
                       </div>
                       <button 
@@ -252,6 +278,7 @@
                     >
                       <option value="string">String (Free Text)</option>
                       <option value="array">Predefined Options</option>
+                      <option value="label">Label</option>
                     </select>
                   </div>
 
@@ -337,6 +364,9 @@ const currentHeaders = ref([])
 const newHeader = ref({ name: '', type: 'string', values: [] })
 const tempValue = ref('')
 const isEditMode = ref(false)
+
+// Add new ref for the checkbox state
+const applyToAllMajors = ref(false)
 
 // Fetch existing settings
 const fetchSettings = async () => {
@@ -573,7 +603,8 @@ const addHeader = () => {
     currentHeaders.value.push({
       name: newHeader.value.name,
       type: newHeader.value.type,
-      values: newHeader.value.type === 'array' ? [...newHeader.value.values] : null
+      values: newHeader.value.type === 'array' ? [...newHeader.value.values] : 
+             newHeader.value.type === 'label' ? [] : null
     })
     newHeader.value = { name: '', type: 'string', values: [] }
     tempValue.value = ''
@@ -589,31 +620,55 @@ const saveHeaders = async () => {
     const headers = {}
     currentHeaders.value.forEach(header => {
       headers[header.name] = {
-        type: header.type,
-        values: header.type === 'array' ? header.values : null
+        type: header.type === 'label' ? 'array' : header.type,  // Store label as array type
+        values: header.type === 'array' ? header.values : 
+                header.type === 'label' ? [] : null
       }
     })
 
-    // If this is the first time saving headers, we need to create the document
-    const docId = currentMajor.value.docId || 'default'
-    const majorRef = doc(
-      db, 
-      'schools', 
-      userStore.currentUser.school, 
-      'projects', 
-      currentMajor.value.academicYear, 
-      currentMajor.value.name, 
-      docId
-    )
+    // If applying to all majors is checked, save headers to all majors in the same academic year
+    if (applyToAllMajors.value) {
+      const currentSetting = existingSettings.value.find(s => s.academicYear === currentMajor.value.academicYear)
+      if (currentSetting) {
+        // Save headers to all majors
+        for (const major of currentSetting.majors) {
+          const majorRef = doc(
+            db, 
+            'schools', 
+            userStore.currentUser.school, 
+            'projects', 
+            currentMajor.value.academicYear, 
+            major.name, 
+            major.docId || 'default'
+          )
 
-    // Use setDoc instead of updateDoc to ensure document creation
-    await setDoc(majorRef, { 
-      headers,
-      quota: currentMajor.value.quota || 0
-    }, { merge: true })
+          await setDoc(majorRef, { 
+            headers,
+            quota: major.quota || 0
+          }, { merge: true })
+        }
+        showToast('Project headers saved to all majors successfully')
+      }
+    } else {
+      // Save headers to just the current major
+      const majorRef = doc(
+        db, 
+        'schools', 
+        userStore.currentUser.school, 
+        'projects', 
+        currentMajor.value.academicYear, 
+        currentMajor.value.name, 
+        currentMajor.value.docId || 'default'
+      )
+
+      await setDoc(majorRef, { 
+        headers,
+        quota: currentMajor.value.quota || 0
+      }, { merge: true })
+      showToast('Project headers saved successfully')
+    }
     
     showHeadersModal.value = false
-    showToast('Project headers saved successfully')
     await fetchSettings() // Refresh the data
   } catch (error) {
     console.error('Error saving headers:', error)
