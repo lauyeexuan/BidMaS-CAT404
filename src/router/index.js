@@ -60,12 +60,15 @@ const router = createRouter({
     //   component: () => import('@/views/Progress.vue'),
     //   meta: { requiresAuth: true }
     // },
-    // {
-    //   path: '/project-settings',
-    //   name: 'project-settings',
-    //   component: () => import('@/views/ProjectSettings.vue'),
-    //   meta: { requiresAuth: true }
-    // }
+    {
+      path: '/project-settings',
+      name: 'project-settings',
+      component: () => import('@/views/ProjectSettings.vue'),
+      meta: { 
+        requiresAuth: true,
+        requiresAdmin: true
+      }
+    },
     // {
     //   path: '/profile',
     //   name: 'profile',
