@@ -288,7 +288,7 @@
                     >
                       Project Headers
                       <span 
-                        v-if="currentHeaders.length > 0" 
+                        v-if="currentHeaders.filter(h => !h.required).length > 0" 
                         class="inline-flex items-center justify-center w-5 h-5 text-xs font-semibold rounded-full bg-green-100 text-green-800"
                       >
                         ✓
@@ -323,7 +323,7 @@
                   
                   <!-- Reminder message -->
                   <div 
-                    v-if="currentHeaders.length === 0 || currentMilestones.length === 0"
+                    v-if="(currentHeaders.filter(h => !h.required).length === 0) || currentMilestones.length === 0"
                     class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md"
                   >
                     <div class="flex">
@@ -337,7 +337,7 @@
                         <div class="mt-2 text-sm text-yellow-700">
                           <p>
                             Please complete both Project Headers and Project Milestones configuration. 
-                            {{ currentHeaders.length === 0 ? 'Project Headers are missing.' : '' }}
+                            {{ currentHeaders.filter(h => !h.required).length === 0 ? 'Additional Project Headers are needed.' : '' }}
                             {{ currentMilestones.length === 0 ? 'Project Milestones are missing.' : '' }}
                           </p>
                         </div>
@@ -356,9 +356,13 @@
                     </h4>
                     <div class="space-y-4">
                       <div v-for="(header, index) in currentHeaders" :key="index" 
-                           class="flex items-start justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                           class="flex items-start justify-between p-4 bg-gray-50 rounded-lg border"
+                           :class="[header.required ? 'border-blue-200 bg-blue-50' : 'border-gray-200']">
                         <div>
-                          <p class="font-medium text-gray-900">{{ header.name }}</p>
+                          <div class="flex items-center gap-2">
+                            <p class="font-medium text-gray-900">{{ header.name }}</p>
+                            <span v-if="header.required" class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Required</span>
+                          </div>
                           <div v-if="header.type === 'array'" class="mt-2">
                             <div class="flex flex-wrap gap-2">
                               <span 
@@ -378,6 +382,7 @@
                           </div>
                         </div>
                         <button 
+                          v-if="!header.required"
                           @click="removeHeader(index)"
                           class="text-red-600 hover:text-red-800"
                         >
@@ -406,7 +411,7 @@
                         v-model="newHeader.type"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                       >
-                        <option value="string">String (Free Text)</option>
+                        <option value="string">Text</option>
                         <option value="array">Predefined Options</option>
                         <option value="label">Label</option>
                       </select>
@@ -944,10 +949,7 @@ const saveSettings = async () => {
 
 const openHeadersModal = async (major, academicYear) => {
   currentMajor.value = { ...major, academicYear }
-  // Reset active tab to headers when opening modal
-  activeTab.value = 'headers'
   
-  // Try to fetch existing headers and milestones
   try {
     console.log('Opening modal for major:', major.name, 'academicYear:', academicYear)
     const majorRef = doc(db, 'schools', userStore.currentUser.school, 'projects', academicYear, major.name, major.docId || 'default')
@@ -962,11 +964,27 @@ const openHeadersModal = async (major, academicYear) => {
         currentHeaders.value = Object.entries(data.headers).map(([name, config]) => ({
           name,
           type: config.type,
-          values: config.values || []
+          values: config.values || [],
+          required: name === 'Title' // Mark Title as required
         }))
+        // Add Title header if it doesn't exist
+        if (!currentHeaders.value.find(h => h.name === 'Title')) {
+          currentHeaders.value.unshift({
+            name: 'Title',
+            type: 'string',
+            values: null,
+            required: true
+          })
+        }
         isEditMode.value = true
       } else {
-        currentHeaders.value = []
+        // Initialize with mandatory Title header
+        currentHeaders.value = [{
+          name: 'Title',
+          type: 'string',
+          values: null,
+          required: true
+        }]
         isEditMode.value = false
       }
       
@@ -975,25 +993,40 @@ const openHeadersModal = async (major, academicYear) => {
         currentMilestones.value = data.milestones.map(m => ({
           description: m.description,
           deadline: m.deadline instanceof Date 
-            ? m.deadline.toISOString().split('T')[0] // Format as YYYY-MM-DD for date input
-            : new Date(m.deadline.seconds * 1000).toISOString().split('T')[0] // Handle Firestore timestamps
+            ? m.deadline.toISOString().split('T')[0]
+            : new Date(m.deadline.seconds * 1000).toISOString().split('T')[0]
         }))
       } else {
         currentMilestones.value = []
       }
       
-      // If headers are missing but milestones exist, switch to headers tab
-      if (currentHeaders.value.length === 0 && currentMilestones.value.length > 0) {
+      // Set active tab based on configuration state
+      const hasConfiguredHeaders = currentHeaders.value.length > 1 // More than just Title
+      const hasConfiguredMilestones = currentMilestones.value.length > 0
+
+      // If neither is configured or only milestones are configured, show headers tab
+      if (!hasConfiguredHeaders) {
         activeTab.value = 'headers'
       }
-      // If milestones are missing but headers exist, switch to milestones tab
-      else if (currentHeaders.value.length > 0 && currentMilestones.value.length === 0) {
+      // If headers are configured but milestones aren't, show milestones tab
+      else if (hasConfiguredHeaders && !hasConfiguredMilestones) {
         activeTab.value = 'milestones'
       }
+      // If both are configured, keep current tab or default to headers
+      else {
+        activeTab.value = activeTab.value || 'headers'
+      }
     } else {
-      currentHeaders.value = []
+      // For new/unconfigured majors, always start with headers tab
+      currentHeaders.value = [{
+        name: 'Title',
+        type: 'string',
+        values: null,
+        required: true
+      }]
       currentMilestones.value = []
       isEditMode.value = false
+      activeTab.value = 'headers'
     }
     showHeadersModal.value = true
   } catch (error) {
@@ -1033,11 +1066,21 @@ const removeHeader = (index) => {
 const saveHeaders = async () => {
   try {
     const headers = {}
+    // Ensure Title header exists
+    if (!currentHeaders.value.find(h => h.name === 'Title')) {
+      currentHeaders.value.unshift({
+        name: 'Title',
+        type: 'string',
+        values: null,
+        required: true
+      })
+    }
     currentHeaders.value.forEach(header => {
       headers[header.name] = {
         type: header.type === 'label' ? 'array' : header.type,
         values: header.type === 'array' ? header.values : 
-                header.type === 'label' ? [] : null
+                header.type === 'label' ? [] : null,
+        required: header.required || false
       }
     })
 
