@@ -64,7 +64,7 @@
                   v-model="applyToAllMajorsMap[setting.academicYear]"
                   class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
                 >
-                <span class="ml-2 text-sm text-gray-600">Apply same project headers to all majors</span>
+                <span class="ml-2 text-sm text-gray-600">Apply same project settings to all majors</span>
               </label>
             </div>
 
