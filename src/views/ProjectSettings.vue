@@ -84,17 +84,48 @@
                   </button>
                 </div>
                 <p class="text-gray-600">Quota: {{ major.quota }}</p>
+                
+                <!-- Configuration Status -->
+                <div class="mt-3 space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">Project Headers:</span>
+                    <span 
+                      :class="[
+                        'text-xs px-2 py-1 rounded-full',
+                        major.docId && major.headers && Object.keys(major.headers).length > 0
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      ]"
+                    >
+                      {{ major.docId && major.headers && Object.keys(major.headers).length > 0 ? 'Configured' : 'Not Configured' }}
+                    </span>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">Project Milestones:</span>
+                    <span 
+                      :class="[
+                        'text-xs px-2 py-1 rounded-full',
+                        major.docId && major.milestones && major.milestones.length > 0
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      ]"
+                    >
+                      {{ major.docId && major.milestones && major.milestones.length > 0 ? 'Configured' : 'Not Configured' }}
+                    </span>
+                  </div>
+                </div>
+                
                 <div class="mt-4">
                   <button 
                     @click="openHeadersModal(major, setting.academicYear)"
                     :class="[
                       'w-full px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2',
-                      major.docId && major.headers 
+                      isConfigurationComplete(major)
                         ? 'text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
                         : 'text-white bg-red-500 hover:bg-red-600 focus:ring-red-500 animate-pulse font-semibold'
                     ]"
                   >
-                    {{ major.docId && major.headers ? 'View Project Headers' : '⚠️ Project Headers Not Set' }}
+                    {{ isConfigurationComplete(major) ? 'View Project Settings' : '⚠️ Incomplete Settings' }}
                   </button>
                 </div>
               </div>
@@ -249,93 +280,105 @@
             >
               <DialogPanel class="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
                 <DialogTitle as="h3" class="text-lg font-medium leading-6 text-gray-900 mb-4">
-                  {{ isEditMode ? 'Project Headers' : 'Complete Project Headers' }}
-                </DialogTitle>
-
-                <!-- Existing Headers List -->
-                <div v-if="currentHeaders.length > 0" class="mb-8">
-                  <h4 class="font-medium text-gray-700 mb-2">Current Headers</h4>
-                  <div class="space-y-4">
-                    <div v-for="(header, index) in currentHeaders" :key="index" 
-                         class="flex items-start justify-between p-4 bg-gray-50 rounded-lg">
-                      <div>
-                        <p class="font-medium text-gray-900">{{ header.name }}</p>
-                        <div v-if="header.type === 'array'" class="mt-2">
-                          <div class="flex flex-wrap gap-2">
-                            <span 
-                              v-for="value in header.values" 
-                              :key="value" 
-                              class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-                            >
-                              {{ value }}
-                            </span>
-                          </div>
-                        </div>
-                        <div v-else-if="header.type === 'label'" class="mt-1">
-                          <span class="text-sm text-gray-500 italic">Label field</span>
-                        </div>
-                        <div v-else class="mt-1">
-                          <span class="text-sm text-gray-500 italic">Free text input</span>
+                  <div class="flex space-x-6 border-b border-gray-200">
+                    <button 
+                      @click="activeTab = 'headers'"
+                      class="py-2 px-1 -mb-px flex items-center gap-2"
+                      :class="activeTab === 'headers' ? 'border-b-2 border-blue-500 text-blue-600 font-medium' : 'text-gray-500 hover:text-gray-700'"
+                    >
+                      Project Headers
+                      <span 
+                        v-if="currentHeaders.length > 0" 
+                        class="inline-flex items-center justify-center w-5 h-5 text-xs font-semibold rounded-full bg-green-100 text-green-800"
+                      >
+                        ✓
+                      </span>
+                      <span 
+                        v-else 
+                        class="inline-flex items-center justify-center w-5 h-5 text-xs font-semibold rounded-full bg-red-100 text-red-800"
+                      >
+                        !
+                      </span>
+                    </button>
+                    <button 
+                      @click="activeTab = 'milestones'"
+                      class="py-2 px-1 -mb-px flex items-center gap-2"
+                      :class="activeTab === 'milestones' ? 'border-b-2 border-blue-500 text-blue-600 font-medium' : 'text-gray-500 hover:text-gray-700'"
+                    >
+                      Project Milestones
+                      <span 
+                        v-if="currentMilestones.length > 0" 
+                        class="inline-flex items-center justify-center w-5 h-5 text-xs font-semibold rounded-full bg-green-100 text-green-800"
+                      >
+                        ✓
+                      </span>
+                      <span 
+                        v-else 
+                        class="inline-flex items-center justify-center w-5 h-5 text-xs font-semibold rounded-full bg-red-100 text-red-800"
+                      >
+                        !
+                      </span>
+                    </button>
+                  </div>
+                  
+                  <!-- Reminder message -->
+                  <div 
+                    v-if="currentHeaders.length === 0 || currentMilestones.length === 0"
+                    class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md"
+                  >
+                    <div class="flex">
+                      <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                      </div>
+                      <div class="ml-3">
+                        <h3 class="text-sm font-medium text-yellow-800">Incomplete Configuration</h3>
+                        <div class="mt-2 text-sm text-yellow-700">
+                          <p>
+                            Please complete both Project Headers and Project Milestones configuration. 
+                            {{ currentHeaders.length === 0 ? 'Project Headers are missing.' : '' }}
+                            {{ currentMilestones.length === 0 ? 'Project Milestones are missing.' : '' }}
+                          </p>
                         </div>
                       </div>
-                      <button 
-                        @click="removeHeader(index)"
-                        class="text-red-600 hover:text-red-800"
-                      >
-                        Remove
-                      </button>
                     </div>
                   </div>
-                </div>
+                </DialogTitle>
 
-                <!-- Add New Header Form -->
-                <div v-if="!isEditMode || (isEditMode && currentHeaders.length > 0)" class="space-y-4">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700">Header Name</label>
-                    <input 
-                      type="text" 
-                      v-model="newHeader.name"
-                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                      placeholder="Enter header name"
-                    >
-                  </div>
-
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700">Type</label>
-                    <select 
-                      v-model="newHeader.type"
-                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                    >
-                      <option value="string">String (Free Text)</option>
-                      <option value="array">Predefined Options</option>
-                      <option value="label">Label</option>
-                    </select>
-                  </div>
-
-                  <!-- Values input for predefined options -->
-                  <div v-if="newHeader.type === 'array'" class="space-y-4">
-                    <div class="flex gap-2">
-                      <input 
-                        type="text" 
-                        v-model="tempValue"
-                        @keyup.enter="addValue"
-                        class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                        placeholder="Enter a value"
-                      >
-                      <button 
-                        @click="addValue"
-                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                      >
-                        Add
-                      </button>
-                    </div>
-
-                    <div v-if="newHeader.values.length > 0" class="space-y-2">
-                      <div v-for="(value, index) in newHeader.values" :key="index"
-                           class="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                        <span>{{ value }}</span>
+                <!-- Project Headers Tab Content -->
+                <div v-if="activeTab === 'headers'">
+                  <!-- Existing Headers List -->
+                  <div v-if="currentHeaders.length > 0" class="mb-8 border-b pb-6">
+                    <h4 class="font-medium text-gray-700 mb-4 text-lg flex items-center">
+                      <span class="mr-2">Current Headers</span>
+                      <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">{{ currentHeaders.length }}</span>
+                    </h4>
+                    <div class="space-y-4">
+                      <div v-for="(header, index) in currentHeaders" :key="index" 
+                           class="flex items-start justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <div>
+                          <p class="font-medium text-gray-900">{{ header.name }}</p>
+                          <div v-if="header.type === 'array'" class="mt-2">
+                            <div class="flex flex-wrap gap-2">
+                              <span 
+                                v-for="value in header.values" 
+                                :key="value" 
+                                class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                              >
+                                {{ value }}
+                              </span>
+                            </div>
+                          </div>
+                          <div v-else-if="header.type === 'label'" class="mt-1">
+                            <span class="text-sm text-gray-500 italic">Label field</span>
+                          </div>
+                          <div v-else class="mt-1">
+                            <span class="text-sm text-gray-500 italic">Free text input</span>
+                          </div>
+                        </div>
                         <button 
-                          @click="removeValue(index)"
+                          @click="removeHeader(index)"
                           class="text-red-600 hover:text-red-800"
                         >
                           Remove
@@ -344,12 +387,136 @@
                     </div>
                   </div>
 
-                  <button 
-                    @click="addHeader"
-                    class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                  >
-                    Add Header
-                  </button>
+                  <!-- Add New Header Form -->
+                  <div class="space-y-4 bg-gray-50 p-5 rounded-lg border border-gray-200">
+                    <h4 class="font-medium text-gray-700 mb-4 text-lg">Add New Header</h4>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Header Name</label>
+                      <input 
+                        type="text" 
+                        v-model="newHeader.name"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                        placeholder="Enter header name"
+                      >
+                    </div>
+
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Type</label>
+                      <select 
+                        v-model="newHeader.type"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                      >
+                        <option value="string">String (Free Text)</option>
+                        <option value="array">Predefined Options</option>
+                        <option value="label">Label</option>
+                      </select>
+                    </div>
+
+                    <!-- Values input for predefined options -->
+                    <div v-if="newHeader.type === 'array'" class="space-y-4">
+                      <div class="flex gap-2">
+                        <input 
+                          type="text" 
+                          v-model="tempValue"
+                          @keyup.enter="addValue"
+                          class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                          placeholder="Enter a value"
+                        >
+                        <button 
+                          @click="addValue"
+                          class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                        >
+                          Add
+                        </button>
+                      </div>
+
+                      <div v-if="newHeader.values.length > 0" class="space-y-2">
+                        <div v-for="(value, index) in newHeader.values" :key="index"
+                             class="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                          <span>{{ value }}</span>
+                          <button 
+                            @click="removeValue(index)"
+                            class="text-red-600 hover:text-red-800"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button 
+                      @click="addHeader"
+                      class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    >
+                      Add Header
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Project Milestones Tab Content -->
+                <div v-if="activeTab === 'milestones'" class="py-4">
+                  <!-- Existing Milestones List -->
+                  <div v-if="currentMilestones.length > 0" class="mb-8 border-b pb-6">
+                    <h4 class="font-medium text-gray-700 mb-4 text-lg flex items-center">
+                      <span class="mr-2">Current Milestones</span>
+                      <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">{{ currentMilestones.length }}</span>
+                    </h4>
+                    <div class="space-y-4">
+                      <div v-for="(milestone, index) in currentMilestones" :key="index" 
+                           class="flex items-start justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <div>
+                          <p class="font-medium text-gray-900">{{ milestone.description }}</p>
+                          <p class="text-sm text-gray-500 mt-1 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
+                            </svg>
+                            {{ new Date(milestone.deadline).toLocaleDateString() }}
+                          </p>
+                        </div>
+                        <button 
+                          @click="removeMilestone(index)"
+                          class="text-red-600 hover:text-red-800"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Add New Milestone Form -->
+                  <div class="space-y-4 bg-gray-50 p-5 rounded-lg border border-gray-200">
+                    <h4 class="font-medium text-gray-700 mb-4 text-lg">Add New Milestone</h4>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Milestone Description</label>
+                      <input 
+                        type="text" 
+                        v-model="newMilestone.description"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                        placeholder="e.g., Submit Proposal"
+                      >
+                    </div>
+                    
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Deadline</label>
+                      <div class="relative w-full md:w-1/5">
+                        <input 
+                          type="date" 
+                          v-model="newMilestone.deadline"
+                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm pr-2"
+                          placeholder="mm/dd/yyyy"
+                        >
+                      
+                      </div>
+                    </div>
+
+                    <button 
+                      @click="addMilestone"
+                      class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                      :disabled="!newMilestone.description || !newMilestone.deadline"
+                    >
+                      Add Milestone
+                    </button>
+                  </div>
                 </div>
 
                 <div class="mt-8 flex justify-end gap-4">
@@ -360,10 +527,10 @@
                     Cancel
                   </button>
                   <button 
-                    @click="saveHeaders"
+                    @click="activeTab === 'headers' ? saveHeaders() : saveMilestones()"
                     class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
                   >
-                    Save Headers
+                    {{ activeTab === 'headers' ? 'Save Headers' : 'Save Milestones' }}
                   </button>
                 </div>
               </DialogPanel>
@@ -537,6 +704,20 @@ const applyToAllMajorsMap = ref({})
 const showDeleteConfirmModal = ref(false)
 const majorToDelete = ref(null)
 
+// Add new refs for managing majors
+const showAddMajorModal = ref(false)
+const newMajorName = ref('')
+const newMajorQuota = ref(0)
+const selectedAcademicYear = ref('')
+
+// Add new refs for managing active tab
+const activeTab = ref('headers')
+
+// Add new refs for managing milestones
+const currentMilestones = ref([])
+const newMilestone = ref({ description: '', deadline: '' })
+const milestoneCount = ref(0)
+
 // Fetch existing settings
 const fetchSettings = async () => {
   try {
@@ -580,7 +761,8 @@ const fetchSettings = async () => {
             name: majorName,
             quota: quotaData.quota,
             docId: quotaDoc.id,
-            headers: quotaData.headers || null
+            headers: quotaData.headers || null,
+            milestones: quotaData.milestones || null
           })
         }
       }
@@ -663,9 +845,13 @@ const showToast = (message, type = 'success') => {
   const icon = document.createElement('div')
   icon.className = 'inline-flex items-center justify-center flex-shrink-0 w-8 h-8 ' + 
     (type === 'success' ? 'text-green-500' : 'text-red-500')
-  icon.innerHTML = type === 'success' 
-    ? '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0[...]'
-    : '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.[...]'
+  
+  // Use simpler SVG icons to avoid string escaping issues
+  if (type === 'success') {
+    icon.innerHTML = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>'
+  } else {
+    icon.innerHTML = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>'
+  }
   
   const messageDiv = document.createElement('div')
   messageDiv.className = 'ml-3 text-sm font-normal'
@@ -758,28 +944,61 @@ const saveSettings = async () => {
 
 const openHeadersModal = async (major, academicYear) => {
   currentMajor.value = { ...major, academicYear }
-  // Try to fetch existing headers
+  // Reset active tab to headers when opening modal
+  activeTab.value = 'headers'
+  
+  // Try to fetch existing headers and milestones
   try {
     console.log('Opening modal for major:', major.name, 'academicYear:', academicYear)
     const majorRef = doc(db, 'schools', userStore.currentUser.school, 'projects', academicYear, major.name, major.docId || 'default')
     const majorDoc = await getDoc(majorRef)
     console.log('Major doc exists:', majorDoc.exists(), 'data:', majorDoc.data())
     
-    if (majorDoc.exists() && majorDoc.data().headers) {
-      currentHeaders.value = Object.entries(majorDoc.data().headers).map(([name, config]) => ({
-        name,
-        type: config.type,
-        values: config.values || []
-      }))
-      isEditMode.value = true
+    if (majorDoc.exists()) {
+      const data = majorDoc.data()
+      
+      // Load headers if they exist
+      if (data.headers) {
+        currentHeaders.value = Object.entries(data.headers).map(([name, config]) => ({
+          name,
+          type: config.type,
+          values: config.values || []
+        }))
+        isEditMode.value = true
+      } else {
+        currentHeaders.value = []
+        isEditMode.value = false
+      }
+      
+      // Load milestones if they exist
+      if (data.milestones && Array.isArray(data.milestones)) {
+        currentMilestones.value = data.milestones.map(m => ({
+          description: m.description,
+          deadline: m.deadline instanceof Date 
+            ? m.deadline.toISOString().split('T')[0] // Format as YYYY-MM-DD for date input
+            : new Date(m.deadline.seconds * 1000).toISOString().split('T')[0] // Handle Firestore timestamps
+        }))
+      } else {
+        currentMilestones.value = []
+      }
+      
+      // If headers are missing but milestones exist, switch to headers tab
+      if (currentHeaders.value.length === 0 && currentMilestones.value.length > 0) {
+        activeTab.value = 'headers'
+      }
+      // If milestones are missing but headers exist, switch to milestones tab
+      else if (currentHeaders.value.length > 0 && currentMilestones.value.length === 0) {
+        activeTab.value = 'milestones'
+      }
     } else {
       currentHeaders.value = []
+      currentMilestones.value = []
       isEditMode.value = false
     }
     showHeadersModal.value = true
   } catch (error) {
     console.error('Error opening headers modal:', error)
-    showToast('Failed to load project headers', 'error')
+    showToast('Failed to load project settings', 'error')
   }
 }
 
@@ -838,8 +1057,13 @@ const saveHeaders = async () => {
             major.docId || 'default'
           )
 
-          // Replace the entire document to ensure removed headers are deleted
+          // Get existing document data to preserve milestones
+          const majorDoc = await getDoc(majorRef)
+          const existingData = majorDoc.exists() ? majorDoc.data() : { quota: major.quota || 0 }
+
+          // Update with headers while preserving other data
           await setDoc(majorRef, { 
+            ...existingData,
             headers,
             quota: major.quota || 0
           })
@@ -858,8 +1082,13 @@ const saveHeaders = async () => {
         currentMajor.value.docId || 'default'
       )
 
-      // Replace the entire document to ensure removed headers are deleted
+      // Get existing document data to preserve milestones
+      const majorDoc = await getDoc(majorRef)
+      const existingData = majorDoc.exists() ? majorDoc.data() : { quota: currentMajor.value.quota || 0 }
+
+      // Update with headers while preserving other data
       await setDoc(majorRef, { 
+        ...existingData,
         headers,
         quota: currentMajor.value.quota || 0
       })
@@ -947,21 +1176,24 @@ const addMajorToExisting = async (academicYear) => {
       const majorRef = collection(db, 'schools', schoolId, 'projects', academicYear, newMajor.name)
       const docRef = doc(majorRef)
       
-      // Copy headers from an existing major if available
+      // Copy headers and milestones from an existing major if available
       let headers = null
+      let milestones = null
       if (data.majors.length > 0) {
         const existingMajorRef = collection(db, 'schools', schoolId, 'projects', academicYear, data.majors[0])
         const existingMajorDocs = await getDocs(existingMajorRef)
         if (!existingMajorDocs.empty) {
           const existingMajorData = existingMajorDocs.docs[0].data()
           headers = existingMajorData.headers || null
+          milestones = existingMajorData.milestones || null
         }
       }
 
-      // Save the document with quota and headers if available
+      // Save the document with quota, headers, and milestones if available
       await setDoc(docRef, {
         quota: newMajor.quota,
-        ...(headers && { headers })
+        ...(headers && { headers }),
+        ...(milestones && { milestones })
       })
 
       newMajorName.value = ''
@@ -976,11 +1208,117 @@ const addMajorToExisting = async (academicYear) => {
   }
 }
 
-// Add new refs for managing majors
-const showAddMajorModal = ref(false)
-const newMajorName = ref('')
-const newMajorQuota = ref(0)
-const selectedAcademicYear = ref('')
+const getMilestoneAtIndex = (index) => {
+  // Ensure the array has enough elements
+  while (currentMilestones.value.length <= index) {
+    currentMilestones.value.push({ description: '', deadline: '' })
+  }
+  return currentMilestones.value[index]
+}
+
+const removeMilestone = (index) => {
+  currentMilestones.value.splice(index, 1)
+  // Update milestone count if needed
+  if (milestoneCount.value > currentMilestones.value.length) {
+    milestoneCount.value = currentMilestones.value.length
+  }
+}
+
+const addMilestone = () => {
+  if (newMilestone.value.description.trim() && newMilestone.value.deadline) {
+    currentMilestones.value.push({
+      description: newMilestone.value.description.trim(),
+      deadline: newMilestone.value.deadline
+    })
+    newMilestone.value = { description: '', deadline: '' }
+  }
+}
+
+const saveMilestones = async () => {
+  try {
+    // Filter out empty milestones
+    const milestones = currentMilestones.value
+      .filter(m => m.description.trim() !== '' && m.deadline)
+      .map(m => {
+        // Create a date object and set time to midnight (00:00:00)
+        const date = new Date(m.deadline);
+        date.setHours(0, 0, 0, 0);
+        
+        return {
+          description: m.description.trim(),
+          deadline: date
+        };
+      })
+
+    // If applying to all majors is checked for this academic year
+    if (applyToAllMajorsMap.value[currentMajor.value.academicYear]) {
+      const currentSetting = existingSettings.value.find(s => s.academicYear === currentMajor.value.academicYear)
+      if (currentSetting) {
+        // Save milestones to all majors
+        for (const major of currentSetting.majors) {
+          const majorRef = doc(
+            db, 
+            'schools', 
+            userStore.currentUser.school, 
+            'projects', 
+            currentMajor.value.academicYear, 
+            major.name, 
+            major.docId || 'default'
+          )
+
+          // Get existing document data
+          const majorDoc = await getDoc(majorRef)
+          const existingData = majorDoc.exists() ? majorDoc.data() : { quota: major.quota || 0 }
+
+          // Update with milestones
+          await setDoc(majorRef, { 
+            ...existingData,
+            milestones
+          })
+        }
+        showToast('Project milestones saved to all majors successfully')
+      }
+    } else {
+      // Save milestones to just the current major
+      const majorRef = doc(
+        db, 
+        'schools', 
+        userStore.currentUser.school, 
+        'projects', 
+        currentMajor.value.academicYear, 
+        currentMajor.value.name, 
+        currentMajor.value.docId || 'default'
+      )
+
+      // Get existing document data
+      const majorDoc = await getDoc(majorRef)
+      const existingData = majorDoc.exists() ? majorDoc.data() : { quota: currentMajor.value.quota || 0 }
+
+      // Update with milestones
+      await setDoc(majorRef, { 
+        ...existingData,
+        milestones
+      })
+      showToast('Project milestones saved successfully')
+    }
+    
+    showHeadersModal.value = false
+    await fetchSettings() // Refresh the data
+  } catch (error) {
+    console.error('Error saving milestones:', error)
+    showToast('Failed to save project milestones', 'error')
+  }
+}
+
+// Helper function to check if a major has complete configuration
+const isConfigurationComplete = (major) => {
+  return major.docId && 
+         major.headers && 
+         Object.keys(major.headers).length > 0 && 
+         major.milestones && 
+         Array.isArray(major.milestones) && 
+         major.milestones.length > 0
+}
 </script>
   
 <style scoped>
