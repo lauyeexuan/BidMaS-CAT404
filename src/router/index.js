@@ -4,6 +4,8 @@ import Login from '@/views/Login.vue' // Assuming this exists
 import Home from '@/views/Home.vue'
 import Dashboard from '@/views/Dashboard.vue'
 import { useUserStore } from '@/stores/userStore'
+import ProjectSettings from '@/views/ProjectSettings.vue'
+import Project from '@/views/Project.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -42,32 +44,17 @@ const router = createRouter({
         requiresAdmin: true
       }
     },
-    // {
-    //   path: '/projects',
-    //   name: 'projects',
-    //   component: () => import('@/views/Projects.vue'),
-    //   meta: { requiresAuth: true }
-    // },
-    // {
-    //   path: '/feedback',
-    //   name: 'feedback',
-    //   component: () => import('@/views/Feedback.vue'),
-    //   meta: { requiresAuth: true }
-    // },
-    // {
-    //   path: '/progress',
-    //   name: 'progress',
-    //   component: () => import('@/views/Progress.vue'),
-    //   meta: { requiresAuth: true }
-    // },
     {
       path: '/project-settings',
       name: 'project-settings',
-      component: () => import('@/views/ProjectSettings.vue'),
-      meta: { 
-        requiresAuth: true,
-        requiresAdmin: true
-      }
+      component: ProjectSettings,
+      meta: { requiresAuth: true, roles: ['admin'] }
+    },
+    {
+      path: '/projects',
+      name: 'Projects',
+      component: Project,
+      meta: { requiresAuth: true, roles: ['lecturer'] }
     },
     // {
     //   path: '/profile',
@@ -95,20 +82,28 @@ router.beforeEach(async (to, from, next) => {
   const isAuthenticated = userStore.isAuthenticated
   const userRole = userStore.userRole
   
+  console.log('Navigation guard - Route:', to.name)
+  console.log('Navigation guard - User role:', userRole)
+  console.log('Navigation guard - Is authenticated:', isAuthenticated)
+  console.log('Navigation guard - Route meta:', to.meta)
+  
   // If coming from home page with authentication, go directly to dashboard
   if (from.path === '/' && isAuthenticated && to.path === '/login') {
+    console.log('Redirecting from home to dashboard')
     next({ name: 'dashboard' })
     return
   }
   
   // If user is authenticated and tries to access login page, redirect to dashboard
   if (to.name === 'login' && isAuthenticated) {
+    console.log('Redirecting from login to dashboard')
     next({ name: 'dashboard' })
     return
   }
 
   // Route requires authentication
   if (to.meta.requiresAuth && !isAuthenticated) {
+    console.log('Route requires auth but user is not authenticated')
     // If we're on the home page, don't redirect to login
     if (from.path === '/') {
       return
@@ -117,19 +112,31 @@ router.beforeEach(async (to, from, next) => {
     return
   }
   
-  // Route requires admin role
+  // Check for admin role requirement
   if (to.meta.requiresAdmin && userRole !== 'admin') {
+    console.log('Route requires admin but user is not admin')
+    next({ name: 'dashboard' })
+    return
+  }
+  
+  // Check for specific role requirements
+  if (to.meta.roles && !to.meta.roles.includes(userRole)) {
+    console.log('Route requires specific roles but user does not have them')
+    console.log('Required roles:', to.meta.roles)
+    console.log('User role:', userRole)
     next({ name: 'dashboard' })
     return
   }
   
   // Route is for guests only (login, register)
   if (to.meta.requiresGuest && isAuthenticated) {
+    console.log('Route is for guests but user is authenticated')
     next({ name: 'dashboard' })
     return
   }
   
   // Allow navigation
+  console.log('Navigation allowed')
   next()
 })
 

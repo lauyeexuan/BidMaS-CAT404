@@ -45,14 +45,15 @@ export const useUserStore = defineStore('user', () => {
             }
 
             if (userDoc && userDoc.exists()) {
+              const userData = userDoc.data()
               currentUser.value = {
                 uid: user.uid,
                 email: user.email,
-                name: userDoc.data().name,
+                name: userData.name,
                 school: userSchool,
-                role: userDoc.data().role,
-                lastLogin: userDoc.data().lastLogin,
-                ...userDoc.data()
+                role: userData.role || 'student',
+                lastLogin: userData.lastLogin,
+                ...userData
               }
               
               // Update last login time
