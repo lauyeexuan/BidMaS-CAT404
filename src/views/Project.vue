@@ -843,7 +843,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { db } from '@/firebase'
-import { doc, collection, getDocs, query, where, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { doc, collection, getDocs, query, where, getDoc, addDoc, updateDoc, deleteDoc, limit } from 'firebase/firestore'
 import { useUserStore } from '@/stores/userStore'
 import { getLatestAcademicYear, formatAcademicYear } from '@/utils/latestAcademicYear'
 
@@ -1995,100 +1995,56 @@ const fetchUserNames = async (userIds) => {
   try {
     if (!userIds.length) return
     
-    console.log('Debug - User IDs to fetch:', userIds)
+    console.log('Debug - Fetching names for', userIds.length, 'users')
     
     // Clear the map before fetching new data
     userNamesMap.value.clear()
     
+    // Get the current user's school ID
     const schoolId = userStore.currentUser.school
     
-    // Try multiple possible paths for user documents
-    const possiblePaths = [
-      { name: 'root users collection', path: () => doc(db, 'users', '') },
-      { name: 'school users collection', path: () => doc(db, 'schools', schoolId, 'users', '') },
-      { name: 'specific school users collection', path: () => doc(db, 'schools', 'Computer Sciences', 'users', '') },
-      { name: 'auth users collection', path: () => doc(db, 'auth', 'users', '') }
-    ]
+    if (!schoolId) {
+      console.error('Error: No school ID found for current user')
+      return
+    }
     
-    for (const { name, path } of possiblePaths) {
+    console.log(`Debug - Using school ID: ${schoolId}`)
+    
+    // Define the collection path using the current user's school
+    const collectionPath = `schools/${schoolId}/users`
+    
+    // Fetch user documents directly
+    for (const userId of userIds) {
       try {
-        console.log(`Debug - Trying ${name}`)
+        const userDocRef = doc(db, collectionPath, userId)
+        const userDoc = await getDoc(userDocRef)
         
-        // Get the parent path to check if the collection exists
-        const parentPath = path().path.split('/').slice(0, -1).join('/')
-        const parentRef = doc(db, parentPath)
-        const parentDoc = await getDoc(parentRef)
-        
-        if (parentDoc.exists()) {
-          console.log(`Debug - ${name} parent path exists`)
+        if (userDoc.exists()) {
+          const userData = userDoc.data()
           
-          // Try to get a list of users from this collection
-          const usersCollectionPath = parentPath
-          const usersRef = collection(db, usersCollectionPath)
-          
-          // Just try to get any documents to see if the collection exists
-          const sampleQuery = query(usersRef, limit(1))
-          const sampleDocs = await getDocs(sampleQuery)
-          
-          console.log(`Debug - ${name} has documents:`, !sampleDocs.empty)
-          
-          if (!sampleDocs.empty) {
-            console.log(`Debug - Will try to fetch users from ${name}`)
-            
-            // This collection exists and has documents, try to fetch our users
-            for (const userId of userIds) {
-              try {
-                const userDocPath = `${usersCollectionPath}/${userId}`
-                console.log(`Debug - Trying to fetch user from: ${userDocPath}`)
-                
-                const userDoc = await getDoc(doc(db, userDocPath))
-                
-                if (userDoc.exists()) {
-                  const userData = userDoc.data()
-                  console.log(`Debug - Found user in ${name}:`, userId, userData)
-                  
-                  // Store the user's name in the map using their ID as the key
-                  if (userData.name || userData.displayName || userData.email) {
-                    const userName = userData.name || userData.displayName || userData.email.split('@')[0]
-                    userNamesMap.value.set(userId, userName)
-                    console.log(`Debug - Added user from ${name}:`, userId, '->', userName)
-                  } else {
-                    console.log(`Debug - User in ${name} has no name fields:`, userData)
-                  }
-                } else {
-                  console.log(`Debug - User not found in ${name}:`, userId)
-                }
-              } catch (docError) {
-                console.error(`Error fetching user from ${name}:`, userId, docError)
-              }
-            }
+          // Store the user's name in the map using their ID as the key
+          if (userData.name || userData.displayName || userData.email) {
+            const userName = userData.name || userData.displayName || userData.email.split('@')[0]
+            userNamesMap.value.set(userId, userName)
+            console.log(`Found user: ${userId} -> ${userName}`)
           }
-        } else {
-          console.log(`Debug - ${name} parent path does not exist`)
         }
-      } catch (error) {
-        console.error(`Error checking ${name}:`, error)
+      } catch (docError) {
+        console.error(`Error fetching user: ${userId}`, docError.message)
       }
     }
     
-    // If we couldn't find any users, add some default mappings for known users
-    if (userNamesMap.value.size === 0) {
-      console.log('Debug - No users found in any collection, using fallbacks')
-      
-      // Add current user
-      if (userIds.includes(userStore.currentUser.uid)) {
-        userNamesMap.value.set(
-          userStore.currentUser.uid, 
-          userStore.currentUser.name || userStore.currentUser.displayName || 'You'
-        )
-        console.log('Debug - Added current user to map')
-      }
+    // If we couldn't find any users, add current user as fallback
+    if (userNamesMap.value.size === 0 && userIds.includes(userStore.currentUser.uid)) {
+      userNamesMap.value.set(
+        userStore.currentUser.uid, 
+        userStore.currentUser.name || userStore.currentUser.displayName || 'You'
+      )
     }
     
-    console.log('Debug - Final userNamesMap size:', userNamesMap.value.size)
-    console.log('Debug - Final userNamesMap:', Object.fromEntries(userNamesMap.value))
+    console.log(`Successfully fetched ${userNamesMap.value.size} user names`)
   } catch (error) {
-    console.error('Error fetching user names:', error)
+    console.error('Error fetching user names:', error.message)
   }
 }
 
