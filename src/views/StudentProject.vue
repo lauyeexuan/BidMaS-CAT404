@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-gray-50 p-8">
     <div class="bg-white rounded-lg shadow-lg p-6">
-      <h1 class="text-3xl font-bold text-gray-900 mb-4">Projects</h1>
+      <h1 class="text-3xl font-bold text-gray-900 mb-4">Student Projects</h1>
       <p class="text-gray-600 mb-4">This is the student view of the projects page. Content will be implemented later.</p>
       
       <div class="bg-blue-100 p-4 rounded-lg">
