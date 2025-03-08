@@ -5,17 +5,19 @@
       <div class="flex justify-between items-center mb-8">
         <h1 class="text-4xl font-bold text-gray-900">Projects</h1>
         <div class="flex items-center gap-4">
+          
           <select 
             v-model="selectedAcademicYear"
             class="text-lg bg-blue-100 text-blue-800 px-4 py-2 rounded-lg cursor-pointer hover:bg-blue-200 transition-colors"
             :title="'Current: ' + latestAcademicYear"
           >
+          
             <option 
               v-for="year in availableAcademicYears" 
               :key="year.yearId" 
               :value="year.yearId"
             >
-              {{ year.academicYear }}
+             {{ year.academicYear }}
             </option>
           </select>
         </div>
@@ -714,7 +716,7 @@
               
               <div class="space-y-4">
                 <div v-for="sourceMajor in uniqueSourceProjectMajors" :key="sourceMajor" class="flex items-center gap-4">
-                  <div class="flex-1">
+                  <div class="flex items-center">
                     <span class="text-sm font-medium text-gray-700">From: </span>
                     <span 
                       class="px-2 py-1 rounded-full text-xs ml-2"
@@ -726,10 +728,11 @@
                       {{ sourceMajor }}
                     </span>
                   </div>
-                  <div class="flex-1">
+                  <span class="text-sm font-medium text-gray-700">To:</span>
+                  <div class="w-36">
                     <select 
                       v-model="majorMappings[sourceMajor]"
-                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                      class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                       :class="{ 'border-red-300': !majorMappings[sourceMajor] }"
                     >
                       <option value="">Select target major</option>
@@ -808,11 +811,11 @@ const majorProjectSettings = ref(null)
 
 // Remove predefined major colors and add dynamic color generation
 const colorPalette = [
-  { bg: 'bg-blue-100', text: 'text-blue-800' },
-  { bg: 'bg-yellow-100', text: 'text-green-800' },
-  { bg: 'bg-pink-100', text: 'text-purple-800' },
-  { bg: 'bg-red-100', text: 'text-red-800' },
-  { bg: 'bg-gray-100', text: 'text-cyan-800' }
+  { bg: 'bg-blue-100', text: 'text-blue-800' ,selectedBg: 'bg-blue-500'},
+  { bg: 'bg-yellow-100', text: 'text-yellow-800',selectedBg: 'bg-yellow-500' },
+  { bg: 'bg-pink-100', text: 'text-pink-800',selectedBg: 'bg-pink-500' },
+  { bg: 'bg-red-100', text: 'text-red-800',selectedBg: 'bg-red-500' },
+  { bg: 'bg-lime-100', text: 'text-lime-800',selectedBg: 'bg-lime-500' }
 ]
 
 // Map to store major-color associations
@@ -825,9 +828,11 @@ const getMajorColorClasses = (major) => {
     const colorIndex = majorColorMap.value.size % colorPalette.length
     const baseColor = colorPalette[colorIndex]
     
-    // Add selected state colors
-    const selectedClass = baseColor.bg.replace('-100', '-500') + ' text-white shadow-sm'
     
+    // Use explicit selected states or fallback to the pattern
+    let selectedClass;
+    selectedClass = baseColor.selectedBg + ' text-white shadow-sm'
+      
     majorColorMap.value.set(major, {
       ...baseColor,
       selected: selectedClass
