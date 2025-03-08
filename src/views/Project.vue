@@ -56,9 +56,29 @@
           <!-- My Projects Tab -->
           <div v-if="activeTab === 'myProjects'">
             <div class="flex justify-between items-center mb-6">
-              <div class="flex items-center gap-4">
-                <h2 class="text-2xl font-semibold text-gray-900">My Projects</h2>
-                <span class="text-sm text-gray-500">(Total: {{ projects.length }})</span>
+              <div class="space-y-2">
+                <div class="flex items-center gap-4">
+                  <h2 class="text-2xl font-semibold text-gray-900">My Projects</h2>
+                  <span class="text-sm text-gray-500">(Total: {{ filteredProjects.length }})</span>
+                </div>
+                
+                <!-- Major filter tags -->
+                <div v-if="uniqueProjectMajors.length > 0" class="flex flex-wrap gap-2">
+                  <button
+                    v-for="major in uniqueProjectMajors"
+                    :key="major"
+                    @click="toggleMajorFilter(major)"
+                    class="px-3 py-1 rounded-full text-sm font-medium transition-colors flex items-center gap-1"
+                    :class="[
+                      selectedMajorFilters.has(major) 
+                        ? [getMajorColorClasses(major).bg.replace('100', '500'), 'text-white', 'shadow-sm'] 
+                        : [getMajorColorClasses(major).bg, getMajorColorClasses(major).text, 'hover:bg-opacity-75'],
+                    ]"
+                  >
+                    <span v-if="selectedMajorFilters.has(major)" class="w-2 h-2 rounded-full bg-white"></span>
+                    {{ major }}
+                  </button>
+                </div>
               </div>
               <button 
                 @click="showNewProjectForm = true"
@@ -76,14 +96,11 @@
                     <th class="w-16 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       No.
                     </th>
-                    <th v-for="(config, headerName) in projectSettings.headers" 
-                        :key="headerName"
-                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      {{ headerName }}
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Title
                     </th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Created At
+                      Major
                     </th>
                   </tr>
                 </thead>
@@ -92,14 +109,19 @@
                     <td class="w-16 px-3 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                       {{ (currentPage - 1) * itemsPerPage + index + 1 }}
                     </td>
-                    <td v-for="(config, headerName) in projectSettings.headers" 
-                        :key="headerName"
-                        class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                    >
-                      {{ project[headerName] }}
-                    </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {{ formatDate(project.createdAt) }}
+                      {{ project.Title }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                      <span 
+                        class="px-2 py-1 rounded-full text-xs"
+                        :class="[
+                          getMajorColorClasses(project.major).bg,
+                          getMajorColorClasses(project.major).text
+                        ]"
+                      >
+                        {{ project.major }}
+                      </span>
                     </td>
                   </tr>
                 </tbody>
@@ -459,7 +481,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { db } from '@/firebase'
-import { doc, collection, getDocs, query, where, getDoc } from 'firebase/firestore'
+import { doc, collection, getDocs, query, where, getDoc, addDoc } from 'firebase/firestore'
 import { useUserStore } from '@/stores/userStore'
 import { getLatestAcademicYear, formatAcademicYear } from '@/utils/latestAcademicYear'
 
@@ -480,17 +502,68 @@ const tempSelectedMajor = ref('')
 const availableMajors = ref([])
 const majorProjectSettings = ref(null)
 
+// Remove predefined major colors and add dynamic color generation
+const colorPalette = [
+  { bg: 'bg-blue-100', text: 'text-blue-800' },
+  { bg: 'bg-green-100', text: 'text-green-800' },
+  { bg: 'bg-purple-100', text: 'text-purple-800' },
+  { bg: 'bg-orange-100', text: 'text-orange-800' },
+  { bg: 'bg-pink-100', text: 'text-pink-800' },
+  { bg: 'bg-indigo-100', text: 'text-indigo-800' },
+  { bg: 'bg-red-100', text: 'text-red-800' },
+  { bg: 'bg-yellow-100', text: 'text-yellow-800' },
+  { bg: 'bg-teal-100', text: 'text-teal-800' },
+  { bg: 'bg-cyan-100', text: 'text-cyan-800' }
+]
+
+// Map to store major-color associations
+const majorColorMap = ref(new Map())
+
+// Function to get color classes for a major
+const getMajorColorClasses = (major) => {
+  if (!majorColorMap.value.has(major)) {
+    // Assign next available color or cycle back to start
+    const colorIndex = majorColorMap.value.size % colorPalette.length
+    majorColorMap.value.set(major, colorPalette[colorIndex])
+  }
+  return majorColorMap.value.get(major)
+}
+
+// Add new state for major filters
+const selectedMajorFilters = ref(new Set())
+const uniqueProjectMajors = computed(() => {
+  return [...new Set(projects.value.map(project => project.major))]
+})
+
+// Modify the paginatedProjects computed property to include filtering
+const filteredProjects = computed(() => {
+  if (selectedMajorFilters.value.size === 0) {
+    return projects.value
+  }
+  return projects.value.filter(project => selectedMajorFilters.value.has(project.major))
+})
+
+const paginatedProjects = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredProjects.value.slice(start, end)
+})
+
+// Add function to toggle major filter
+const toggleMajorFilter = (major) => {
+  if (selectedMajorFilters.value.has(major)) {
+    selectedMajorFilters.value.delete(major)
+  } else {
+    selectedMajorFilters.value.add(major)
+  }
+}
+
 // Pagination
 const currentPage = ref(1)
 const itemsPerPage = 10
 
 // Computed properties for pagination
 const totalPages = computed(() => Math.ceil(projects.value.length / itemsPerPage))
-const paginatedProjects = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage
-  const end = start + itemsPerPage
-  return projects.value.slice(start, end)
-})
 
 // Watch for projects length changes to reset page if needed
 watch(projects, () => {
@@ -576,9 +649,33 @@ const fetchProjectSettings = async () => {
     loading.value = true
     const schoolId = userStore.currentUser.school
     
+    // Debug the user object to find the correct ID field
+    console.log('Debug - Current user object:', userStore.currentUser)
+    
+    // Try to find the user ID from various possible properties
+    let userId = userStore.currentUser.id || 
+                 userStore.currentUser.uid || 
+                 userStore.currentUser._id || 
+                 userStore.currentUser.userId
+    
+    if (!userId) {
+      console.warn('Debug - User ID (uid) is missing, using fallback')
+      // If we can't find the ID, use a fallback value
+      userId = "unknown-user-" + Date.now() // Generate a unique fallback ID
+    }
+    
+    console.log('Debug - User info:', {
+      id: userId,
+      school: schoolId,
+      role: userStore.currentUser.role
+    })
+    
     // Get the latest academic year
     const yearData = await getLatestAcademicYear(schoolId)
+    console.log('Debug - Year data:', yearData)
+    
     if (!yearData) {
+      console.log('Debug - No year data found')
       loading.value = false
       return
     }
@@ -586,32 +683,52 @@ const fetchProjectSettings = async () => {
     latestAcademicYear.value = yearData.academicYear
     latestAcademicYearId.value = yearData.yearId
     
-    // Get the user's major if they are a lecturer
-    if (userStore.currentUser.role === 'lecturer' && userStore.currentUser.major) {
-      selectedMajor.value = userStore.currentUser.major
-    } else {
-      // For demo purposes, get the first major
-      const projectsRef = doc(db, 'schools', schoolId, 'projects', yearData.yearId)
-      const projectsDoc = await getDoc(projectsRef)
-      if (projectsDoc.exists() && projectsDoc.data().majors && projectsDoc.data().majors.length > 0) {
+    console.log('Debug - Academic year:', latestAcademicYear.value, 'ID:', latestAcademicYearId.value)
+    
+    // Get all available majors regardless of user role
+    const projectsRef = doc(db, 'schools', schoolId, 'projects', yearData.yearId)
+    console.log('Debug - Fetching majors from:', `schools/${schoolId}/projects/${yearData.yearId}`)
+    
+    const projectsDoc = await getDoc(projectsRef)
+    console.log('Debug - Projects doc exists:', projectsDoc.exists(), 'Data:', projectsDoc.data())
+    
+    if (projectsDoc.exists() && projectsDoc.data().majors && projectsDoc.data().majors.length > 0) {
+      // For lecturers, set their assigned major as selected if it exists
+      if (userStore.currentUser.role === 'lecturer' && userStore.currentUser.major) {
+        selectedMajor.value = userStore.currentUser.major
+        console.log('Debug - Lecturer major:', selectedMajor.value)
+      } else {
+        // For admin or lecturers without assigned major, use first major
         selectedMajor.value = projectsDoc.data().majors[0]
-        
-        // Store all available majors
-        availableMajors.value = projectsDoc.data().majors
       }
+      
+      // Store all available majors
+      availableMajors.value = projectsDoc.data().majors
+      console.log('Debug - Available majors:', availableMajors.value)
+    } else {
+      console.log('Debug - No majors found in the document')
     }
     
     if (!selectedMajor.value) {
+      console.log('Debug - No selected major')
       loading.value = false
       return
     }
     
     // Get the project settings for the selected major
     const majorRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, selectedMajor.value)
+    console.log('Debug - Fetching major settings from:', `schools/${schoolId}/projects/${yearData.yearId}/${selectedMajor.value}`)
+    
     const majorDocs = await getDocs(majorRef)
+    console.log('Debug - Major docs empty:', majorDocs.empty, 'Count:', majorDocs.docs.length)
     
     if (!majorDocs.empty) {
-      const majorData = majorDocs.docs[0].data()
+      const majorDoc = majorDocs.docs[0]
+      const majorData = majorDoc.data()
+      const majorDocId = majorDoc.id
+      console.log('Debug - Major document ID:', majorDocId)
+      console.log('Debug - Major data:', majorData)
+      
       projectSettings.value = {
         headers: majorData.headers || {},
         milestones: majorData.milestones || []
@@ -623,6 +740,61 @@ const fetchProjectSettings = async () => {
           newProject.value[headerName] = ''
         })
       }
+      
+      // Clear existing projects
+      projects.value = []
+      
+      // Always fetch projects from all majors for both admin and lecturer
+      const majorsToFetch = availableMajors.value
+      
+      // Fetch projects from each major
+      for (const major of majorsToFetch) {
+        try {
+          // Get the major document ID for this major
+          const majorCollectionRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, major)
+          const majorDocsSnapshot = await getDocs(majorCollectionRef)
+          
+          if (!majorDocsSnapshot.empty) {
+            const majorDocData = majorDocsSnapshot.docs[0]
+            const majorDocId = majorDocData.id
+            
+            // Fetch user's projects from the projectsPerYear subcollection
+            const projectsRef = collection(
+              db, 
+              'schools', 
+              schoolId, 
+              'projects', 
+              yearData.yearId, 
+              major, 
+              majorDocId,
+              'projectsPerYear'
+            )
+            console.log('Debug - Fetching projects from:', `schools/${schoolId}/projects/${yearData.yearId}/${major}/${majorDocId}/projectsPerYear`)
+            
+            // Always filter by userId for both admin and lecturer
+            // Admin can see all projects by removing this filter if needed
+            let projectsQuery = query(projectsRef, where('userId', '==', userId))
+            console.log('Debug - Filtering projects by userId:', userId)
+            
+            const projectsDocs = await getDocs(projectsQuery)
+            console.log('Debug - Projects docs for major', major, 'empty:', projectsDocs.empty, 'Count:', projectsDocs.docs.length)
+            
+            // Add fetched projects to the projects array
+            projectsDocs.forEach(doc => {
+              projects.value.push({
+                id: doc.id,
+                ...doc.data()
+              })
+            })
+          }
+        } catch (majorError) {
+          console.error(`Error fetching projects for major ${major}:`, majorError)
+        }
+      }
+      
+      console.log('Debug - Total loaded projects:', projects.value.length)
+    } else {
+      console.log('Debug - No major documents found')
     }
   } catch (error) {
     console.error('Error fetching project settings:', error)
@@ -663,7 +835,12 @@ const selectMajorForProject = async (major) => {
       newProject.value = {}
       if (majorData.headers) {
         Object.keys(majorData.headers).forEach(headerName => {
-          newProject.value[headerName] = ''
+          // Initialize array fields as empty arrays
+          if (majorData.headers[headerName].type === 'array' && !majorData.headers[headerName].values) {
+            newProject.value[headerName] = []
+          } else {
+            newProject.value[headerName] = ''
+          }
         })
       }
     } else {
@@ -700,27 +877,85 @@ const cancelNewProject = () => {
   showNewProjectForm.value = false
 }
 
-// Save the project (dummy implementation)
-const saveProject = () => {
-  // Add the academic year and major to the project
-  const projectWithYear = {
-    ...newProject.value,
-    academicYear: latestAcademicYear.value,
-    createdAt: new Date(),
-    major: tempSelectedMajor.value
+// Save the project to Firestore
+const saveProject = async () => {
+  try {
+    // Show loading state
+    loading.value = true
+    
+    const schoolId = userStore.currentUser.school
+    
+    // Debug the user object to find the correct ID field
+    console.log('Debug - Current user object:', userStore.currentUser)
+    
+    // Use uid directly since that's what's used in the userStore
+    const userId = userStore.currentUser.uid
+    
+    if (!userId) {
+      console.warn('Debug - User ID (uid) is missing, using fallback')
+      // If we can't find the ID, use a fallback value
+      userId = "unknown-user-" + Date.now() // Generate a unique fallback ID
+    }
+    
+    console.log('Debug - Using userId:', userId)
+    
+    // Add the academic year, major, and user ID to the project
+    const projectData = {
+      ...newProject.value,
+      academicYear: latestAcademicYear.value,
+      createdAt: new Date(),
+      major: tempSelectedMajor.value,
+      userId: userId // Using the uid from currentUser
+    }
+    
+    // First, get the major document ID
+    const majorRef = collection(db, 'schools', schoolId, 'projects', latestAcademicYearId.value, tempSelectedMajor.value)
+    const majorDocs = await getDocs(majorRef)
+    
+    if (majorDocs.empty) {
+      throw new Error('Major document not found')
+    }
+    
+    // Get the major document ID
+    const majorDocId = majorDocs.docs[0].id
+    console.log('Debug - Major document ID:', majorDocId)
+    
+    // Fetch user's projects from the projectsPerYear subcollection
+    const projectsRef = collection(
+      db, 
+      'schools', 
+      schoolId, 
+      'projects', 
+      latestAcademicYearId.value, 
+      tempSelectedMajor.value, 
+      majorDocId,
+      'projectsPerYear'
+    )
+    console.log('Debug - Fetching projects from:', `schools/${schoolId}/projects/${latestAcademicYearId.value}/${tempSelectedMajor.value}/${majorDocId}/projectsPerYear`)
+    
+    // Add the document to Firestore
+    const docRef = await addDoc(projectsRef, projectData)
+    
+    // Add to the local projects array for immediate UI update
+    projects.value.push({
+      id: docRef.id,
+      ...projectData
+    })
+    
+    // Reset the form
+    formStep.value = 1
+    tempSelectedMajor.value = ''
+    newProject.value = {}
+    majorProjectSettings.value = null
+    
+    showNewProjectForm.value = false
+    showToast('Project saved successfully')
+  } catch (error) {
+    console.error('Error saving project:', error)
+    showToast('Failed to save project', 'error')
+  } finally {
+    loading.value = false
   }
-  
-  // Add to the projects array (dummy implementation)
-  projects.value.push(projectWithYear)
-  
-  // Reset the form
-  formStep.value = 1
-  tempSelectedMajor.value = ''
-  newProject.value = {}
-  majorProjectSettings.value = null
-  
-  showNewProjectForm.value = false
-  showToast('Project saved successfully')
 }
 
 // Show toast message
