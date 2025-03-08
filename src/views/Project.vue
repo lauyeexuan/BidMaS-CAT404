@@ -4,8 +4,20 @@
       <!-- Header with Academic Year -->
       <div class="flex justify-between items-center mb-8">
         <h1 class="text-4xl font-bold text-gray-900">Projects</h1>
-        <div class="text-lg bg-blue-100 text-blue-800 px-4 py-2 rounded-lg">
-          Academic Year: {{ latestAcademicYear }}
+        <div class="flex items-center gap-4">
+          <select 
+            v-model="selectedAcademicYear"
+            class="text-lg bg-blue-100 text-blue-800 px-4 py-2 rounded-lg cursor-pointer hover:bg-blue-200 transition-colors"
+            :title="'Current: ' + latestAcademicYear"
+          >
+            <option 
+              v-for="year in availableAcademicYears" 
+              :key="year.yearId" 
+              :value="year.yearId"
+            >
+              {{ year.academicYear }}
+            </option>
+          </select>
         </div>
       </div>
 
@@ -553,6 +565,8 @@ const editingProjectMajorDocId = ref(null)
 const projectSettings = ref(null)
 const latestAcademicYear = ref('')
 const latestAcademicYearId = ref('')
+const selectedAcademicYear = ref('')
+const availableAcademicYears = ref([])
 const selectedMajor = ref('')
 const projects = ref([])
 const newProject = ref({})
@@ -705,16 +719,46 @@ const isFormValid = computed(() => {
   return true
 })
 
-// Fetch project settings for the latest academic year
-const fetchProjectSettings = async () => {
+// Fetch available academic years
+const fetchAvailableYears = async () => {
+  try {
+    const schoolId = userStore.currentUser.school
+    const projectsRef = collection(db, 'schools', schoolId, 'projects')
+    const projectsSnapshot = await getDocs(query(projectsRef))
+    
+    if (projectsSnapshot.empty) {
+      return
+    }
+    
+    // Extract all academic year IDs and convert to readable format
+    const years = projectsSnapshot.docs.map(doc => ({
+      yearId: doc.id,
+      academicYear: formatAcademicYear(doc.id)
+    }))
+    
+    // Sort in descending order
+    years.sort((a, b) => b.yearId.localeCompare(a.yearId))
+    availableAcademicYears.value = years
+    
+    // Set the latest year as default if not already selected
+    if (!selectedAcademicYear.value) {
+      selectedAcademicYear.value = years[0].yearId
+      latestAcademicYear.value = years[0].academicYear
+      latestAcademicYearId.value = years[0].yearId
+    }
+  } catch (error) {
+    console.error('Error fetching available years:', error)
+    showToast('Failed to fetch academic years', 'error')
+  }
+}
+
+// Fetch project settings for the selected year
+const fetchSettings = async () => {
   try {
     loading.value = true
     const schoolId = userStore.currentUser.school
-    
-    // Debug the user object to find the correct ID field
     console.log('Debug - Current user object:', userStore.currentUser)
     
-    // Try to find the user ID from various possible properties
     let userId = userStore.currentUser.id || 
                  userStore.currentUser.uid || 
                  userStore.currentUser._id || 
@@ -722,8 +766,7 @@ const fetchProjectSettings = async () => {
     
     if (!userId) {
       console.warn('Debug - User ID (uid) is missing, using fallback')
-      // If we can't find the ID, use a fallback value
-      userId = "unknown-user-" + Date.now() // Generate a unique fallback ID
+      userId = "unknown-user-" + Date.now()
     }
     
     console.log('Debug - User info:', {
@@ -732,20 +775,17 @@ const fetchProjectSettings = async () => {
       role: userStore.currentUser.role
     })
     
-    // Get the latest academic year
-    const yearData = await getLatestAcademicYear(schoolId)
-    console.log('Debug - Year data:', yearData)
+    // Get the selected academic year
+    const yearData = {
+      yearId: selectedAcademicYear.value,
+      academicYear: formatAcademicYear(selectedAcademicYear.value)
+    }
     
-    if (!yearData) {
+    if (!yearData.yearId) {
       console.log('Debug - No year data found')
       loading.value = false
       return
     }
-    
-    latestAcademicYear.value = yearData.academicYear
-    latestAcademicYearId.value = yearData.yearId
-    
-    console.log('Debug - Academic year:', latestAcademicYear.value, 'ID:', latestAcademicYearId.value)
     
     // Get all available majors regardless of user role
     const projectsRef = doc(db, 'schools', schoolId, 'projects', yearData.yearId)
@@ -1158,8 +1198,20 @@ const showToast = (message, type = 'success') => {
   }, 3000)
 }
 
-// Fetch project settings when component mounts
-onMounted(fetchProjectSettings)
+// Watch for changes in selected academic year
+watch(selectedAcademicYear, async (newYear) => {
+  if (newYear) {
+    latestAcademicYear.value = formatAcademicYear(newYear)
+    latestAcademicYearId.value = newYear
+    await fetchSettings()
+  }
+})
+
+// Update onMounted to fetch available years first
+onMounted(async () => {
+  await fetchAvailableYears()
+  await fetchSettings()
+})
 
 const showDeleteConfirmation = ref(false)
 const projectToDelete = ref(null)
