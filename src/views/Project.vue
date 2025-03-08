@@ -52,15 +52,15 @@
               My Projects
             </button>
             <button 
-              @click="activeTab = 'summary'"
+              @click="activeTab = 'allProjects'"
               class="px-6 py-4 text-sm font-medium border-b-2 focus:outline-none"
               :class="[
-                activeTab === 'summary' 
+                activeTab === 'allProjects' 
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               ]"
             >
-              Project Summary
+              All Projects
             </button>
           </div>
         </div>
@@ -209,47 +209,109 @@
             </div>
           </div>
 
-          <!-- Project Summary Tab -->
+          <!-- All Projects Tab -->
           <div v-else>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <!-- Headers Section -->
-              <div>
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Project Headers</h3>
-                <div class="space-y-3">
-                  <div v-for="(config, headerName) in projectSettings.headers" :key="headerName" 
-                       class="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <p class="font-medium text-gray-900">{{ headerName }}</p>
-                    <div v-if="config.type === 'array' && config.values && config.values.length > 0" class="mt-2">
-                      <div class="flex flex-wrap gap-1">
-                        <span 
-                          v-for="value in config.values" 
-                          :key="value" 
-                          class="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full"
-                        >
-                          {{ value }}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+            <div class="flex justify-between items-center mb-6">
+              <div class="space-y-2">
+                <div class="flex items-center gap-4">
+                  <h2 class="text-2xl font-semibold text-gray-900">All Projects</h2>
+                  <span class="text-sm text-gray-500">(Total: {{ filteredAllProjects.length }})</span>
+                </div>
+                
+                <!-- Major filter tags -->
+                <div v-if="uniqueAllProjectMajors.length > 0" class="flex flex-wrap gap-2">
+                  <button
+                    v-for="major in uniqueAllProjectMajors"
+                    :key="major"
+                    @click="toggleAllMajorFilter(major)"
+                    class="px-3 py-1 rounded-full text-sm font-medium transition-colors flex items-center gap-1"
+                    :class="[
+                      selectedAllMajorFilters.has(major) 
+                        ? getMajorColorClasses(major).selected 
+                        : [getMajorColorClasses(major).bg, getMajorColorClasses(major).text, 'hover:bg-opacity-75'],
+                    ]"
+                  >
+                    <span v-if="selectedAllMajorFilters.has(major)" class="w-2 h-2 rounded-full bg-white"></span>
+                    {{ major }}
+                  </button>
                 </div>
               </div>
+            </div>
 
-              <!-- Milestones Section -->
-              <div>
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Project Milestones</h3>
-                <div class="space-y-3">
-                  <div v-for="(milestone, index) in projectSettings.milestones" :key="index" 
-                       class="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <p class="font-medium text-gray-900">{{ milestone.description }}</p>
-                    <p class="text-sm text-gray-500 flex items-center mt-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
-                      </svg>
-                      {{ formatDate(milestone.deadline) }}
-                    </p>
-                  </div>
+            <!-- Projects Table -->
+            <div v-if="allProjects.length > 0" class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="w-16 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      No.
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Title
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Major
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Created By
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  <tr v-for="(project, index) in paginatedAllProjects" :key="index">
+                    <td class="w-16 px-3 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                      {{ (allProjectsCurrentPage - 1) * itemsPerPage + index + 1 }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {{ project.Title }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                      <span 
+                        class="px-2 py-1 rounded-full text-xs"
+                        :class="[
+                          getMajorColorClasses(project.major).bg,
+                          getMajorColorClasses(project.major).text
+                        ]"
+                      >
+                        {{ project.major }}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {{ getUserName(project.userId) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <!-- Pagination -->
+              <div class="flex items-center justify-between mt-4 px-4">
+                <div class="flex items-center gap-2">
+                  <button 
+                    @click="allProjectsCurrentPage--"
+                    :disabled="allProjectsCurrentPage === 1"
+                    class="px-3 py-1 rounded border"
+                    :class="allProjectsCurrentPage === 1 ? 'bg-gray-100 text-gray-400' : 'hover:bg-gray-50'"
+                  >
+                    Previous
+                  </button>
+                  <span class="text-sm text-gray-600">
+                    Page {{ allProjectsCurrentPage }} of {{ allProjectsTotalPages }}
+                  </span>
+                  <button 
+                    @click="allProjectsCurrentPage++"
+                    :disabled="allProjectsCurrentPage === allProjectsTotalPages"
+                    class="px-3 py-1 rounded border"
+                    :class="allProjectsCurrentPage === allProjectsTotalPages ? 'bg-gray-100 text-gray-400' : 'hover:bg-gray-50'"
+                  >
+                    Next
+                  </button>
                 </div>
               </div>
+            </div>
+
+            <!-- No Projects Message -->
+            <div v-else class="text-center py-8 text-gray-500">
+              No projects found.
             </div>
           </div>
         </div>
@@ -800,6 +862,7 @@ const selectedAcademicYear = ref('')
 const availableAcademicYears = ref([])
 const selectedMajor = ref('')
 const projects = ref([])
+const allProjects = ref([]) // New ref for all projects
 const newProject = ref({})
 const activeTab = ref('myProjects')
 
@@ -1080,6 +1143,9 @@ const fetchSettings = async () => {
     // Now fetch all projects for the user across all majors
     await fetchUserProjects(schoolId, userId, yearData.yearId)
     
+    // Fetch all projects regardless of creator
+    await fetchAllProjects()
+    
     // If no project settings were loaded (because selected major had no settings),
     // try to load settings from the first major that has projects
     if (!projectSettings.value && projects.value.length > 0) {
@@ -1192,6 +1258,7 @@ const fetchProjects = async () => {
     }
     
     await fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
+    await fetchAllProjects() // Also fetch all projects
   } catch (error) {
     console.error('Error fetching projects:', error)
     showToast('Failed to refresh projects list', 'error')
@@ -1806,6 +1873,244 @@ const fetchCurrentYearMajors = async () => {
 const isAllMajorsMapped = computed(() => {
   return uniqueSourceProjectMajors.value.every(major => majorMappings.value[major])
 })
+
+// Add new state for all projects filters
+const selectedAllMajorFilters = ref(new Set())
+const uniqueAllProjectMajors = computed(() => {
+  return [...new Set(allProjects.value.map(project => project.major))]
+})
+
+// Map to store user names by ID
+const userNamesMap = ref(new Map())
+
+// Filtered all projects
+const filteredAllProjects = computed(() => {
+  if (selectedAllMajorFilters.value.size === 0) {
+    return allProjects.value
+  }
+  return allProjects.value.filter(project => selectedAllMajorFilters.value.has(project.major))
+})
+
+// Pagination for all projects
+const allProjectsCurrentPage = ref(1)
+const allProjectsTotalPages = computed(() => Math.ceil(filteredAllProjects.value.length / itemsPerPage))
+const paginatedAllProjects = computed(() => {
+  const start = (allProjectsCurrentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredAllProjects.value.slice(start, end)
+})
+
+// Function to toggle all projects major filter
+const toggleAllMajorFilter = (major) => {
+  if (selectedAllMajorFilters.value.has(major)) {
+    selectedAllMajorFilters.value.delete(major)
+  } else {
+    selectedAllMajorFilters.value.add(major)
+  }
+}
+
+// Watch for all projects length changes to reset page if needed
+watch(allProjects, () => {
+  if (allProjectsCurrentPage.value > allProjectsTotalPages.value) {
+    allProjectsCurrentPage.value = allProjectsTotalPages.value || 1
+  }
+})
+
+// Fetch all projects regardless of creator
+const fetchAllProjects = async () => {
+  try {
+    const schoolId = userStore.currentUser.school
+    
+    // Clear existing all projects
+    allProjects.value = []
+    
+    // Create a map to track projects by ID to avoid duplicates
+    const projectsMap = new Map()
+    // Create a set to track unique user IDs
+    const userIds = new Set()
+    
+    // Fetch projects from all majors
+    for (const major of availableMajors.value) {
+      try {
+        const majorRef = collection(db, 'schools', schoolId, 'projects', selectedAcademicYear.value, major)
+        const majorDocs = await getDocs(majorRef)
+        
+        if (!majorDocs.empty) {
+          const majorDoc = majorDocs.docs[0]
+          const majorDocId = majorDoc.id
+          
+          const projectsRef = collection(
+            db, 
+            'schools', 
+            schoolId, 
+            'projects', 
+            selectedAcademicYear.value, 
+            major, 
+            majorDocId,
+            'projectsPerYear'
+          )
+          
+          // Get all projects without filtering by userId
+          const projectsDocs = await getDocs(projectsRef)
+          
+          projectsDocs.forEach(doc => {
+            const projectId = doc.id
+            const projectData = doc.data()
+            
+            // Add userId to the set of IDs to fetch
+            if (projectData.userId) {
+              userIds.add(projectData.userId)
+            }
+            
+            // Use Map to ensure uniqueness by project ID
+            if (!projectsMap.has(projectId)) {
+              projectsMap.set(projectId, {
+                id: projectId,
+                ...projectData
+              })
+            }
+          })
+        }
+      } catch (majorError) {
+        console.error(`Error fetching all projects for major ${major}:`, majorError)
+      }
+    }
+    
+    // Convert map values to array
+    allProjects.value = Array.from(projectsMap.values())
+    
+    console.log('Debug - Total unique loaded all projects:', allProjects.value.length)
+    
+    // Fetch user names for all projects
+    await fetchUserNames(Array.from(userIds))
+    
+  } catch (error) {
+    console.error('Error fetching all projects:', error)
+    showToast('Failed to load all projects', 'error')
+  }
+}
+
+// Function to fetch user names by IDs
+const fetchUserNames = async (userIds) => {
+  try {
+    if (!userIds.length) return
+    
+    console.log('Debug - User IDs to fetch:', userIds)
+    
+    // Clear the map before fetching new data
+    userNamesMap.value.clear()
+    
+    const schoolId = userStore.currentUser.school
+    
+    // Try multiple possible paths for user documents
+    const possiblePaths = [
+      { name: 'root users collection', path: () => doc(db, 'users', '') },
+      { name: 'school users collection', path: () => doc(db, 'schools', schoolId, 'users', '') },
+      { name: 'specific school users collection', path: () => doc(db, 'schools', 'Computer Sciences', 'users', '') },
+      { name: 'auth users collection', path: () => doc(db, 'auth', 'users', '') }
+    ]
+    
+    for (const { name, path } of possiblePaths) {
+      try {
+        console.log(`Debug - Trying ${name}`)
+        
+        // Get the parent path to check if the collection exists
+        const parentPath = path().path.split('/').slice(0, -1).join('/')
+        const parentRef = doc(db, parentPath)
+        const parentDoc = await getDoc(parentRef)
+        
+        if (parentDoc.exists()) {
+          console.log(`Debug - ${name} parent path exists`)
+          
+          // Try to get a list of users from this collection
+          const usersCollectionPath = parentPath
+          const usersRef = collection(db, usersCollectionPath)
+          
+          // Just try to get any documents to see if the collection exists
+          const sampleQuery = query(usersRef, limit(1))
+          const sampleDocs = await getDocs(sampleQuery)
+          
+          console.log(`Debug - ${name} has documents:`, !sampleDocs.empty)
+          
+          if (!sampleDocs.empty) {
+            console.log(`Debug - Will try to fetch users from ${name}`)
+            
+            // This collection exists and has documents, try to fetch our users
+            for (const userId of userIds) {
+              try {
+                const userDocPath = `${usersCollectionPath}/${userId}`
+                console.log(`Debug - Trying to fetch user from: ${userDocPath}`)
+                
+                const userDoc = await getDoc(doc(db, userDocPath))
+                
+                if (userDoc.exists()) {
+                  const userData = userDoc.data()
+                  console.log(`Debug - Found user in ${name}:`, userId, userData)
+                  
+                  // Store the user's name in the map using their ID as the key
+                  if (userData.name || userData.displayName || userData.email) {
+                    const userName = userData.name || userData.displayName || userData.email.split('@')[0]
+                    userNamesMap.value.set(userId, userName)
+                    console.log(`Debug - Added user from ${name}:`, userId, '->', userName)
+                  } else {
+                    console.log(`Debug - User in ${name} has no name fields:`, userData)
+                  }
+                } else {
+                  console.log(`Debug - User not found in ${name}:`, userId)
+                }
+              } catch (docError) {
+                console.error(`Error fetching user from ${name}:`, userId, docError)
+              }
+            }
+          }
+        } else {
+          console.log(`Debug - ${name} parent path does not exist`)
+        }
+      } catch (error) {
+        console.error(`Error checking ${name}:`, error)
+      }
+    }
+    
+    // If we couldn't find any users, add some default mappings for known users
+    if (userNamesMap.value.size === 0) {
+      console.log('Debug - No users found in any collection, using fallbacks')
+      
+      // Add current user
+      if (userIds.includes(userStore.currentUser.uid)) {
+        userNamesMap.value.set(
+          userStore.currentUser.uid, 
+          userStore.currentUser.name || userStore.currentUser.displayName || 'You'
+        )
+        console.log('Debug - Added current user to map')
+      }
+    }
+    
+    console.log('Debug - Final userNamesMap size:', userNamesMap.value.size)
+    console.log('Debug - Final userNamesMap:', Object.fromEntries(userNamesMap.value))
+  } catch (error) {
+    console.error('Error fetching user names:', error)
+  }
+}
+
+// Function to get user name by ID
+const getUserName = (userId) => {
+  // If it's the current user, use their name from the userStore
+  if (userId === userStore.currentUser.uid) {
+    return userStore.currentUser.name || userStore.currentUser.displayName || 'You';
+  }
+  
+  // If we have the name in our map, use it
+  const name = userNamesMap.value.get(userId);
+  if (name) return name;
+  
+  // Otherwise, format the user ID to be more readable
+  // Show first 4 and last 4 characters of the ID
+  if (userId && userId.length > 8) {
+    return `User ${userId.substring(0, 4)}...${userId.substring(userId.length - 4)}`;
+  }
+  
+  return 'Unknown User';
+}
 </script>
 
 <style scoped>

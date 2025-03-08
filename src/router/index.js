@@ -5,7 +5,7 @@ import Home from '@/views/Home.vue'
 import Dashboard from '@/views/Dashboard.vue'
 import { useUserStore } from '@/stores/userStore'
 import ProjectSettings from '@/views/ProjectSettings.vue'
-import Project from '@/views/Project.vue'
+import ProjectWrapper from '@/views/ProjectWrapper.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -53,8 +53,8 @@ const router = createRouter({
     {
       path: '/projects',
       name: 'Projects',
-      component: Project,
-      meta: { requiresAuth: true, roles: ['lecturer'] }
+      component: ProjectWrapper,
+      meta: { requiresAuth: true, roles: ['lecturer','student'] }
     },
     // {
     //   path: '/profile',
