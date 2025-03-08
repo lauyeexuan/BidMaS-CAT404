@@ -187,46 +187,65 @@
       <div v-if="showNewProjectForm" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
         <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-lg bg-white">
           <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-semibold text-gray-900">New Project</h2>
+            <h2 class="text-2xl font-semibold text-gray-900">
+              {{ formStep === 1 ? 'Select Major' : formStep === 2 ? 'New Project Details' : 'Project Preview' }}
+            </h2>
             <button 
-              @click="showNewProjectForm = false"
+              @click="cancelNewProject"
               class="text-gray-600 hover:text-gray-900"
             >
               ✕
             </button>
           </div>
 
-          <form @submit.prevent="saveProject" class="space-y-6">
-            <!-- Dynamic form fields based on project headers -->
-            <div v-for="(config, headerName) in projectSettings.headers" :key="headerName" class="space-y-2">
-              <label :for="headerName" class="block text-sm font-medium text-gray-700">{{ headerName }}</label>
-              
-              <!-- String input -->
-              <input 
-                v-if="config.type === 'string'"
-                :id="headerName"
-                v-model="newProject[headerName]"
-                type="text"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                :placeholder="`Enter ${headerName.toLowerCase()}`"
-              >
-              
-              <!-- Array/Select input -->
-              <select 
-                v-else-if="config.type === 'array' && config.values && config.values.length > 0"
-                :id="headerName"
-                v-model="newProject[headerName]"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              >
-                <option value="" disabled>Select {{ headerName.toLowerCase() }}</option>
-                <option v-for="value in config.values" :key="value" :value="value">
-                  {{ value }}
-                </option>
-              </select>
-              
-              <!-- Label field (read-only) -->
-              <div v-else-if="config.type === 'label'" class="mt-1 p-2 bg-gray-100 rounded-md text-sm text-gray-700">
-                This is a label field (no input required)
+          <!-- Step indicator -->
+          <div class="mb-10">
+            <div class="flex items-center">
+              <div class="flex items-center text-blue-600 relative">
+                <div class="rounded-full transition duration-500 ease-in-out h-12 w-12 py-3 border-2 border-blue-600 text-center">
+                  <span class="text-blue-600 font-bold">1</span>
+                </div>
+                <div class="absolute top-0 -ml-10 text-center mt-16 w-32 text-xs font-medium uppercase" :class="formStep >= 1 ? 'text-blue-600' : 'text-gray-500'">
+                  Select Major
+                </div>
+              </div>
+              <div class="flex-auto border-t-2 transition duration-500 ease-in-out" :class="formStep > 1 ? 'border-blue-600' : 'border-gray-300'"></div>
+              <div class="flex items-center text-white relative">
+                <div class="rounded-full transition duration-500 ease-in-out h-12 w-12 py-3 border-2 text-center" :class="formStep >= 2 ? 'border-blue-600 text-blue-600' : 'border-gray-300 text-gray-500'">
+                  <span class="font-bold">2</span>
+                </div>
+                <div class="absolute top-0 -ml-10 text-center mt-16 w-32 text-xs font-medium uppercase" :class="formStep >= 2 ? 'text-blue-600' : 'text-gray-500'">
+                  Project Details
+                </div>
+              </div>
+              <div class="flex-auto border-t-2 transition duration-500 ease-in-out" :class="formStep > 2 ? 'border-blue-600' : 'border-gray-300'"></div>
+              <div class="flex items-center text-white relative">
+                <div class="rounded-full transition duration-500 ease-in-out h-12 w-12 py-3 border-2 text-center" :class="formStep >= 3 ? 'border-blue-600 text-blue-600' : 'border-gray-300 text-gray-500'">
+                  <span class="font-bold">3</span>
+                </div>
+                <div class="absolute top-0 -ml-10 text-center mt-16 w-32 text-xs font-medium uppercase" :class="formStep >= 3 ? 'text-blue-600' : 'text-gray-500'">
+                  Preview
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 1: Major Selection -->
+          <div v-if="formStep === 1" class="space-y-6 mt-6">
+            <div class="space-y-2">              
+              <div v-if="availableMajors.length > 0" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div 
+                  v-for="major in availableMajors" 
+                  :key="major"
+                  @click="selectMajorForProject(major)"
+                  class="p-4 border rounded-lg cursor-pointer transition-colors"
+                  :class="tempSelectedMajor === major ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'"
+                >
+                  <div class="font-medium">{{ major }}</div>
+                </div>
+              </div>
+              <div v-else class="text-center py-4 text-gray-500">
+                No majors available. Please contact an administrator.
               </div>
             </div>
 
@@ -234,21 +253,200 @@
               <div class="flex justify-end gap-3">
                 <button 
                   type="button"
-                  @click="showNewProjectForm = false"
+                  @click="cancelNewProject"
                   class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button 
-                  type="submit"
+                  type="button"
+                  @click="goToStep(2)"
+                  class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700"
+                  :disabled="!tempSelectedMajor"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Project Details Form -->
+          <div v-else-if="formStep === 2" class="space-y-6">
+            <div v-if="majorProjectSettings">
+              <!-- Dynamic form fields based on project headers -->
+              <div v-for="(config, headerName) in sortedHeaders" :key="headerName" class="space-y-2 mb-6">
+                <label :for="headerName" class="block text-sm font-medium text-gray-700 mb-2">
+                  {{ headerName }}
+                  <span v-if="config.required" class="text-red-500">*</span>
+                </label>
+                
+                <!-- String input -->
+                <input 
+                  v-if="config.type === 'string'"
+                  :id="headerName"
+                  v-model="newProject[headerName]"
+                  type="text"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm py-2.5 px-3"
+                  :placeholder="`Enter ${headerName.toLowerCase()}`"
+                >
+                
+                <!-- Array/Select input -->
+                <div v-else-if="config.type === 'array'" class="space-y-3">
+                  <!-- Dropdown for fields with predefined values -->
+                  <select
+                    v-if="config.values && config.values.length > 0"
+                    :id="headerName"
+                    v-model="newProject[headerName]"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm py-2.5 px-3"
+                  >
+                    <option value="" disabled>Select {{ headerName.toLowerCase() }}</option>
+                    <option v-for="value in config.values" :key="value" :value="value">
+                      {{ value }}
+                    </option>
+                  </select>
+
+                  <!-- Text input + Add button for fields without predefined values -->
+                  <template v-else>
+                    <div class="flex gap-2">
+                      <input 
+                        type="text"
+                        :id="`${headerName}-input`"
+                        v-model="tempArrayValue"
+                        @keyup.enter="addArrayValue(headerName)"
+                        class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm py-2.5 px-3"
+                        :placeholder="`Enter value for ${headerName.toLowerCase()}`"
+                      >
+                      <button 
+                        @click="addArrayValue(headerName)"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                      >
+                        Add
+                      </button>
+                    </div>
+                    
+                    <!-- Display added values as tags -->
+                    <div v-if="newProject[headerName]?.length > 0" class="flex flex-wrap gap-2">
+                      <div 
+                        v-for="(value, index) in newProject[headerName]" 
+                        :key="index"
+                        class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                      >
+                        {{ value }}
+                        <button 
+                          @click="removeArrayValue(headerName, index)"
+                          class="text-blue-600 hover:text-blue-800"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+                
+                <!-- Label field (read-only) -->
+                <div v-else-if="config.type === 'label'" class="mt-1 p-3 bg-gray-100 rounded-md text-sm text-gray-700">
+                  This is a label field (no input required)
+                </div>
+              </div>
+            </div>
+            <div v-else class="text-center py-4 text-gray-500">
+              No project settings found for this major. Please contact an administrator.
+            </div>
+
+            <div class="pt-5 border-t border-gray-200">
+              <div class="flex justify-between gap-3">
+                <button 
+                  type="button"
+                  @click="goToStep(1)"
+                  class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+                >
+                  Back
+                </button>
+                <button 
+                  type="button"
+                  @click="goToStep(3)"
                   class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700"
                   :disabled="!isFormValid"
+                >
+                  Preview
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3: Preview -->
+          <div v-else-if="formStep === 3" class="space-y-6">
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <h3 class="text-lg font-medium text-gray-900 mb-4">Project Preview</h3>
+              
+              <div class="space-y-4">
+                <div class="flex border-b border-gray-200 pb-2">
+                  <div class="w-1/3 font-medium text-gray-700">Major:</div>
+                  <div class="w-2/3">{{ tempSelectedMajor }}</div>
+                </div>
+                
+                <div v-for="(config, headerName) in sortedHeaders" :key="headerName" 
+                     class="flex border-b border-gray-200 pb-2">
+                  <div class="w-1/3 font-medium text-gray-700">{{ headerName }}:</div>
+                  <div class="w-2/3">
+                    <!-- Array values displayed as tags -->
+                    <div v-if="config.type === 'array'" class="flex flex-wrap gap-2">
+                      <!-- Single value for predefined arrays -->
+                      <span 
+                        v-if="config.values && config.values.length > 0"
+                        class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"
+                      >
+                        {{ newProject[headerName] || 'N/A' }}
+                      </span>
+                      <!-- Multiple values for custom arrays -->
+                      <template v-else>
+                        <span 
+                          v-for="(value, index) in newProject[headerName]" 
+                          :key="index"
+                          class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"
+                        >
+                          {{ value }}
+                        </span>
+                      </template>
+                    </div>
+                    <!-- Regular value display -->
+                    <template v-else>
+                      {{ newProject[headerName] || 'N/A' }}
+                    </template>
+                  </div>
+                </div>
+                
+                <div class="flex border-b border-gray-200 pb-2">
+                  <div class="w-1/3 font-medium text-gray-700">Academic Year:</div>
+                  <div class="w-2/3">{{ latestAcademicYear }}</div>
+                </div>
+                
+                <div class="flex">
+                  <div class="w-1/3 font-medium text-gray-700">Created At:</div>
+                  <div class="w-2/3">{{ formatDate(new Date()) }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pt-5 border-t border-gray-200">
+              <div class="flex justify-between gap-3">
+                <button 
+                  type="button"
+                  @click="goToStep(2)"
+                  class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+                >
+                  Back
+                </button>
+                <button 
+                  type="button"
+                  @click="saveProject"
+                  class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700"
                 >
                   Save Project
                 </button>
               </div>
             </div>
-          </form>
+          </div>
         </div>
       </div>
     </div>
@@ -276,6 +474,12 @@ const projects = ref([])
 const newProject = ref({})
 const activeTab = ref('myProjects')
 
+// New form step variables
+const formStep = ref(1)
+const tempSelectedMajor = ref('')
+const availableMajors = ref([])
+const majorProjectSettings = ref(null)
+
 // Pagination
 const currentPage = ref(1)
 const itemsPerPage = 10
@@ -293,6 +497,77 @@ watch(projects, () => {
   if (currentPage.value > totalPages.value) {
     currentPage.value = totalPages.value || 1
   }
+})
+
+// Computed property to sort headers with Title first, keep original order for others
+const sortedHeaders = computed(() => {
+  if (!majorProjectSettings.value?.headers) return {}
+  
+  // Get all headers
+  const headers = majorProjectSettings.value.headers
+  
+  // Create new object with Title first
+  const ordered = {}
+  
+  // Add Title if it exists
+  if ('Title' in headers) {
+    ordered['Title'] = headers['Title']
+  }
+  
+  // Add all other headers in their original order
+  Object.entries(headers).forEach(([key, value]) => {
+    if (key !== 'Title') {
+      ordered[key] = value
+    }
+  })
+  
+  return ordered
+})
+
+// Add new ref for temporary array value input
+const tempArrayValue = ref('')
+
+// Add new functions for array value management
+const addArrayValue = (headerName) => {
+  const value = tempArrayValue.value.trim()
+  if (!value) return
+  
+  // Initialize array if it doesn't exist
+  if (!newProject.value[headerName]) {
+    newProject.value[headerName] = []
+  }
+  
+  // Add new value
+  newProject.value[headerName].push(value)
+  
+  // Clear input
+  tempArrayValue.value = ''
+}
+
+const removeArrayValue = (headerName, index) => {
+  newProject.value[headerName].splice(index, 1)
+}
+
+// Modify isFormValid to handle array fields
+const isFormValid = computed(() => {
+  if (!majorProjectSettings.value || !majorProjectSettings.value.headers) return false
+  
+  // Check if all required fields are filled
+  for (const [headerName, config] of Object.entries(majorProjectSettings.value.headers)) {
+    // Skip label fields
+    if (config.type === 'label') continue
+    
+    // For array fields, check if there's at least one value when required
+    if (config.type === 'array') {
+      if (config.required && (!newProject.value[headerName] || newProject.value[headerName].length === 0)) {
+        return false
+      }
+    } else if (config.required && !newProject.value[headerName]) {
+      return false
+    }
+  }
+  
+  return true
 })
 
 // Fetch project settings for the latest academic year
@@ -320,6 +595,9 @@ const fetchProjectSettings = async () => {
       const projectsDoc = await getDoc(projectsRef)
       if (projectsDoc.exists() && projectsDoc.data().majors && projectsDoc.data().majors.length > 0) {
         selectedMajor.value = projectsDoc.data().majors[0]
+        
+        // Store all available majors
+        availableMajors.value = projectsDoc.data().majors
       }
     }
     
@@ -363,44 +641,83 @@ const formatDate = (date) => {
   return timestamp.toLocaleDateString()
 }
 
-// Check if the form is valid
-const isFormValid = computed(() => {
-  if (!projectSettings.value || !projectSettings.value.headers) return false
+// New function to handle major selection
+const selectMajorForProject = async (major) => {
+  tempSelectedMajor.value = major
   
-  // Check if all required fields are filled
-  for (const [headerName, config] of Object.entries(projectSettings.value.headers)) {
-    // Skip label fields
-    if (config.type === 'label') continue
+  try {
+    const schoolId = userStore.currentUser.school
     
-    // Check if the field has a value
-    if (!newProject.value[headerName]) {
-      return false
+    // Get the project settings for the selected major
+    const majorRef = collection(db, 'schools', schoolId, 'projects', latestAcademicYearId.value, major)
+    const majorDocs = await getDocs(majorRef)
+    
+    if (!majorDocs.empty) {
+      const majorData = majorDocs.docs[0].data()
+      majorProjectSettings.value = {
+        headers: majorData.headers || {},
+        milestones: majorData.milestones || []
+      }
+      
+      // Initialize newProject with empty values for each header
+      newProject.value = {}
+      if (majorData.headers) {
+        Object.keys(majorData.headers).forEach(headerName => {
+          newProject.value[headerName] = ''
+        })
+      }
+    } else {
+      majorProjectSettings.value = null
+      newProject.value = {}
     }
+  } catch (error) {
+    console.error('Error fetching major project settings:', error)
+    showToast('Failed to load major settings', 'error')
+  }
+}
+
+// Function to navigate between form steps
+const goToStep = (step) => {
+  if (step === 2 && !tempSelectedMajor.value) {
+    showToast('Please select a major first', 'error')
+    return
   }
   
-  return true
-})
+  if (step === 3 && !isFormValid.value) {
+    showToast('Please fill in all required fields', 'error')
+    return
+  }
+  
+  formStep.value = step
+}
+
+// Function to cancel and reset the form
+const cancelNewProject = () => {
+  formStep.value = 1
+  tempSelectedMajor.value = ''
+  newProject.value = {}
+  majorProjectSettings.value = null
+  showNewProjectForm.value = false
+}
 
 // Save the project (dummy implementation)
 const saveProject = () => {
-  // Add the academic year to the project
+  // Add the academic year and major to the project
   const projectWithYear = {
     ...newProject.value,
     academicYear: latestAcademicYear.value,
     createdAt: new Date(),
-    major: selectedMajor.value
+    major: tempSelectedMajor.value
   }
   
   // Add to the projects array (dummy implementation)
   projects.value.push(projectWithYear)
   
   // Reset the form
+  formStep.value = 1
+  tempSelectedMajor.value = ''
   newProject.value = {}
-  if (projectSettings.value && projectSettings.value.headers) {
-    Object.keys(projectSettings.value.headers).forEach(headerName => {
-      newProject.value[headerName] = ''
-    })
-  }
+  majorProjectSettings.value = null
   
   showNewProjectForm.value = false
   showToast('Project saved successfully')
