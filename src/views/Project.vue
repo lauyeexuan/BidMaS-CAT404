@@ -102,6 +102,9 @@
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Major
                     </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -122,6 +125,28 @@
                       >
                         {{ project.major }}
                       </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <div class="flex items-center gap-2">
+                        <button 
+                          @click="editProject(project)"
+                          class="text-blue-600 hover:text-blue-800"
+                          title="Edit project"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                          </svg>
+                        </button>
+                        <button 
+                          @click="confirmDeleteProject(project)"
+                          class="text-red-600 hover:text-red-800"
+                          title="Delete project"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -206,22 +231,22 @@
       </div>
 
       <!-- New Project Form Modal -->
-      <div v-if="showNewProjectForm" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div v-if="showNewProjectForm || showEditProjectForm" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
         <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-lg bg-white">
           <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-semibold text-gray-900">
-              {{ formStep === 1 ? 'Select Major' : formStep === 2 ? 'New Project Details' : 'Project Preview' }}
+              {{ isEditMode ? 'Edit Project' : formStep === 1 ? 'Select Major' : formStep === 2 ? 'New Project Details' : 'Project Preview' }}
             </h2>
             <button 
-              @click="cancelNewProject"
+              @click="cancelProjectForm"
               class="text-gray-600 hover:text-gray-900"
             >
               ✕
             </button>
           </div>
 
-          <!-- Step indicator -->
-          <div class="mb-10">
+          <!-- Step indicator - only show for new projects -->
+          <div v-if="!isEditMode" class="mb-10">
             <div class="flex items-center">
               <div class="flex items-center text-blue-600 relative">
                 <div class="rounded-full transition duration-500 ease-in-out h-12 w-12 py-3 border-2 border-blue-600 text-center">
@@ -253,7 +278,7 @@
           </div>
 
           <!-- Step 1: Major Selection -->
-          <div v-if="formStep === 1" class="space-y-6 mt-6">
+          <div v-if="formStep === 1 && !isEditMode" class="space-y-6 mt-6">
             <div class="space-y-2">              
               <div v-if="availableMajors.length > 0" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div 
@@ -275,7 +300,7 @@
               <div class="flex justify-end gap-3">
                 <button 
                   type="button"
-                  @click="cancelNewProject"
+                  @click="cancelProjectForm"
                   class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
                 >
                   Cancel
@@ -293,8 +318,10 @@
           </div>
 
           <!-- Step 2: Project Details Form -->
-          <div v-else-if="formStep === 2" class="space-y-6">
+          <div v-else-if="formStep === 2 || isEditMode" class="space-y-6">
             <div v-if="majorProjectSettings">
+              <!-- Remove the major display in edit mode -->
+              
               <!-- Dynamic form fields based on project headers -->
               <div v-for="(config, headerName) in sortedHeaders" :key="headerName" class="space-y-2 mb-6">
                 <label :for="headerName" class="block text-sm font-medium text-gray-700 mb-2">
@@ -378,6 +405,7 @@
             <div class="pt-5 border-t border-gray-200">
               <div class="flex justify-between gap-3">
                 <button 
+                  v-if="!isEditMode"
                   type="button"
                   @click="goToStep(1)"
                   class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
@@ -386,18 +414,18 @@
                 </button>
                 <button 
                   type="button"
-                  @click="goToStep(3)"
+                  @click="isEditMode ? saveProject() : goToStep(3)"
                   class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700"
                   :disabled="!isFormValid"
                 >
-                  Preview
+                  {{ isEditMode ? 'Update Project' : 'Preview' }}
                 </button>
               </div>
             </div>
           </div>
 
           <!-- Step 3: Preview -->
-          <div v-else-if="formStep === 3" class="space-y-6">
+          <div v-else-if="formStep === 3 && !isEditMode" class="space-y-6">
             <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
               <h3 class="text-lg font-medium text-gray-900 mb-4">Project Preview</h3>
               
@@ -464,10 +492,40 @@
                   @click="saveProject"
                   class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700"
                 >
-                  Save Project
+                  {{ isEditMode ? 'Update Project' : 'Save Project' }}
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Delete Confirmation Modal -->
+      <div v-if="showDeleteConfirmation" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-lg bg-white">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium text-gray-900">Confirm Delete</h3>
+            <button 
+              @click="showDeleteConfirmation = false"
+              class="text-gray-600 hover:text-gray-900"
+            >
+              ✕
+            </button>
+          </div>
+          <p class="mb-4 text-gray-600">Are you sure you want to delete this project? This action cannot be undone.</p>
+          <div class="flex justify-end gap-3">
+            <button 
+              @click="showDeleteConfirmation = false"
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button 
+              @click="deleteProject"
+              class="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md shadow-sm hover:bg-red-700"
+            >
+              Delete
+            </button>
           </div>
         </div>
       </div>
@@ -481,13 +539,17 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { db } from '@/firebase'
-import { doc, collection, getDocs, query, where, getDoc, addDoc } from 'firebase/firestore'
+import { doc, collection, getDocs, query, where, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { useUserStore } from '@/stores/userStore'
 import { getLatestAcademicYear, formatAcademicYear } from '@/utils/latestAcademicYear'
 
 const userStore = useUserStore()
 const loading = ref(true)
 const showNewProjectForm = ref(false)
+const showEditProjectForm = ref(false)
+const isEditMode = ref(false)
+const editingProjectId = ref(null)
+const editingProjectMajorDocId = ref(null)
 const projectSettings = ref(null)
 const latestAcademicYear = ref('')
 const latestAcademicYearId = ref('')
@@ -693,6 +755,10 @@ const fetchProjectSettings = async () => {
     console.log('Debug - Projects doc exists:', projectsDoc.exists(), 'Data:', projectsDoc.data())
     
     if (projectsDoc.exists() && projectsDoc.data().majors && projectsDoc.data().majors.length > 0) {
+      // Store all available majors
+      availableMajors.value = projectsDoc.data().majors
+      console.log('Debug - Available majors:', availableMajors.value)
+      
       // For lecturers, set their assigned major as selected if it exists
       if (userStore.currentUser.role === 'lecturer' && userStore.currentUser.major) {
         selectedMajor.value = userStore.currentUser.major
@@ -701,10 +767,6 @@ const fetchProjectSettings = async () => {
         // For admin or lecturers without assigned major, use first major
         selectedMajor.value = projectsDoc.data().majors[0]
       }
-      
-      // Store all available majors
-      availableMajors.value = projectsDoc.data().majors
-      console.log('Debug - Available majors:', availableMajors.value)
     } else {
       console.log('Debug - No majors found in the document')
     }
@@ -715,86 +777,104 @@ const fetchProjectSettings = async () => {
       return
     }
     
-    // Get the project settings for the selected major
-    const majorRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, selectedMajor.value)
-    console.log('Debug - Fetching major settings from:', `schools/${schoolId}/projects/${yearData.yearId}/${selectedMajor.value}`)
+    // Clear existing projects before fetching
+    projects.value = []
     
-    const majorDocs = await getDocs(majorRef)
-    console.log('Debug - Major docs empty:', majorDocs.empty, 'Count:', majorDocs.docs.length)
+    // Always fetch projects from all majors for both admin and lecturer
+    const majorsToFetch = availableMajors.value
+    console.log('Debug - Fetching projects for majors:', majorsToFetch)
     
-    if (!majorDocs.empty) {
-      const majorDoc = majorDocs.docs[0]
-      const majorData = majorDoc.data()
-      const majorDocId = majorDoc.id
-      console.log('Debug - Major document ID:', majorDocId)
-      console.log('Debug - Major data:', majorData)
-      
-      projectSettings.value = {
-        headers: majorData.headers || {},
-        milestones: majorData.milestones || []
-      }
-      
-      // Initialize newProject with empty values for each header
-      if (majorData.headers) {
-        Object.keys(majorData.headers).forEach(headerName => {
-          newProject.value[headerName] = ''
-        })
-      }
-      
-      // Clear existing projects
-      projects.value = []
-      
-      // Always fetch projects from all majors for both admin and lecturer
-      const majorsToFetch = availableMajors.value
-      
-      // Fetch projects from each major
-      for (const major of majorsToFetch) {
-        try {
-          // Get the major document ID for this major
-          const majorCollectionRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, major)
-          const majorDocsSnapshot = await getDocs(majorCollectionRef)
+    // Fetch projects from each major
+    for (const major of majorsToFetch) {
+      try {
+        // Get the project settings for this major
+        const majorRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, major)
+        console.log('Debug - Fetching major settings from:', `schools/${schoolId}/projects/${yearData.yearId}/${major}`)
+        
+        const majorDocs = await getDocs(majorRef)
+        console.log('Debug - Major docs for', major, 'empty:', majorDocs.empty, 'Count:', majorDocs.docs.length)
+        
+        if (!majorDocs.empty) {
+          const majorDoc = majorDocs.docs[0]
+          const majorData = majorDoc.data()
+          const majorDocId = majorDoc.id
           
-          if (!majorDocsSnapshot.empty) {
-            const majorDocData = majorDocsSnapshot.docs[0]
-            const majorDocId = majorDocData.id
+          // If this is the selected major, store its settings
+          if (major === selectedMajor.value) {
+            projectSettings.value = {
+              headers: majorData.headers || {},
+              milestones: majorData.milestones || []
+            }
             
-            // Fetch user's projects from the projectsPerYear subcollection
-            const projectsRef = collection(
-              db, 
-              'schools', 
-              schoolId, 
-              'projects', 
-              yearData.yearId, 
-              major, 
-              majorDocId,
-              'projectsPerYear'
-            )
-            console.log('Debug - Fetching projects from:', `schools/${schoolId}/projects/${yearData.yearId}/${major}/${majorDocId}/projectsPerYear`)
-            
-            // Always filter by userId for both admin and lecturer
-            // Admin can see all projects by removing this filter if needed
-            let projectsQuery = query(projectsRef, where('userId', '==', userId))
-            console.log('Debug - Filtering projects by userId:', userId)
-            
-            const projectsDocs = await getDocs(projectsQuery)
-            console.log('Debug - Projects docs for major', major, 'empty:', projectsDocs.empty, 'Count:', projectsDocs.docs.length)
-            
-            // Add fetched projects to the projects array
-            projectsDocs.forEach(doc => {
-              projects.value.push({
-                id: doc.id,
-                ...doc.data()
+            // Initialize newProject with empty values for each header
+            if (majorData.headers) {
+              Object.keys(majorData.headers).forEach(headerName => {
+                newProject.value[headerName] = ''
               })
-            })
+            }
           }
-        } catch (majorError) {
-          console.error(`Error fetching projects for major ${major}:`, majorError)
+          
+          // Fetch user's projects from the projectsPerYear subcollection
+          const projectsRef = collection(
+            db, 
+            'schools', 
+            schoolId, 
+            'projects', 
+            yearData.yearId, 
+            major, 
+            majorDocId,
+            'projectsPerYear'
+          )
+          console.log('Debug - Fetching projects from:', `schools/${schoolId}/projects/${yearData.yearId}/${major}/${majorDocId}/projectsPerYear`)
+          
+          // Always filter by userId for both admin and lecturer
+          // Admin can see all projects by removing this filter if needed
+          let projectsQuery = query(projectsRef, where('userId', '==', userId))
+          console.log('Debug - Filtering projects by userId:', userId)
+          
+          const projectsDocs = await getDocs(projectsQuery)
+          console.log('Debug - Projects docs for major', major, 'empty:', projectsDocs.empty, 'Count:', projectsDocs.docs.length)
+          
+          // Add fetched projects to the projects array
+          projectsDocs.forEach(doc => {
+            projects.value.push({
+              id: doc.id,
+              ...doc.data()
+            })
+          })
         }
+      } catch (majorError) {
+        console.error(`Error fetching projects for major ${major}:`, majorError)
       }
+    }
+    
+    console.log('Debug - Total loaded projects:', projects.value.length)
+    console.log('Debug - Projects by major:', projects.value.reduce((acc, project) => {
+      acc[project.major] = (acc[project.major] || 0) + 1;
+      return acc;
+    }, {}))
+    
+    // If no project settings were loaded (because selected major had no settings),
+    // try to load settings from the first major that has projects
+    if (!projectSettings.value && projects.value.length > 0) {
+      const firstProjectMajor = projects.value[0].major;
+      console.log('Debug - No settings loaded, trying to load from first project major:', firstProjectMajor);
       
-      console.log('Debug - Total loaded projects:', projects.value.length)
-    } else {
-      console.log('Debug - No major documents found')
+      const majorRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, firstProjectMajor);
+      const majorDocs = await getDocs(majorRef);
+      
+      if (!majorDocs.empty) {
+        const majorDoc = majorDocs.docs[0];
+        const majorData = majorDoc.data();
+        
+        projectSettings.value = {
+          headers: majorData.headers || {},
+          milestones: majorData.milestones || []
+        };
+        
+        // Update selected major to match
+        selectedMajor.value = firstProjectMajor;
+      }
     }
   } catch (error) {
     console.error('Error fetching project settings:', error)
@@ -869,12 +949,57 @@ const goToStep = (step) => {
 }
 
 // Function to cancel and reset the form
-const cancelNewProject = () => {
+const cancelProjectForm = () => {
   formStep.value = 1
   tempSelectedMajor.value = ''
   newProject.value = {}
   majorProjectSettings.value = null
   showNewProjectForm.value = false
+  showEditProjectForm.value = false
+  isEditMode.value = false
+  editingProjectId.value = null
+  editingProjectMajorDocId.value = null
+}
+
+// Function to edit a project
+const editProject = async (project) => {
+  try {
+    isEditMode.value = true
+    editingProjectId.value = project.id
+    tempSelectedMajor.value = project.major
+    
+    // Get the major document ID for the project's major
+    const schoolId = userStore.currentUser.school
+    const majorRef = collection(db, 'schools', schoolId, 'projects', latestAcademicYearId.value, project.major)
+    const majorDocs = await getDocs(majorRef)
+    
+    if (!majorDocs.empty) {
+      editingProjectMajorDocId.value = majorDocs.docs[0].id
+      const majorData = majorDocs.docs[0].data()
+      majorProjectSettings.value = {
+        headers: majorData.headers || {},
+        milestones: majorData.milestones || []
+      }
+      
+      // Copy project data to newProject
+      newProject.value = { ...project }
+      
+      // Remove fields that shouldn't be editable
+      delete newProject.value.id
+      delete newProject.value.createdAt
+      delete newProject.value.academicYear
+      delete newProject.value.userId
+      // Keep the major field but it will be displayed as read-only
+      
+      // Show the edit form
+      showEditProjectForm.value = true
+    } else {
+      throw new Error('Major document not found')
+    }
+  } catch (error) {
+    console.error('Error preparing project for edit:', error)
+    showToast('Failed to load project for editing', 'error')
+  }
 }
 
 // Save the project to Firestore
@@ -899,57 +1024,101 @@ const saveProject = async () => {
     
     console.log('Debug - Using userId:', userId)
     
-    // Add the academic year, major, and user ID to the project
-    const projectData = {
-      ...newProject.value,
-      academicYear: latestAcademicYear.value,
-      createdAt: new Date(),
-      major: tempSelectedMajor.value,
-      userId: userId // Using the uid from currentUser
+    if (isEditMode.value) {
+      // Update existing project
+      if (!editingProjectId.value || !editingProjectMajorDocId.value) {
+        throw new Error('Missing project ID or major document ID for update')
+      }
+      
+      // Prepare update data
+      const updateData = { ...newProject.value }
+      
+      // Reference to the project document
+      const projectRef = doc(
+        db, 
+        'schools', 
+        schoolId, 
+        'projects', 
+        latestAcademicYearId.value, 
+        tempSelectedMajor.value, 
+        editingProjectMajorDocId.value,
+        'projectsPerYear',
+        editingProjectId.value
+      )
+      
+      console.log('Debug - Updating project at:', projectRef.path)
+      
+      // Update the document in Firestore
+      await updateDoc(projectRef, updateData)
+      
+      // Update the local projects array
+      const index = projects.value.findIndex(p => p.id === editingProjectId.value)
+      if (index !== -1) {
+        // Merge the updated fields with the existing project
+        projects.value[index] = {
+          ...projects.value[index],
+          ...updateData
+        }
+      }
+      
+      showToast('Project updated successfully')
+    } else {
+      // Add the academic year, major, and user ID to the project
+      const projectData = {
+        ...newProject.value,
+        academicYear: latestAcademicYear.value,
+        createdAt: new Date(),
+        major: tempSelectedMajor.value,
+        userId: userId // Using the uid from currentUser
+      }
+      
+      // First, get the major document ID
+      const majorRef = collection(db, 'schools', schoolId, 'projects', latestAcademicYearId.value, tempSelectedMajor.value)
+      const majorDocs = await getDocs(majorRef)
+      
+      if (majorDocs.empty) {
+        throw new Error('Major document not found')
+      }
+      
+      // Get the major document ID
+      const majorDocId = majorDocs.docs[0].id
+      console.log('Debug - Major document ID:', majorDocId)
+      
+      // Fetch user's projects from the projectsPerYear subcollection
+      const projectsRef = collection(
+        db, 
+        'schools', 
+        schoolId, 
+        'projects', 
+        latestAcademicYearId.value, 
+        tempSelectedMajor.value, 
+        majorDocId,
+        'projectsPerYear'
+      )
+      console.log('Debug - Fetching projects from:', `schools/${schoolId}/projects/${latestAcademicYearId.value}/${tempSelectedMajor.value}/${majorDocId}/projectsPerYear`)
+      
+      // Add the document to Firestore
+      const docRef = await addDoc(projectsRef, projectData)
+      
+      // Add to the local projects array for immediate UI update
+      projects.value.push({
+        id: docRef.id,
+        ...projectData
+      })
+      
+      showToast('Project saved successfully')
     }
-    
-    // First, get the major document ID
-    const majorRef = collection(db, 'schools', schoolId, 'projects', latestAcademicYearId.value, tempSelectedMajor.value)
-    const majorDocs = await getDocs(majorRef)
-    
-    if (majorDocs.empty) {
-      throw new Error('Major document not found')
-    }
-    
-    // Get the major document ID
-    const majorDocId = majorDocs.docs[0].id
-    console.log('Debug - Major document ID:', majorDocId)
-    
-    // Fetch user's projects from the projectsPerYear subcollection
-    const projectsRef = collection(
-      db, 
-      'schools', 
-      schoolId, 
-      'projects', 
-      latestAcademicYearId.value, 
-      tempSelectedMajor.value, 
-      majorDocId,
-      'projectsPerYear'
-    )
-    console.log('Debug - Fetching projects from:', `schools/${schoolId}/projects/${latestAcademicYearId.value}/${tempSelectedMajor.value}/${majorDocId}/projectsPerYear`)
-    
-    // Add the document to Firestore
-    const docRef = await addDoc(projectsRef, projectData)
-    
-    // Add to the local projects array for immediate UI update
-    projects.value.push({
-      id: docRef.id,
-      ...projectData
-    })
     
     // Reset the form
     formStep.value = 1
     tempSelectedMajor.value = ''
     newProject.value = {}
     majorProjectSettings.value = null
-    
     showNewProjectForm.value = false
-    showToast('Project saved successfully')
+    showEditProjectForm.value = false
+    isEditMode.value = false
+    editingProjectId.value = null
+    editingProjectMajorDocId.value = null
   } catch (error) {
     console.error('Error saving project:', error)
     showToast('Failed to save project', 'error')
@@ -991,6 +1160,64 @@ const showToast = (message, type = 'success') => {
 
 // Fetch project settings when component mounts
 onMounted(fetchProjectSettings)
+
+const showDeleteConfirmation = ref(false)
+const projectToDelete = ref(null)
+
+// Function to show delete confirmation
+const confirmDeleteProject = (project) => {
+  projectToDelete.value = project
+  showDeleteConfirmation.value = true
+}
+
+// Function to delete a project
+const deleteProject = async () => {
+  try {
+    if (!projectToDelete.value) return
+    
+    const schoolId = userStore.currentUser.school
+    
+    // Get the major document ID for the project's major
+    const majorRef = collection(db, 'schools', schoolId, 'projects', latestAcademicYearId.value, projectToDelete.value.major)
+    const majorDocs = await getDocs(majorRef)
+    
+    if (majorDocs.empty) {
+      throw new Error('Major document not found')
+    }
+    
+    const majorDocId = majorDocs.docs[0].id
+    
+    // Reference to the project document
+    const projectRef = doc(
+      db, 
+      'schools', 
+      schoolId, 
+      'projects', 
+      latestAcademicYearId.value, 
+      projectToDelete.value.major, 
+      majorDocId,
+      'projectsPerYear',
+      projectToDelete.value.id
+    )
+    
+    // Delete the document from Firestore
+    await deleteDoc(projectRef)
+    
+    // Remove from local projects array
+    const index = projects.value.findIndex(p => p.id === projectToDelete.value.id)
+    if (index !== -1) {
+      projects.value.splice(index, 1)
+    }
+    
+    showToast('Project deleted successfully')
+  } catch (error) {
+    console.error('Error deleting project:', error)
+    showToast('Failed to delete project', 'error')
+  } finally {
+    showDeleteConfirmation.value = false
+    projectToDelete.value = null
+  }
+}
 </script>
 
 <style scoped>
