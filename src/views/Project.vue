@@ -211,108 +211,10 @@
 
           <!-- All Projects Tab -->
           <div v-else>
-            <div class="flex justify-between items-center mb-6">
-              <div class="space-y-2">
-                <div class="flex items-center gap-4">
-                  <h2 class="text-2xl font-semibold text-gray-900">All Projects</h2>
-                  <span class="text-sm text-gray-500">(Total: {{ filteredAllProjects.length }})</span>
-                </div>
-                
-                <!-- Major filter tags -->
-                <div v-if="uniqueAllProjectMajors.length > 0" class="flex flex-wrap gap-2">
-                  <button
-                    v-for="major in uniqueAllProjectMajors"
-                    :key="major"
-                    @click="toggleAllMajorFilter(major)"
-                    class="px-3 py-1 rounded-full text-sm font-medium transition-colors flex items-center gap-1"
-                    :class="[
-                      selectedAllMajorFilters.has(major) 
-                        ? getMajorColorClasses(major).selected 
-                        : [getMajorColorClasses(major).bg, getMajorColorClasses(major).text, 'hover:bg-opacity-75'],
-                    ]"
-                  >
-                    <span v-if="selectedAllMajorFilters.has(major)" class="w-2 h-2 rounded-full bg-white"></span>
-                    {{ major }}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Projects Table -->
-            <div v-if="allProjects.length > 0" class="overflow-x-auto">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="w-16 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      No.
-                    </th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Title
-                    </th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Major
-                    </th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Created By
-                    </th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                  <tr v-for="(project, index) in paginatedAllProjects" :key="index">
-                    <td class="w-16 px-3 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                      {{ (allProjectsCurrentPage - 1) * itemsPerPage + index + 1 }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {{ project.Title }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                      <span 
-                        class="px-2 py-1 rounded-full text-xs"
-                        :class="[
-                          getMajorColorClasses(project.major).bg,
-                          getMajorColorClasses(project.major).text
-                        ]"
-                      >
-                        {{ project.major }}
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {{ getUserName(project.userId) }}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <!-- Pagination -->
-              <div class="flex items-center justify-between mt-4 px-4">
-                <div class="flex items-center gap-2">
-                  <button 
-                    @click="allProjectsCurrentPage--"
-                    :disabled="allProjectsCurrentPage === 1"
-                    class="px-3 py-1 rounded border"
-                    :class="allProjectsCurrentPage === 1 ? 'bg-gray-100 text-gray-400' : 'hover:bg-gray-50'"
-                  >
-                    Previous
-                  </button>
-                  <span class="text-sm text-gray-600">
-                    Page {{ allProjectsCurrentPage }} of {{ allProjectsTotalPages }}
-                  </span>
-                  <button 
-                    @click="allProjectsCurrentPage++"
-                    :disabled="allProjectsCurrentPage === allProjectsTotalPages"
-                    class="px-3 py-1 rounded border"
-                    :class="allProjectsCurrentPage === allProjectsTotalPages ? 'bg-gray-100 text-gray-400' : 'hover:bg-gray-50'"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- No Projects Message -->
-            <div v-else class="text-center py-8 text-gray-500">
-              No projects found.
-            </div>
+            <AllProjectsList 
+              :academicYear="selectedAcademicYear" 
+              :availableMajors="availableMajors"
+            />
           </div>
         </div>
       </div>
@@ -846,6 +748,7 @@ import { db } from '@/firebase'
 import { doc, collection, getDocs, query, where, getDoc, addDoc, updateDoc, deleteDoc, limit } from 'firebase/firestore'
 import { useUserStore } from '@/stores/userStore'
 import { getLatestAcademicYear, formatAcademicYear } from '@/utils/latestAcademicYear'
+import AllProjectsList from '@/components/AllProjectsList.vue'
 
 const userStore = useUserStore()
 const loading = ref(true)
