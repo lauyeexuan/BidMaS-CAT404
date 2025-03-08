@@ -83,7 +83,7 @@
                     class="px-3 py-1 rounded-full text-sm font-medium transition-colors flex items-center gap-1"
                     :class="[
                       selectedMajorFilters.has(major) 
-                        ? [getMajorColorClasses(major).bg.replace('100', '500'), 'text-white', 'shadow-sm'] 
+                        ? getMajorColorClasses(major).selected 
                         : [getMajorColorClasses(major).bg, getMajorColorClasses(major).text, 'hover:bg-opacity-75'],
                     ]"
                   >
@@ -620,7 +620,7 @@
                 class="px-3 py-1 rounded-full text-sm font-medium transition-colors flex items-center gap-1"
                 :class="[
                   selectedSourceMajorFilters.has(major) 
-                    ? [getMajorColorClasses(major).bg.replace('100', '500'), 'text-white', 'shadow-sm'] 
+                    ? getMajorColorClasses(major).selected
                     : [getMajorColorClasses(major).bg, getMajorColorClasses(major).text, 'hover:bg-opacity-75'],
                 ]"
               >
@@ -809,15 +809,10 @@ const majorProjectSettings = ref(null)
 // Remove predefined major colors and add dynamic color generation
 const colorPalette = [
   { bg: 'bg-blue-100', text: 'text-blue-800' },
-  { bg: 'bg-green-100', text: 'text-green-800' },
-  { bg: 'bg-purple-100', text: 'text-purple-800' },
-  { bg: 'bg-orange-100', text: 'text-orange-800' },
-  { bg: 'bg-pink-100', text: 'text-pink-800' },
-  { bg: 'bg-indigo-100', text: 'text-indigo-800' },
+  { bg: 'bg-yellow-100', text: 'text-green-800' },
+  { bg: 'bg-pink-100', text: 'text-purple-800' },
   { bg: 'bg-red-100', text: 'text-red-800' },
-  { bg: 'bg-yellow-100', text: 'text-yellow-800' },
-  { bg: 'bg-teal-100', text: 'text-teal-800' },
-  { bg: 'bg-cyan-100', text: 'text-cyan-800' }
+  { bg: 'bg-gray-100', text: 'text-cyan-800' }
 ]
 
 // Map to store major-color associations
@@ -828,7 +823,15 @@ const getMajorColorClasses = (major) => {
   if (!majorColorMap.value.has(major)) {
     // Assign next available color or cycle back to start
     const colorIndex = majorColorMap.value.size % colorPalette.length
-    majorColorMap.value.set(major, colorPalette[colorIndex])
+    const baseColor = colorPalette[colorIndex]
+    
+    // Add selected state colors
+    const selectedClass = baseColor.bg.replace('-100', '-500') + ' text-white shadow-sm'
+    
+    majorColorMap.value.set(major, {
+      ...baseColor,
+      selected: selectedClass
+    })
   }
   return majorColorMap.value.get(major)
 }
@@ -1048,79 +1051,29 @@ const fetchSettings = async () => {
     // Clear existing projects before fetching
     projects.value = []
     
-    // Always fetch projects from all majors for both admin and lecturer
-    const majorsToFetch = availableMajors.value
-    console.log('Debug - Fetching projects for majors:', majorsToFetch)
+    // Get the project settings for the selected major
+    const majorRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, selectedMajor.value)
+    const majorDocs = await getDocs(majorRef)
     
-    // Fetch projects from each major
-    for (const major of majorsToFetch) {
-      try {
-        // Get the project settings for this major
-        const majorRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, major)
-        console.log('Debug - Fetching major settings from:', `schools/${schoolId}/projects/${yearData.yearId}/${major}`)
-        
-        const majorDocs = await getDocs(majorRef)
-        console.log('Debug - Major docs for', major, 'empty:', majorDocs.empty, 'Count:', majorDocs.docs.length)
-        
-        if (!majorDocs.empty) {
-          const majorDoc = majorDocs.docs[0]
-          const majorData = majorDoc.data()
-          const majorDocId = majorDoc.id
-          
-          // If this is the selected major, store its settings
-          if (major === selectedMajor.value) {
-            projectSettings.value = {
-              headers: majorData.headers || {},
-              milestones: majorData.milestones || []
-            }
-            
-            // Initialize newProject with empty values for each header
-            if (majorData.headers) {
-              Object.keys(majorData.headers).forEach(headerName => {
-                newProject.value[headerName] = ''
-              })
-            }
-          }
-          
-          // Fetch user's projects from the projectsPerYear subcollection
-          const projectsRef = collection(
-            db, 
-            'schools', 
-            schoolId, 
-            'projects', 
-            yearData.yearId, 
-            major, 
-            majorDocId,
-            'projectsPerYear'
-          )
-          console.log('Debug - Fetching projects from:', `schools/${schoolId}/projects/${yearData.yearId}/${major}/${majorDocId}/projectsPerYear`)
-          
-          // Always filter by userId for both admin and lecturer
-          // Admin can see all projects by removing this filter if needed
-          let projectsQuery = query(projectsRef, where('userId', '==', userId))
-          console.log('Debug - Filtering projects by userId:', userId)
-          
-          const projectsDocs = await getDocs(projectsQuery)
-          console.log('Debug - Projects docs for major', major, 'empty:', projectsDocs.empty, 'Count:', projectsDocs.docs.length)
-          
-          // Add fetched projects to the projects array
-          projectsDocs.forEach(doc => {
-            projects.value.push({
-              id: doc.id,
-              ...doc.data()
-            })
-          })
-        }
-      } catch (majorError) {
-        console.error(`Error fetching projects for major ${major}:`, majorError)
+    if (!majorDocs.empty) {
+      const majorDoc = majorDocs.docs[0]
+      const majorData = majorDoc.data()
+      
+      projectSettings.value = {
+        headers: majorData.headers || {},
+        milestones: majorData.milestones || []
+      }
+      
+      // Initialize newProject with empty values for each header
+      if (majorData.headers) {
+        Object.keys(majorData.headers).forEach(headerName => {
+          newProject.value[headerName] = ''
+        })
       }
     }
     
-    console.log('Debug - Total loaded projects:', projects.value.length)
-    console.log('Debug - Projects by major:', projects.value.reduce((acc, project) => {
-      acc[project.major] = (acc[project.major] || 0) + 1;
-      return acc;
-    }, {}))
+    // Now fetch all projects for the user across all majors
+    await fetchUserProjects(schoolId, userId, yearData.yearId)
     
     // If no project settings were loaded (because selected major had no settings),
     // try to load settings from the first major that has projects
@@ -1147,6 +1100,96 @@ const fetchSettings = async () => {
   } catch (error) {
     console.error('Error fetching project settings:', error)
     showToast('Failed to load project settings', 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
+// Separate function to fetch user projects
+const fetchUserProjects = async (schoolId, userId, academicYearId) => {
+  try {
+    // Clear existing projects
+    projects.value = []
+    
+    // Create a map to track projects by ID to avoid duplicates
+    const projectsMap = new Map()
+    
+    // Fetch projects from all majors
+    for (const major of availableMajors.value) {
+      try {
+        const majorRef = collection(db, 'schools', schoolId, 'projects', academicYearId, major)
+        const majorDocs = await getDocs(majorRef)
+        
+        if (!majorDocs.empty) {
+          const majorDoc = majorDocs.docs[0]
+          const majorDocId = majorDoc.id
+          
+          const projectsRef = collection(
+            db, 
+            'schools', 
+            schoolId, 
+            'projects', 
+            academicYearId, 
+            major, 
+            majorDocId,
+            'projectsPerYear'
+          )
+          
+          // Filter by userId
+          const projectsQuery = query(projectsRef, where('userId', '==', userId))
+          const projectsDocs = await getDocs(projectsQuery)
+          
+          projectsDocs.forEach(doc => {
+            const projectId = doc.id
+            const projectData = doc.data()
+            
+            // Use Map to ensure uniqueness by project ID
+            if (!projectsMap.has(projectId)) {
+              projectsMap.set(projectId, {
+                id: projectId,
+                ...projectData
+              })
+            }
+          })
+        }
+      } catch (majorError) {
+        console.error(`Error fetching projects for major ${major}:`, majorError)
+      }
+    }
+    
+    // Convert map values to array
+    projects.value = Array.from(projectsMap.values())
+    
+    console.log('Debug - Total unique loaded projects:', projects.value.length)
+    console.log('Debug - Projects by major:', projects.value.reduce((acc, project) => {
+      acc[project.major] = (acc[project.major] || 0) + 1;
+      return acc;
+    }, {}))
+  } catch (error) {
+    console.error('Error fetching user projects:', error)
+  }
+}
+
+// Function to fetch projects (used after import and for refreshing)
+const fetchProjects = async () => {
+  try {
+    loading.value = true
+    const schoolId = userStore.currentUser.school
+    
+    let userId = userStore.currentUser.id || 
+                 userStore.currentUser.uid || 
+                 userStore.currentUser._id || 
+                 userStore.currentUser.userId
+    
+    if (!userId) {
+      console.warn('Debug - User ID (uid) is missing, using fallback')
+      userId = "unknown-user-" + Date.now()
+    }
+    
+    await fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
+  } catch (error) {
+    console.error('Error fetching projects:', error)
+    showToast('Failed to refresh projects list', 'error')
   } finally {
     loading.value = false
   }
@@ -1506,7 +1549,7 @@ const sourceAcademicYear = ref('')
 const sourceProjects = ref([])
 const selectedProjectsToImport = ref([])
 const selectedSourceMajorFilters = ref(new Set())
-const majorMappings = ref(new Map())
+const majorMappings = ref({})
 const currentYearMajors = ref([])
 
 // Computed properties for source projects
@@ -1621,70 +1664,8 @@ const cancelImport = () => {
   sourceProjects.value = []
   selectedProjectsToImport.value = []
   selectedSourceMajorFilters.value.clear()
+  majorMappings.value = {} // Reset mappings
   importLoading.value = false
-}
-
-// Function to fetch projects (used after import)
-const fetchProjects = async () => {
-  try {
-    loading.value = true
-    const schoolId = userStore.currentUser.school
-    
-    let userId = userStore.currentUser.id || 
-                 userStore.currentUser.uid || 
-                 userStore.currentUser._id || 
-                 userStore.currentUser.userId
-    
-    if (!userId) {
-      console.warn('Debug - User ID (uid) is missing, using fallback')
-      userId = "unknown-user-" + Date.now()
-    }
-    
-    // Clear existing projects
-    projects.value = []
-    
-    // Fetch projects from all majors
-    for (const major of availableMajors.value) {
-      try {
-        const majorRef = collection(db, 'schools', schoolId, 'projects', selectedAcademicYear.value, major)
-        const majorDocs = await getDocs(majorRef)
-        
-        if (!majorDocs.empty) {
-          const majorDoc = majorDocs.docs[0]
-          const majorDocId = majorDoc.id
-          
-          const projectsRef = collection(
-            db, 
-            'schools', 
-            schoolId, 
-            'projects', 
-            selectedAcademicYear.value, 
-            major, 
-            majorDocId,
-            'projectsPerYear'
-          )
-          
-          // Filter by userId
-          const projectsQuery = query(projectsRef, where('userId', '==', userId))
-          const projectsDocs = await getDocs(projectsQuery)
-          
-          projectsDocs.forEach(doc => {
-            projects.value.push({
-              id: doc.id,
-              ...doc.data()
-            })
-          })
-        }
-      } catch (majorError) {
-        console.error(`Error fetching projects for major ${major}:`, majorError)
-      }
-    }
-  } catch (error) {
-    console.error('Error fetching projects:', error)
-    showToast('Failed to refresh projects list', 'error')
-  } finally {
-    loading.value = false
-  }
 }
 
 // Update the handleImport function
@@ -1707,25 +1688,57 @@ const handleImport = async () => {
           continue // Skip if no mapping found
         }
         
-        // Get the major document ID for the target major
+        // Get the major document ID and configuration for the target major
         const targetMajorRef = collection(db, 'schools', schoolId, 'projects', selectedAcademicYear.value, targetMajor)
         const targetMajorDocs = await getDocs(targetMajorRef)
         
         if (!targetMajorDocs.empty) {
-          const targetMajorDocId = targetMajorDocs.docs[0].id
+          const targetMajorDoc = targetMajorDocs.docs[0]
+          const targetMajorDocId = targetMajorDoc.id
+          const targetMajorConfig = targetMajorDoc.data()
           
-          // Prepare the project data
-          const projectData = {
-            ...project,
-            major: targetMajor, // Use the target major
+          // Get the headers configuration for the target major
+          const targetHeaders = targetMajorConfig.headers || {}
+          
+          // Prepare the project data with only matching headers
+          const filteredProjectData = {
+            Title: project.Title, // Always keep the Title
+            major: targetMajor,
             academicYear: formatAcademicYear(selectedAcademicYear.value),
             createdAt: new Date(),
-            userId: userStore.currentUser.uid // Ensure userId is set
+            userId: userStore.currentUser.uid
           }
           
-          // Remove fields that shouldn't be copied
-          delete projectData.id
-          delete projectData.majorDocId
+          // Only copy fields that exist in target major's headers
+          Object.keys(project).forEach(field => {
+            if (targetHeaders[field]) {
+              // Check if the field types match
+              if (targetHeaders[field].type === 'array' && Array.isArray(project[field])) {
+                // For array fields, check if values are predefined
+                if (targetHeaders[field].values && targetHeaders[field].values.length > 0) {
+                  // If target has predefined values, only keep the value if it exists in the predefined list
+                  if (targetHeaders[field].values.includes(project[field])) {
+                    filteredProjectData[field] = project[field]
+                  }
+                } else {
+                  // If no predefined values, keep the array as is
+                  filteredProjectData[field] = project[field]
+                }
+              } else if (targetHeaders[field].type === 'string' && typeof project[field] === 'string') {
+                // For string fields, copy directly
+                filteredProjectData[field] = project[field]
+              }
+            }
+          })
+          
+          console.log('Debug - Importing project:', {
+            title: filteredProjectData.Title,
+            sourceMajor: project.major,
+            targetMajor,
+            originalFields: Object.keys(project).length,
+            filteredFields: Object.keys(filteredProjectData).length,
+            path: `schools/${schoolId}/projects/${selectedAcademicYear.value}/${targetMajor}/${targetMajorDocId}/projectsPerYear`
+          })
           
           // Add to the target major's projectsPerYear collection
           const projectsRef = collection(
@@ -1739,7 +1752,7 @@ const handleImport = async () => {
             'projectsPerYear'
           )
           
-          await addDoc(projectsRef, projectData)
+          await addDoc(projectsRef, filteredProjectData)
           importedCount++
         }
       } catch (error) {
