@@ -92,12 +92,23 @@
                   </button>
                 </div>
               </div>
-              <button 
-                @click="showNewProjectForm = true"
-                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Add New Project
-              </button>
+              <div class="flex gap-2">
+                <button 
+                  @click="showNewProjectForm = true"
+                  class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Add New Project
+                </button>
+                <button 
+                  @click="showImportModal = true"
+                  class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                  </svg>
+                  Import
+                </button>
+              </div>
             </div>
 
             <!-- Projects Table -->
@@ -541,6 +552,222 @@
           </div>
         </div>
       </div>
+
+      <!-- Import Projects Modal -->
+      <div v-if="showImportModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-lg bg-white">
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-semibold text-gray-900">Import Projects</h2>
+            <button 
+              @click="cancelImport"
+              class="text-gray-600 hover:text-gray-900"
+            >
+              ✕
+            </button>
+          </div>
+
+          <!-- Loading overlay for import operations -->
+          <div v-if="importLoading" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
+            <p class="text-gray-600">Loading projects...</p>
+          </div>
+
+          <!-- Year Selection Step -->
+          <div v-if="importStep === 1" class="space-y-6">
+            <div class="space-y-2">
+              <label class="block text-sm font-medium text-gray-700">
+                Select Source Academic Year
+              </label>
+              <select 
+                v-model="sourceAcademicYear"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm py-2.5 px-3"
+              >
+                <option value="">Select year</option>
+                <option 
+                  v-for="year in availableAcademicYears.filter(y => y.yearId !== selectedAcademicYear)" 
+                  :key="year.yearId" 
+                  :value="year.yearId"
+                >
+                  {{ year.academicYear }}
+                </option>
+              </select>
+            </div>
+
+            <div class="flex justify-end gap-3">
+              <button 
+                @click="cancelImport"
+                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button 
+                @click="importStep = 2; fetchSourceProjects()"
+                :disabled="!sourceAcademicYear"
+                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+
+          <!-- Project Selection Step -->
+          <div v-else-if="importStep === 2" class="space-y-6">
+            <!-- Reuse the major filter tags -->
+            <div v-if="uniqueSourceProjectMajors.length > 0" class="flex flex-wrap gap-2">
+              <button
+                v-for="major in uniqueSourceProjectMajors"
+                :key="major"
+                @click="toggleSourceMajorFilter(major)"
+                class="px-3 py-1 rounded-full text-sm font-medium transition-colors flex items-center gap-1"
+                :class="[
+                  selectedSourceMajorFilters.has(major) 
+                    ? [getMajorColorClasses(major).bg.replace('100', '500'), 'text-white', 'shadow-sm'] 
+                    : [getMajorColorClasses(major).bg, getMajorColorClasses(major).text, 'hover:bg-opacity-75'],
+                ]"
+              >
+                <span v-if="selectedSourceMajorFilters.has(major)" class="w-2 h-2 rounded-full bg-white"></span>
+                {{ major }}
+              </button>
+            </div>
+
+            <!-- Projects Table -->
+            <div v-if="sourceProjects.length > 0" class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="w-16 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <input 
+                        type="checkbox" 
+                        v-model="selectAllProjects"
+                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      >
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Title
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Major
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  <tr v-for="project in filteredSourceProjects" :key="project.id">
+                    <td class="w-16 px-3 py-4 whitespace-nowrap text-sm text-center">
+                      <input 
+                        type="checkbox" 
+                        v-model="selectedProjectsToImport"
+                        :value="project.id"
+                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      >
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {{ project.Title }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                      <span 
+                        class="px-2 py-1 rounded-full text-xs"
+                        :class="[
+                          getMajorColorClasses(project.major).bg,
+                          getMajorColorClasses(project.major).text
+                        ]"
+                      >
+                        {{ project.major }}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-else class="text-center py-8 text-gray-500">
+              No projects found in the selected academic year.
+            </div>
+
+            <div class="flex justify-between gap-3">
+              <button 
+                @click="importStep = 1"
+                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+              >
+                Back
+              </button>
+              <div class="flex gap-3">
+                <button 
+                  @click="cancelImport"
+                  class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button 
+                  @click="importStep = 3; fetchCurrentYearMajors()"
+                  :disabled="selectedProjectsToImport.length === 0"
+                  class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Major Mapping Step -->
+          <div v-else-if="importStep === 3" class="space-y-6">
+            <div class="space-y-4">
+              <h3 class="text-lg font-medium text-gray-900">Map Majors</h3>
+              <p class="text-sm text-gray-600">Select which major each project should be imported to in the current academic year.</p>
+              
+              <div class="space-y-4">
+                <div v-for="sourceMajor in uniqueSourceProjectMajors" :key="sourceMajor" class="flex items-center gap-4">
+                  <div class="flex-1">
+                    <span class="text-sm font-medium text-gray-700">From: </span>
+                    <span 
+                      class="px-2 py-1 rounded-full text-xs ml-2"
+                      :class="[
+                        getMajorColorClasses(sourceMajor).bg,
+                        getMajorColorClasses(sourceMajor).text
+                      ]"
+                    >
+                      {{ sourceMajor }}
+                    </span>
+                  </div>
+                  <div class="flex-1">
+                    <select 
+                      v-model="majorMappings[sourceMajor]"
+                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                      :class="{ 'border-red-300': !majorMappings[sourceMajor] }"
+                    >
+                      <option value="">Select target major</option>
+                      <option v-for="targetMajor in currentYearMajors" :key="targetMajor" :value="targetMajor">
+                        {{ targetMajor }}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex justify-between gap-3">
+              <button 
+                @click="importStep = 2"
+                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+              >
+                Back
+              </button>
+              <div class="flex gap-3">
+                <button 
+                  @click="cancelImport"
+                  class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button 
+                  @click="handleImport"
+                  :disabled="!isAllMajorsMapped"
+                  class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Import Projects
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Toast Container -->
@@ -557,6 +784,7 @@ import { getLatestAcademicYear, formatAcademicYear } from '@/utils/latestAcademi
 
 const userStore = useUserStore()
 const loading = ref(true)
+const importLoading = ref(false)
 const showNewProjectForm = ref(false)
 const showEditProjectForm = ref(false)
 const isEditMode = ref(false)
@@ -1270,6 +1498,296 @@ const deleteProject = async () => {
     projectToDelete.value = null
   }
 }
+
+// Add new refs for import functionality
+const showImportModal = ref(false)
+const importStep = ref(1)
+const sourceAcademicYear = ref('')
+const sourceProjects = ref([])
+const selectedProjectsToImport = ref([])
+const selectedSourceMajorFilters = ref(new Set())
+const majorMappings = ref(new Map())
+const currentYearMajors = ref([])
+
+// Computed properties for source projects
+const uniqueSourceProjectMajors = computed(() => {
+  return [...new Set(sourceProjects.value.map(project => project.major))]
+})
+
+const filteredSourceProjects = computed(() => {
+  if (selectedSourceMajorFilters.value.size === 0) {
+    return sourceProjects.value
+  }
+  return sourceProjects.value.filter(project => selectedSourceMajorFilters.value.has(project.major))
+})
+
+const selectAllProjects = computed({
+  get: () => {
+    return filteredSourceProjects.value.length > 0 && 
+           selectedProjectsToImport.value.length === filteredSourceProjects.value.length
+  },
+  set: (value) => {
+    if (value) {
+      selectedProjectsToImport.value = filteredSourceProjects.value.map(p => p.id)
+    } else {
+      selectedProjectsToImport.value = []
+    }
+  }
+})
+
+// Function to toggle source major filter
+const toggleSourceMajorFilter = (major) => {
+  if (selectedSourceMajorFilters.value.has(major)) {
+    selectedSourceMajorFilters.value.delete(major)
+  } else {
+    selectedSourceMajorFilters.value.add(major)
+  }
+}
+
+// Function to fetch projects from source year
+const fetchSourceProjects = async () => {
+  try {
+    importLoading.value = true
+    const schoolId = userStore.currentUser.school
+    sourceProjects.value = []
+    
+    // Get user ID
+    let userId = userStore.currentUser.id || 
+                 userStore.currentUser.uid || 
+                 userStore.currentUser._id || 
+                 userStore.currentUser.userId
+    
+    if (!userId) {
+      console.warn('Debug - User ID (uid) is missing, using fallback')
+      userId = "unknown-user-" + Date.now()
+    }
+    
+    // Get the majors for the source year
+    const projectsRef = doc(db, 'schools', schoolId, 'projects', sourceAcademicYear.value)
+    const projectsDoc = await getDoc(projectsRef)
+    
+    if (projectsDoc.exists() && projectsDoc.data().majors) {
+      const majors = projectsDoc.data().majors
+      
+      // Fetch projects from each major
+      for (const major of majors) {
+        const majorRef = collection(db, 'schools', schoolId, 'projects', sourceAcademicYear.value, major)
+        const majorDocs = await getDocs(majorRef)
+        
+        if (!majorDocs.empty) {
+          const majorDoc = majorDocs.docs[0]
+          const majorDocId = majorDoc.id
+          
+          const projectsRef = collection(
+            db, 
+            'schools', 
+            schoolId, 
+            'projects', 
+            sourceAcademicYear.value, 
+            major, 
+            majorDocId,
+            'projectsPerYear'
+          )
+          
+          // Add filter for current user's projects
+          const projectsQuery = query(projectsRef, where('userId', '==', userId))
+          const projectsDocs = await getDocs(projectsQuery)
+          
+          projectsDocs.forEach(doc => {
+            sourceProjects.value.push({
+              id: doc.id,
+              majorDocId, // Store majorDocId for later use during import
+              ...doc.data()
+            })
+          })
+        }
+      }
+    }
+    
+    console.log('Debug - Fetched source projects:', sourceProjects.value.length)
+  } catch (error) {
+    console.error('Error fetching source projects:', error)
+    showToast('Failed to fetch projects from source year', 'error')
+  } finally {
+    importLoading.value = false
+  }
+}
+
+// Function to handle import cancellation
+const cancelImport = () => {
+  showImportModal.value = false
+  importStep.value = 1
+  sourceAcademicYear.value = ''
+  sourceProjects.value = []
+  selectedProjectsToImport.value = []
+  selectedSourceMajorFilters.value.clear()
+  importLoading.value = false
+}
+
+// Function to fetch projects (used after import)
+const fetchProjects = async () => {
+  try {
+    loading.value = true
+    const schoolId = userStore.currentUser.school
+    
+    let userId = userStore.currentUser.id || 
+                 userStore.currentUser.uid || 
+                 userStore.currentUser._id || 
+                 userStore.currentUser.userId
+    
+    if (!userId) {
+      console.warn('Debug - User ID (uid) is missing, using fallback')
+      userId = "unknown-user-" + Date.now()
+    }
+    
+    // Clear existing projects
+    projects.value = []
+    
+    // Fetch projects from all majors
+    for (const major of availableMajors.value) {
+      try {
+        const majorRef = collection(db, 'schools', schoolId, 'projects', selectedAcademicYear.value, major)
+        const majorDocs = await getDocs(majorRef)
+        
+        if (!majorDocs.empty) {
+          const majorDoc = majorDocs.docs[0]
+          const majorDocId = majorDoc.id
+          
+          const projectsRef = collection(
+            db, 
+            'schools', 
+            schoolId, 
+            'projects', 
+            selectedAcademicYear.value, 
+            major, 
+            majorDocId,
+            'projectsPerYear'
+          )
+          
+          // Filter by userId
+          const projectsQuery = query(projectsRef, where('userId', '==', userId))
+          const projectsDocs = await getDocs(projectsQuery)
+          
+          projectsDocs.forEach(doc => {
+            projects.value.push({
+              id: doc.id,
+              ...doc.data()
+            })
+          })
+        }
+      } catch (majorError) {
+        console.error(`Error fetching projects for major ${major}:`, majorError)
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching projects:', error)
+    showToast('Failed to refresh projects list', 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
+// Update the handleImport function
+const handleImport = async () => {
+  try {
+    importLoading.value = true
+    const schoolId = userStore.currentUser.school
+    let importedCount = 0
+    let errors = 0
+    
+    // Get selected projects with their details
+    const projectsToImport = sourceProjects.value.filter(p => selectedProjectsToImport.value.includes(p.id))
+    
+    for (const project of projectsToImport) {
+      try {
+        // Get the target major for this project
+        const targetMajor = majorMappings.value[project.major]
+        if (!targetMajor) {
+          errors++
+          continue // Skip if no mapping found
+        }
+        
+        // Get the major document ID for the target major
+        const targetMajorRef = collection(db, 'schools', schoolId, 'projects', selectedAcademicYear.value, targetMajor)
+        const targetMajorDocs = await getDocs(targetMajorRef)
+        
+        if (!targetMajorDocs.empty) {
+          const targetMajorDocId = targetMajorDocs.docs[0].id
+          
+          // Prepare the project data
+          const projectData = {
+            ...project,
+            major: targetMajor, // Use the target major
+            academicYear: formatAcademicYear(selectedAcademicYear.value),
+            createdAt: new Date(),
+            userId: userStore.currentUser.uid // Ensure userId is set
+          }
+          
+          // Remove fields that shouldn't be copied
+          delete projectData.id
+          delete projectData.majorDocId
+          
+          // Add to the target major's projectsPerYear collection
+          const projectsRef = collection(
+            db, 
+            'schools', 
+            schoolId, 
+            'projects', 
+            selectedAcademicYear.value, 
+            targetMajor, 
+            targetMajorDocId,
+            'projectsPerYear'
+          )
+          
+          await addDoc(projectsRef, projectData)
+          importedCount++
+        }
+      } catch (error) {
+        console.error('Error importing project:', project.Title, error)
+        errors++
+      }
+    }
+    
+    // Refresh the projects list
+    await fetchProjects()
+    
+    // Show appropriate toast message
+    if (errors > 0) {
+      showToast(`Imported ${importedCount} projects, ${errors} failed`, 'error')
+    } else {
+      showToast(`Successfully imported ${importedCount} projects`)
+    }
+    
+    // Close modal and reset state
+    cancelImport()
+  } catch (error) {
+    console.error('Error during import:', error)
+    showToast('Failed to import projects', 'error')
+  } finally {
+    importLoading.value = false
+  }
+}
+
+// Function to fetch current year's majors
+const fetchCurrentYearMajors = async () => {
+  try {
+    const schoolId = userStore.currentUser.school
+    const projectsRef = doc(db, 'schools', schoolId, 'projects', selectedAcademicYear.value)
+    const projectsDoc = await getDoc(projectsRef)
+    
+    if (projectsDoc.exists() && projectsDoc.data().majors) {
+      currentYearMajors.value = projectsDoc.data().majors
+    }
+  } catch (error) {
+    console.error('Error fetching current year majors:', error)
+    showToast('Failed to fetch current year majors', 'error')
+  }
+}
+
+// Add computed property to check if all majors are mapped
+const isAllMajorsMapped = computed(() => {
+  return uniqueSourceProjectMajors.value.every(major => majorMappings.value[major])
+})
 </script>
 
 <style scoped>
