@@ -808,11 +808,11 @@ const majorProjectSettings = ref(null)
 
 // Remove predefined major colors and add dynamic color generation
 const colorPalette = [
-  { bg: 'bg-blue-100', text: 'text-blue-800' },
-  { bg: 'bg-yellow-100', text: 'text-green-800' },
-  { bg: 'bg-pink-100', text: 'text-purple-800' },
-  { bg: 'bg-red-100', text: 'text-red-800' },
-  { bg: 'bg-gray-100', text: 'text-cyan-800' }
+  { bg: 'bg-blue-100', text: 'text-blue-800' ,selectedBg: 'bg-blue-500'},
+  { bg: 'bg-yellow-100', text: 'text-yellow-800',selectedBg: 'bg-yellow-500' },
+  { bg: 'bg-pink-100', text: 'text-pink-800',selectedBg: 'bg-pink-500' },
+  { bg: 'bg-red-100', text: 'text-red-800',selectedBg: 'bg-red-500' },
+  { bg: 'bg-lime-100', text: 'text-lime-800',selectedBg: 'bg-lime-500' }
 ]
 
 // Map to store major-color associations
@@ -825,9 +825,11 @@ const getMajorColorClasses = (major) => {
     const colorIndex = majorColorMap.value.size % colorPalette.length
     const baseColor = colorPalette[colorIndex]
     
-    // Add selected state colors
-    const selectedClass = baseColor.bg.replace('-100', '-500') + ' text-white shadow-sm'
     
+    // Use explicit selected states or fallback to the pattern
+    let selectedClass;
+    selectedClass = baseColor.selectedBg + ' text-white shadow-sm'
+      
     majorColorMap.value.set(major, {
       ...baseColor,
       selected: selectedClass
