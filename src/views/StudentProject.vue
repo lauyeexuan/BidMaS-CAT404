@@ -129,7 +129,16 @@
                       @click="handleBid(project.id)"
                       class="inline-flex items-center justify-center w-28 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors"
                     >
-                      <img src="@/assets/bid.png" alt="" class="h-4 w-4 mr-1.5 object-contain" />
+                      <svg v-if="!bidIconLoaded" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                      </svg>
+                      <img 
+                        v-if="bidIconLoaded"
+                        src="@/assets/bid.png" 
+                        alt="Bid" 
+                        class="h-4 w-4 mr-1.5 object-contain" 
+                        @error="bidIconLoaded = false"
+                      />
                       Bid
                     </button>
                   </td>
@@ -255,6 +264,7 @@ const academicYear = ref('')
 const academicYearId = ref('')
 const searchQuery = ref('')
 const activeTab = ref('projects')
+const bidIconLoaded = ref(true)
 
 // Bid related refs
 const myBids = ref([])
