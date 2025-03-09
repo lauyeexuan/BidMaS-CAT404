@@ -1,3 +1,55 @@
+  return timestamp.toLocaleDateString()
+}
+
+// New function to handle major selection
+const selectMajorForProject = async (major) => {
+  tempSelectedMajor.value = major
+  
+  try {
+    const schoolId = userStore.currentUser.school
+    
+    // Get the project settings for the selected major
+    const majorRef = collection(db, 'schools', schoolId, 'projects', latestAcademicYearId.value, major)
+    const majorDocs = await getDocs(majorRef)
+    
+    if (!majorDocs.empty) {
+      const majorData = majorDocs.docs[0].data()
+      majorProjectSettings.value = {
+        headers: majorData.headers || {},
+        milestones: majorData.milestones || []
+      }
+      
+      // Initialize newProject with empty values for each header
+      newProject.value = {}
+      if (majorData.headers) {
+        Object.keys(majorData.headers).forEach(headerName => {
+          // Initialize array fields as empty arrays
+          if (majorData.headers[headerName].type === 'array' && !majorData.headers[headerName].values) {
+            newProject.value[headerName] = []
+          } else {
+            newProject.value[headerName] = ''
+          }
+        })
+      }
+    } else {
+      majorProjectSettings.value = null
+      newProject.value = {}
+    }
+  } catch (error) {
+    console.error('Error fetching major project settings:', error)
+    showToast('Failed to load major settings', 'error')
+  }
+}
+
+// Function to navigate between form steps
+const goToStep = (step) => {
+  if (step === 2 && !tempSelectedMajor.value) {
+    showToast('Please select a major first', 'error')
+    return
+  }
+  
+  if (step === 3 && !isFormValid.value) {
+    showToast('Please fill in all required fields', 'error')
 <template>
   <div class="min-h-screen bg-gray-50">
     <div class="w-full px-6 py-8">
@@ -163,6 +215,17 @@
                           </svg>
                         </button>
                         <button 
+                          v-if="project.hasBids"
+                          class="text-gray-400 cursor-not-allowed"
+                          title="Cannot delete: Project has active bids"
+                          disabled
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                          </svg>
+                        </button>
+                        <button 
+                          v-else
                           @click="confirmDeleteProject(project)"
                           class="text-red-600 hover:text-red-800"
                           title="Delete project"
@@ -1210,18 +1273,36 @@ const fetchUserProjects = async (schoolId, userId, academicYearId) => {
           const projectsQuery = query(projectsRef, where('userId', '==', userId))
           const projectsDocs = await getDocs(projectsQuery)
           
-          projectsDocs.forEach(doc => {
+          for (const doc of projectsDocs.docs) {
             const projectId = doc.id
             const projectData = doc.data()
+            
+            // Check if this project has any bids
+            const bidsRef = collection(
+              db, 
+              'schools', 
+              schoolId, 
+              'projects', 
+              academicYearId, 
+              major, 
+              majorDocId,
+              'projectsPerYear',
+              projectId,
+              'bids'
+            )
+            
+            const bidsSnapshot = await getDocs(bidsRef)
+            const hasBids = !bidsSnapshot.empty
             
             // Use Map to ensure uniqueness by project ID
             if (!projectsMap.has(projectId)) {
               projectsMap.set(projectId, {
                 id: projectId,
+                hasBids, // Add the hasBids flag
                 ...projectData
               })
             }
-          })
+          }
         }
       } catch (majorError) {
         console.error(`Error fetching projects for major ${major}:`, majorError)
