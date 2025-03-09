@@ -25,12 +25,23 @@
         <ul>
           <li v-for="item in filteredMenuItems" 
               :key="item.name" 
-              class="px-4 py-3 hover:bg-gray-100 cursor-pointer transition-all duration-200" 
-              :class="{'bg-blue-100': isActiveRoute(item.route)}"
+              class="px-4 py-3 hover:bg-gray-100 transition-all duration-200" 
+              :class="{
+                'bg-blue-100': isActiveRoute(item.route),
+                'cursor-pointer': isMenuItemEnabled(item),
+                'cursor-not-allowed opacity-50': !isMenuItemEnabled(item)
+              }"
               @click="navigateToRoute(item)">
             <div class="flex items-center" :class="{ 'justify-center': !isOpen }">
               <span v-html="item.icon" :class="[isOpen ? 'w-6' : 'text-xl']" :title="!isOpen ? item.name : ''"></span>
               <span v-if="isOpen" class="ml-3">{{ item.name }}</span>
+              
+              <!-- Profile completion indicator for students -->
+              <span 
+                v-if="isOpen && userStore.userRole === 'student' && !userStore.isProfileComplete && item.name === 'Profile'"
+                class="ml-2 text-xs bg-red-500 text-white px-2 py-0.5 rounded-full">
+                Required
+              </span>
             </div>
           </li>
         </ul>
@@ -142,9 +153,25 @@ export default {
     const isActiveRoute = (routeName) => {
       return route.name === routeName
     }
+    
+    // Check if menu item should be enabled
+    const isMenuItemEnabled = (item) => {
+      // If not a student or profile is complete, all items are enabled
+      if (userStore.userRole !== 'student' || userStore.isProfileComplete) {
+        return true
+      }
+      
+      // For students with incomplete profiles, only enable the Profile item
+      return item.route === 'profile'
+    }
 
     // Navigation handler
     const navigateToRoute = (item) => {
+      // Don't navigate if item is disabled
+      if (!isMenuItemEnabled(item)) {
+        return
+      }
+      
       console.log('Navigating to route:', item.route)
       console.log('Current user role:', userStore.userRole)
       console.log('Menu item roles:', item.roles)
@@ -170,6 +197,7 @@ export default {
       toggleSidebar,
       filteredMenuItems,
       isActiveRoute,
+      isMenuItemEnabled,
       navigateToRoute,
       handleLogout,
       userStore

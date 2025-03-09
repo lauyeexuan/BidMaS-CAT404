@@ -136,6 +136,20 @@ router.beforeEach(async (to, from, next) => {
     return
   }
   
+  // Redirect new users to profile page
+  if (isAuthenticated && userStore.currentUser?.isNewUser && to.name !== 'profile') {
+    console.log('New user detected, redirecting to profile page')
+    next({ name: 'profile' })
+    return
+  }
+  
+  // Check if student profile is complete
+  if (isAuthenticated && userRole === 'student' && !userStore.isProfileComplete && to.name !== 'profile') {
+    console.log('Student profile is incomplete, redirecting to profile page')
+    next({ name: 'profile' })
+    return
+  }
+  
   // Allow navigation
   console.log('Navigation allowed')
   next()

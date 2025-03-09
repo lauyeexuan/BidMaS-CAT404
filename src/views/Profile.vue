@@ -1,5 +1,28 @@
 <template>
     <div class="container mx-auto px-4 py-8">
+      <!-- Profile Completion Alert for Students -->
+      <div 
+        v-if="userStore.userRole === 'student' && !userStore.isProfileComplete"
+        class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 rounded shadow-md"
+      >
+        <div class="flex items-center">
+          <div class="py-1">
+            <svg class="h-6 w-6 text-yellow-500 mr-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div>
+            <p class="font-bold">Complete Your Profile</p>
+            <p class="text-sm">
+              Please complete your profile information to access all features. You need to:
+              <span v-if="!hasIntroduction" class="block mt-1">• Add an introduction about yourself</span>
+              <span v-if="!hasSkills" class="block mt-1">• Add at least one skill</span>
+              <span v-if="!hasMajor" class="block mt-1">• Add a major</span>
+            </p>
+          </div>
+        </div>
+      </div>
+      
       <!-- Student Layout (Two-column) -->
       <div v-if="userStore.userRole === 'student'" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <!-- Left Column (Introduction & Skills) -->
@@ -81,6 +104,13 @@
                   <p v-if="userStore.currentUser?.cgpa" class="text-lg font-medium">{{ userStore.currentUser.cgpa }}</p>
                   <p v-else class="text-gray-500 italic">Not specified</p>
                 </div>
+                
+                <div>
+                  <p class="text-sm text-gray-500">Major</p>
+                  <p v-if="userStore.currentUser?.major" class="text-lg font-medium">{{ userStore.currentUser.major }}</p>
+                  <p v-else class="text-gray-500 italic">Not specified</p>
+                </div>
+                
                 <div class="md:col-span-2">
                   <p class="text-sm text-gray-500">Skills</p>
                   <div v-if="userStore.currentUser?.skills && userStore.currentUser.skills.length > 0" class="flex flex-wrap gap-2 mt-1">
@@ -112,8 +142,35 @@
                     placeholder="Enter your CGPA (e.g. 3.75)"
                   />
                 </div>
+                
+                <div>
+                  <label class="block text-sm text-gray-500 mb-1">Major <span class="text-red-500">*</span></label>
+                  <div class="relative">
+                    <select 
+                      v-model="selectedMajor" 
+                      class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+                      :disabled="loadingMajors || availableMajors.length === 0"
+                      required
+                    >
+                      <option value="" disabled>Select your major</option>
+                      <option v-for="major in availableMajors" :key="major" :value="major">{{ major }}</option>
+                    </select>
+                    <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </div>
+                    <div v-if="loadingMajors" class="absolute inset-y-0 right-0 flex items-center pr-8 pointer-events-none">
+                      <div class="animate-spin h-4 w-4 border-2 border-blue-500 rounded-full border-t-transparent"></div>
+                    </div>
+                  </div>
+                  <p v-if="availableMajors.length === 0 && !loadingMajors" class="text-sm text-red-500 mt-1">
+                    No majors available for the current session
+                  </p>
+                </div>
+                
                 <div class="md:col-span-2">
-                  <label class="block text-sm text-gray-500 mb-1">Skills</label>
+                  <label class="block text-sm text-gray-500 mb-1">Skills <span class="text-red-500">*</span></label>
                   <div class="flex flex-wrap gap-2 mb-2">
                     <span 
                       v-for="(skill, index) in skillsList" 
@@ -121,8 +178,10 @@
                       class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center"
                     >
                       {{ skill }}
-                      <button @click="removeSkill(index)" class="ml-1 text-blue-600 hover:text-blue-800">
-                        <i class="fas fa-times"></i>
+                      <button @click="removeSkill(index)" class="ml-1.5 text-red-500 hover:text-red-700 flex items-center justify-center" style="min-width: 16px; min-height: 16px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
                       </button>
                     </span>
                   </div>
@@ -153,7 +212,7 @@
                 <button 
                   @click="saveSkills" 
                   class="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                  :disabled="savingSkills"
+                  :disabled="savingSkills || !selectedMajor || skillsList.length === 0"
                 >
                   <span v-if="savingSkills">Saving...</span>
                   <span v-else>Save</span>
@@ -229,7 +288,7 @@
               </div>
               
               <!-- Basic User Info -->
-              <div class="grid grid-cols-1 gap-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="space-y-2">
                   <p class="text-sm text-gray-500">Full Name</p>
                   <p class="text-lg font-medium">{{ userStore.currentUser.name }}</p>
@@ -248,6 +307,11 @@
                 <div class="space-y-2">
                   <p class="text-sm text-gray-500">School</p>
                   <p class="text-lg font-medium">{{ userStore.currentUser.school }}</p>
+                </div>
+                
+                <div class="space-y-2">
+                  <p class="text-sm text-gray-500">Session</p>
+                  <p class="text-lg font-medium">{{ currentSession || 'Not available' }}</p>
                 </div>
               </div>
             </div>
@@ -342,6 +406,11 @@
                 <p class="text-sm text-gray-500">School</p>
                 <p class="text-lg font-medium">{{ userStore.currentUser.school }}</p>
               </div>
+              
+              <div class="space-y-2">
+                <p class="text-sm text-gray-500">Session</p>
+                <p class="text-lg font-medium">{{ currentSession || 'Not available' }}</p>
+              </div>
             </div>
           </div>
           
@@ -359,7 +428,8 @@
   import { useUserStore } from '@/stores/userStore'
   import { storage, db } from '@/firebase'
   import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
-  import { doc, updateDoc } from 'firebase/firestore'
+  import { doc, updateDoc, collection, getDocs, getDoc, query, limit } from 'firebase/firestore'
+  import { getLatestAcademicYear, formatAcademicYear } from '@/utils/latestAcademicYear'
   
   export default {
     name: 'ProfileView',
@@ -369,6 +439,8 @@
       const uploading = ref(false)
       const error = ref(null)
       const profileUrl = ref(null)
+      const currentSession = ref('')
+      const currentYearId = ref('')
       
       // Introduction editing
       const editIntroduction = ref(false)
@@ -381,6 +453,29 @@
       const newSkill = ref('')
       const cgpaValue = ref('')
       const savingSkills = ref(false)
+      
+      // Major selection
+      const availableMajors = ref([])
+      const selectedMajor = ref('')
+      const loadingMajors = ref(false)
+      
+      // Profile completion helpers
+      const hasIntroduction = computed(() => {
+        return !!userStore.currentUser?.introduction?.trim();
+      });
+      
+      const hasSkills = computed(() => {
+        return Array.isArray(userStore.currentUser?.skills) && userStore.currentUser.skills.length > 0;
+      });
+      
+      const hasMajor = computed(() => {
+        return !!userStore.currentUser?.major;
+      });
+      
+      // Update profile completion check to include major
+      const isProfileComplete = computed(() => {
+        return hasIntroduction.value && hasSkills.value && hasMajor.value;
+      });
       
       // Compute user initials for the avatar
       const userInitials = computed(() => {
@@ -418,7 +513,80 @@
         if (userStore.currentUser?.cgpa) {
           cgpaValue.value = userStore.currentUser.cgpa
         }
+        
+        // Initialize major if exists
+        if (userStore.currentUser?.major) {
+          selectedMajor.value = userStore.currentUser.major
+        }
+        
+        // Clear new user flag if present
+        if (userStore.currentUser?.isNewUser) {
+          try {
+            const userRef = doc(db, 'schools', userStore.currentUser.school, 'users', userStore.currentUser.uid)
+            await updateDoc(userRef, {
+              isNewUser: false
+            })
+            
+            // Update local state
+            userStore.currentUser.isNewUser = false
+          } catch (err) {
+            console.error('Error clearing new user flag:', err)
+          }
+        }
+        
+        // Fetch latest academic year
+        if (userStore.currentUser?.school) {
+          try {
+            const academicYear = await getLatestAcademicYear(userStore.currentUser.school)
+            if (academicYear) {
+              currentSession.value = academicYear.academicYear
+              currentYearId.value = academicYear.yearId
+              
+              // Fetch majors for this academic year
+              await fetchMajors(userStore.currentUser.school, academicYear.yearId)
+            }
+          } catch (err) {
+            console.error('Error fetching latest academic year:', err)
+          }
+        }
       })
+      
+      // Fetch available majors for the current academic year
+      const fetchMajors = async (schoolId, yearId) => {
+        if (!schoolId || !yearId) return
+        
+        try {
+          loadingMajors.value = true
+          
+          // Get the academic year document which contains the majors array
+          const yearDocRef = doc(db, 'schools', schoolId, 'projects', yearId)
+          const yearDocSnapshot = await getDoc(yearDocRef)
+          
+          if (yearDocSnapshot.exists() && yearDocSnapshot.data().majors) {
+            // Get the majors array from the document and sort it
+            availableMajors.value = yearDocSnapshot.data().majors.sort()
+            console.log('Available majors:', availableMajors.value)
+          } else {
+            console.error('No majors found in academic year document')
+            error.value = 'No majors available for the current session. Please contact your administrator.'
+            availableMajors.value = []
+          }
+          
+        } catch (err) {
+          console.error('Error fetching majors:', err)
+          error.value = 'Failed to load majors. Please try again later.'
+          availableMajors.value = []
+        } finally {
+          loadingMajors.value = false
+          
+          // Clear error after 5 seconds if it exists
+          if (error.value) {
+            setTimeout(() => {
+              error.value = null
+            }, 5000)
+          }
+        }
+      }
       
       // Profile picture functions
       const triggerFileInput = () => {
@@ -523,12 +691,22 @@
       const saveSkills = async () => {
         if (!userStore.currentUser) return
         
+        // Validate required fields
+        if (!selectedMajor.value || skillsList.value.length === 0) {
+          error.value = 'Please select a major and add at least one skill'
+          setTimeout(() => {
+            error.value = null
+          }, 3000)
+          return
+        }
+        
         try {
           savingSkills.value = true
           
           // Prepare data to update
           const updateData = {
-            skills: skillsList.value
+            skills: skillsList.value,
+            major: selectedMajor.value
           }
           
           // Add CGPA if provided
@@ -542,6 +720,7 @@
           
           // Update local state
           userStore.currentUser.skills = [...skillsList.value]
+          userStore.currentUser.major = selectedMajor.value
           if (cgpaValue.value) {
             userStore.currentUser.cgpa = cgpaValue.value
           }
@@ -580,7 +759,21 @@
         savingSkills,
         addSkill,
         removeSkill,
-        saveSkills
+        saveSkills,
+        
+        // Profile completion helpers
+        hasIntroduction,
+        hasSkills,
+        hasMajor,
+        isProfileComplete,
+        
+        // New session
+        currentSession,
+        currentYearId,
+        availableMajors,
+        selectedMajor,
+        loadingMajors,
+        fetchMajors
       }
     }
   }

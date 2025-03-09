@@ -18,6 +18,25 @@ export const useUserStore = defineStore('user', () => {
 
   const isAuthenticated = computed(() => !!currentUser.value)
   const userRole = computed(() => currentUser.value?.role || 'student')
+  
+  // Check if student profile is complete
+  const isProfileComplete = computed(() => {
+    // Only applies to students
+    if (!currentUser.value || userRole.value !== 'student') {
+      return true
+    }
+    
+    // Check if introduction is filled
+    const hasIntroduction = !!currentUser.value.introduction?.trim();
+    
+    // Check if at least one skill is added
+    const hasSkills = Array.isArray(currentUser.value.skills) && currentUser.value.skills.length > 0;
+    
+    // Check if major is selected
+    const hasMajor = !!currentUser.value.major;
+    
+    return hasIntroduction && hasSkills && hasMajor;
+  })
 
   // Initialize auth state
   const initializeAuth = () => {
@@ -154,7 +173,8 @@ export const useUserStore = defineStore('user', () => {
         school,
         role: 'student',
         createdAt: serverTimestamp(),
-        lastLogin: serverTimestamp()
+        lastLogin: serverTimestamp(),
+        isNewUser: true // Flag to identify new users
       })
       
       // Set current user
@@ -163,7 +183,8 @@ export const useUserStore = defineStore('user', () => {
         email,
         name,
         school,
-        role: 'student'
+        role: 'student',
+        isNewUser: true // Flag to identify new users
       }
       
     } catch (err) {
@@ -178,6 +199,7 @@ export const useUserStore = defineStore('user', () => {
     currentUser,
     isAuthenticated,
     userRole,
+    isProfileComplete,
     loading,
     error,
     initialized,
