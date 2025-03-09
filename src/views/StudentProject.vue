@@ -113,9 +113,21 @@
                     {{ getUserName(project.userId) }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm">
+                    <!-- Show different button based on whether project has been bid on -->
                     <button 
+                      v-if="biddedProjectIds.has(project.id)"
+                      class="inline-flex items-center justify-center w-28 px-3 py-1.5 bg-green-100 text-green-700 rounded-md cursor-default"
+                      disabled
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      Bid Placed
+                    </button>
+                    <button 
+                      v-else
                       @click="handleBid(project.id)"
-                      class="inline-flex items-center px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors"
+                      class="inline-flex items-center justify-center w-28 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors"
                     >
                       <img src="@/assets/bid.png" alt="" class="h-4 w-4 mr-1.5 object-contain" />
                       Bid
@@ -160,8 +172,61 @@
 
       <!-- My Bid Tab Panel -->
       <div v-show="activeTab === 'mybid'" class="py-4">
-        <div class="bg-white rounded-lg border border-gray-200 p-6">
-          <div class="text-center">
+        <!-- Loading State -->
+        <div v-if="loadingBids" class="flex justify-center items-center py-8">
+          <p class="text-gray-600">Loading your bids...</p>
+        </div>
+
+        <!-- Bids List -->
+        <div v-else>
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-semibold text-gray-900">My Bids</h2>
+            <span class="text-sm text-gray-500">
+              {{ bidCount }}/3 bids used
+            </span>
+          </div>
+
+          <div v-if="myBids.length > 0" class="space-y-4">
+            <div v-for="bid in myBids" :key="bid.id" 
+              class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+              <div class="flex justify-between items-start">
+                <div class="flex items-start gap-3">
+                  <!-- Priority Badge -->
+                  <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">
+                    {{ bid.priority || '?' }}
+                  </div>
+                  <div>
+                    <h3 class="text-lg font-medium text-gray-900">{{ bid.project.Title }}</h3>
+                    <p class="text-sm text-gray-500 mt-1">Created by: {{ getUserName(bid.project.userId) }}</p>
+                    <div class="mt-2 flex items-center gap-2">
+                      <span 
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                        :class="{
+                          'bg-yellow-100 text-yellow-800': bid.status === 'pending',
+                          'bg-green-100 text-green-800': bid.status === 'accepted',
+                          'bg-red-100 text-red-800': bid.status === 'rejected'
+                        }"
+                      >
+                        {{ bid.status.charAt(0).toUpperCase() + bid.status.slice(1) }}
+                      </span>
+                      <span class="text-xs text-gray-500">
+                        Priority: {{ bid.priority || 'Not set' }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  @click="cancelBid(bid.id)"
+                  class="text-sm text-red-600 hover:text-red-800"
+                >
+                  Cancel Bid
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty State -->
+          <div v-else class="text-center py-8">
             <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
@@ -179,7 +244,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useUserStore } from '@/stores/userStore'
 import { db } from '@/firebase'
-import { doc, collection, getDocs, getDoc } from 'firebase/firestore'
+import { doc, collection, getDocs, getDoc, setDoc, deleteDoc } from 'firebase/firestore'
 import { getLatestAcademicYear, formatAcademicYear } from '@/utils/latestAcademicYear'
 
 const userStore = useUserStore()
@@ -189,11 +254,19 @@ const userNamesMap = ref(new Map())
 const academicYear = ref('')
 const academicYearId = ref('')
 const searchQuery = ref('')
-const activeTab = ref('projects')  // Add active tab state
+const activeTab = ref('projects')
+
+// Bid related refs
+const myBids = ref([])
+const loadingBids = ref(false)
+const bidCount = ref(0)
 
 // Pagination
 const currentPage = ref(1)
 const itemsPerPage = 10
+
+// Add a new ref to track bid projects
+const biddedProjectIds = ref(new Set())
 
 // Remove unused major-related code
 
@@ -437,9 +510,346 @@ const getMajorColorClasses = (major) => {
   return majorColorMap.value.get(major)
 }
 
-const handleBid = (projectId) => {
-  console.log('Bid placed on project:', projectId)
-  // This function will be implemented later
+const handleBid = async (projectId) => {
+  try {
+    if (bidCount.value >= 3) {
+      alert('You have reached the maximum limit of 3 bids')
+      return
+    }
+
+    // Check if already bid
+    if (biddedProjectIds.value.has(projectId)) {
+      alert('You have already bid on this project')
+      return
+    }
+
+    const schoolId = userStore.currentUser.school
+    const studentId = userStore.currentUser.uid
+    const userMajor = userStore.currentUser.major
+    
+    // Generate a bid ID
+    const newBidId = doc(collection(db, 'schools')).id
+
+    // First, get the major document ID
+    const majorRef = collection(db, 'schools', schoolId, 'projects', academicYearId.value, userMajor)
+    const majorDocs = await getDocs(majorRef)
+    
+    if (majorDocs.empty) {
+      throw new Error('Major document not found')
+    }
+    
+    const majorDocId = majorDocs.docs[0].id
+
+    console.log('Debug - Placing bid with paths:', {
+      schoolId,
+      academicYearId: academicYearId.value,
+      userMajor,
+      majorDocId,
+      projectId,
+      newBidId
+    })
+
+    // Calculate the next priority number
+    const nextPriority = bidCount.value + 1
+
+    // Add to the set of bidded project IDs immediately to prevent flickering
+    biddedProjectIds.value.add(projectId)
+
+    // Get the project details to display in the My Bids section
+    const projectRef = doc(db,
+      'schools', schoolId,
+      'projects', academicYearId.value,
+      userMajor, majorDocId,
+      'projectsPerYear', projectId
+    )
+    
+    const projectDoc = await getDoc(projectRef)
+    if (!projectDoc.exists()) {
+      throw new Error('Project not found')
+    }
+    
+    const projectData = projectDoc.data()
+    const timestamp = new Date()
+    
+    const bidData = {
+      studentId,
+      status: 'pending',
+      priority: nextPriority,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    }
+
+    const studentBidData = {
+      projectId,
+      majorId: userMajor,
+      majorDocId, // Add this to help with lookups
+      year: academicYearId.value,
+      status: 'pending',
+      priority: nextPriority,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    }
+
+    // Create bid in project's bids subcollection with correct path
+    const projectBidRef = doc(db, 
+      'schools', schoolId,
+      'projects', academicYearId.value,
+      userMajor, majorDocId,
+      'projectsPerYear', projectId,
+      'bids', newBidId
+    )
+
+    // Create bid in student's bids subcollection
+    const studentBidRef = doc(db,
+      'schools', schoolId,
+      'studentBids', studentId,
+      'bids', newBidId
+    )
+
+    // Write both documents
+    await Promise.all([
+      setDoc(projectBidRef, bidData),
+      setDoc(studentBidRef, studentBidData)
+    ])
+
+    // Add the new bid to the local array instead of fetching all bids again
+    myBids.value.push({
+      id: newBidId,
+      ...studentBidData,
+      project: {
+        id: projectId,
+        ...projectData
+      }
+    })
+    
+    bidCount.value = myBids.value.length
+    
+    // Sort bids by priority
+    myBids.value.sort((a, b) => a.priority - b.priority)
+  } catch (error) {
+    console.error('Error placing bid:', error)
+    // If there was an error, remove the project ID from the set
+    biddedProjectIds.value.delete(projectId)
+    alert('Failed to place bid. Please try again.')
+    
+    // Refresh bids if there was an error to ensure data consistency
+    await fetchMyBids()
+  }
+}
+
+const fetchMyBids = async () => {
+  try {
+    loadingBids.value = true
+    const schoolId = userStore.currentUser.school
+    const studentId = userStore.currentUser.uid
+
+    // Create a temporary set instead of clearing the existing one
+    const tempBiddedProjectIds = new Set()
+
+    const bidsRef = collection(db,
+      'schools', schoolId,
+      'studentBids', studentId,
+      'bids'
+    )
+
+    const bidsSnapshot = await getDocs(bidsRef)
+    const bids = []
+    
+    for (const bidDoc of bidsSnapshot.docs) {
+      const bidData = bidDoc.data()
+      
+      // Add to the temporary set
+      if (bidData.projectId) {
+        tempBiddedProjectIds.add(bidData.projectId)
+      }
+      
+      try {
+        // Fetch project details with correct path
+        const projectRef = doc(db,
+          'schools', schoolId,
+          'projects', bidData.year,
+          bidData.majorId, bidData.majorDocId,
+          'projectsPerYear', bidData.projectId
+        )
+        
+        console.log('Debug - Fetching project with path:', {
+          schoolId,
+          year: bidData.year,
+          majorId: bidData.majorId,
+          majorDocId: bidData.majorDocId,
+          projectId: bidData.projectId
+        })
+        
+        const projectDoc = await getDoc(projectRef)
+        if (projectDoc.exists()) {
+          const projectData = projectDoc.data()
+          bids.push({
+            id: bidDoc.id,
+            ...bidData,
+            project: {
+              id: projectDoc.id,
+              ...projectData
+            }
+          })
+        } else {
+          console.error('Project document does not exist:', projectRef.path)
+        }
+      } catch (projectError) {
+        console.error('Error fetching project for bid:', projectError)
+      }
+    }
+
+    // Sort bids by priority (if available) or createdAt timestamp
+    bids.sort((a, b) => {
+      if (a.priority !== undefined && b.priority !== undefined) {
+        return a.priority - b.priority
+      }
+      // Fall back to creation time if priority not available
+      const timeA = a.createdAt?.seconds || 0
+      const timeB = b.createdAt?.seconds || 0
+      return timeA - timeB
+    })
+
+    // Update priorities if they don't match the current order
+    let needsUpdate = false
+    bids.forEach((bid, index) => {
+      if (bid.priority !== index + 1) {
+        bid.priority = index + 1
+        needsUpdate = true
+      }
+    })
+
+    // If priorities need updating, save them back to Firestore
+    if (needsUpdate) {
+      const updatePromises = bids.map(bid => {
+        const studentBidRef = doc(db,
+          'schools', schoolId,
+          'studentBids', studentId,
+          'bids', bid.id
+        )
+        
+        const projectBidRef = doc(db,
+          'schools', schoolId,
+          'projects', bid.year,
+          bid.majorId, bid.majorDocId,
+          'projectsPerYear', bid.projectId,
+          'bids', bid.id
+        )
+        
+        return Promise.all([
+          setDoc(studentBidRef, { priority: bid.priority }, { merge: true }),
+          setDoc(projectBidRef, { priority: bid.priority }, { merge: true })
+        ])
+      })
+      
+      await Promise.all(updatePromises.flat())
+    }
+
+    // Only update the biddedProjectIds set after all processing is complete
+    biddedProjectIds.value = tempBiddedProjectIds
+
+    myBids.value = bids
+    bidCount.value = bids.length
+  } catch (error) {
+    console.error('Error fetching bids:', error)
+  } finally {
+    loadingBids.value = false
+  }
+}
+
+const cancelBid = async (bidId) => {
+  try {
+    const schoolId = userStore.currentUser.school
+    const studentId = userStore.currentUser.uid
+
+    // Get the bid data first to get project details
+    const studentBidRef = doc(db,
+      'schools', schoolId,
+      'studentBids', studentId,
+      'bids', bidId
+    )
+    
+    const bidDoc = await getDoc(studentBidRef)
+    if (!bidDoc.exists()) {
+      throw new Error('Bid not found')
+    }
+    
+    const bidData = bidDoc.data()
+    const projectId = bidData.projectId
+
+    console.log('Debug - Canceling bid with path:', {
+      schoolId,
+      year: bidData.year,
+      majorId: bidData.majorId,
+      majorDocId: bidData.majorDocId,
+      projectId,
+      bidId
+    })
+
+    // Remove from the set of bidded project IDs immediately to prevent flickering
+    if (projectId) {
+      biddedProjectIds.value.delete(projectId)
+    }
+
+    // Remove bid from project's bids subcollection using correct path
+    const projectBidRef = doc(db,
+      'schools', schoolId,
+      'projects', bidData.year,
+      bidData.majorId, bidData.majorDocId,
+      'projectsPerYear', bidData.projectId,
+      'bids', bidId
+    )
+
+    // Delete both documents
+    await Promise.all([
+      deleteDoc(projectBidRef),
+      deleteDoc(studentBidRef)
+    ])
+
+    // Remove the bid from the local array instead of fetching all bids again
+    const bidIndex = myBids.value.findIndex(bid => bid.id === bidId)
+    if (bidIndex !== -1) {
+      myBids.value.splice(bidIndex, 1)
+      bidCount.value = myBids.value.length
+      
+      // Update priorities of remaining bids
+      myBids.value.forEach((bid, index) => {
+        bid.priority = index + 1
+      })
+      
+      // Update priorities in Firestore
+      if (myBids.value.length > 0) {
+        const updatePromises = myBids.value.map(bid => {
+          const studentBidRef = doc(db,
+            'schools', schoolId,
+            'studentBids', studentId,
+            'bids', bid.id
+          )
+          
+          const projectBidRef = doc(db,
+            'schools', schoolId,
+            'projects', bid.year,
+            bid.majorId, bid.majorDocId,
+            'projectsPerYear', bid.projectId,
+            'bids', bid.id
+          )
+          
+          return Promise.all([
+            setDoc(studentBidRef, { priority: bid.priority }, { merge: true }),
+            setDoc(projectBidRef, { priority: bid.priority }, { merge: true })
+          ])
+        })
+        
+        await Promise.all(updatePromises.flat())
+      }
+    }
+  } catch (error) {
+    console.error('Error canceling bid:', error)
+    alert('Failed to cancel bid. Please try again.')
+    
+    // Refresh bids if there was an error to ensure data consistency
+    await fetchMyBids()
+  }
 }
 
 // Reset pagination when search query changes
@@ -460,7 +870,10 @@ onMounted(async () => {
   
   await fetchLatestAcademicYear()
   if (academicYearId.value) {
-    await fetchProjects()
+    await Promise.all([
+      fetchProjects(),
+      fetchMyBids()
+    ])
   } else {
     loading.value = false
   }
