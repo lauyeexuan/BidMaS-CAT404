@@ -1,55 +1,3 @@
-  return timestamp.toLocaleDateString()
-}
-
-// New function to handle major selection
-const selectMajorForProject = async (major) => {
-  tempSelectedMajor.value = major
-  
-  try {
-    const schoolId = userStore.currentUser.school
-    
-    // Get the project settings for the selected major
-    const majorRef = collection(db, 'schools', schoolId, 'projects', latestAcademicYearId.value, major)
-    const majorDocs = await getDocs(majorRef)
-    
-    if (!majorDocs.empty) {
-      const majorData = majorDocs.docs[0].data()
-      majorProjectSettings.value = {
-        headers: majorData.headers || {},
-        milestones: majorData.milestones || []
-      }
-      
-      // Initialize newProject with empty values for each header
-      newProject.value = {}
-      if (majorData.headers) {
-        Object.keys(majorData.headers).forEach(headerName => {
-          // Initialize array fields as empty arrays
-          if (majorData.headers[headerName].type === 'array' && !majorData.headers[headerName].values) {
-            newProject.value[headerName] = []
-          } else {
-            newProject.value[headerName] = ''
-          }
-        })
-      }
-    } else {
-      majorProjectSettings.value = null
-      newProject.value = {}
-    }
-  } catch (error) {
-    console.error('Error fetching major project settings:', error)
-    showToast('Failed to load major settings', 'error')
-  }
-}
-
-// Function to navigate between form steps
-const goToStep = (step) => {
-  if (step === 2 && !tempSelectedMajor.value) {
-    showToast('Please select a major first', 'error')
-    return
-  }
-  
-  if (step === 3 && !isFormValid.value) {
-    showToast('Please fill in all required fields', 'error')
 <template>
   <div class="min-h-screen bg-gray-50">
     <div class="w-full px-6 py-8">
@@ -102,6 +50,17 @@ const goToStep = (step) => {
               ]"
             >
               My Projects
+            </button>
+            <button 
+              @click="activeTab = 'bids'"
+              class="px-6 py-4 text-sm font-medium border-b-2 focus:outline-none"
+              :class="[
+                activeTab === 'bids' 
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              ]"
+            >
+              Bids
             </button>
             <button 
               @click="activeTab = 'allProjects'"
@@ -269,6 +228,160 @@ const goToStep = (step) => {
             <!-- No Projects Message -->
             <div v-else class="text-center py-8 text-gray-500">
               No projects created yet. Click "Add New Project" to get started.
+            </div>
+          </div>
+
+          <!-- Bids Tab -->
+          <div v-else-if="activeTab === 'bids'">
+            <div class="flex justify-between items-center mb-6">
+              <div class="space-y-2">
+                <div class="flex items-center gap-4">
+                  <h2 class="text-2xl font-semibold text-gray-900">Project Bids</h2>
+                  <span class="text-sm text-gray-500">(Total: {{ projectBids.length }})</span>
+                </div>
+                
+                <!-- Major filter tags -->
+                <div v-if="uniqueBidProjectMajors.length > 0" class="flex flex-wrap gap-2">
+                  <button
+                    v-for="major in uniqueBidProjectMajors"
+                    :key="major"
+                    @click="toggleBidMajorFilter(major)"
+                    class="px-3 py-1 rounded-full text-sm font-medium transition-colors flex items-center gap-1"
+                    :class="[
+                      selectedBidMajorFilters.has(major) 
+                        ? getMajorColorClasses(major).selected 
+                        : [getMajorColorClasses(major).bg, getMajorColorClasses(major).text, 'hover:bg-opacity-75'],
+                    ]"
+                  >
+                    <span v-if="selectedBidMajorFilters.has(major)" class="w-2 h-2 rounded-full bg-white"></span>
+                    {{ major }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bids Table -->
+            <div v-if="projectBids.length > 0" class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="w-16 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      No.
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Project Title
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Major
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Student
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Priority
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  <tr v-for="(bid, index) in paginatedBids" :key="bid.id">
+                    <td class="w-16 px-3 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                      {{ (bidCurrentPage - 1) * itemsPerPage + index + 1 }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {{ bid.projectTitle }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                      <span 
+                        class="px-2 py-1 rounded-full text-xs"
+                        :class="[
+                          getMajorColorClasses(bid.major).bg,
+                          getMajorColorClasses(bid.major).text
+                        ]"
+                      >
+                        {{ bid.major }}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {{ getUserName(bid.studentId) }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {{ bid.priority }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span 
+                        class="px-2 py-1 rounded-full text-xs"
+                        :class="{
+                          'bg-yellow-100 text-yellow-800': bid.status === 'pending',
+                          'bg-green-100 text-green-800': bid.status === 'accepted',
+                          'bg-red-100 text-red-800': bid.status === 'rejected'
+                        }"
+                      >
+                        {{ bid.status }}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                      <div class="flex items-center gap-2">
+                        <button 
+                          v-if="bid.status === 'pending'"
+                          @click="updateBidStatus(bid, 'accepted')"
+                          class="text-green-600 hover:text-green-800"
+                          title="Accept bid"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                          </svg>
+                        </button>
+                        <button 
+                          v-if="bid.status === 'pending'"
+                          @click="updateBidStatus(bid, 'rejected')"
+                          class="text-red-600 hover:text-red-800"
+                          title="Reject bid"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <!-- Pagination -->
+              <div class="flex items-center justify-between mt-4 px-4">
+                <div class="flex items-center gap-2">
+                  <button 
+                    @click="bidCurrentPage--"
+                    :disabled="bidCurrentPage === 1"
+                    class="px-3 py-1 rounded border"
+                    :class="bidCurrentPage === 1 ? 'bg-gray-100 text-gray-400' : 'hover:bg-gray-50'"
+                  >
+                    Previous
+                  </button>
+                  <span class="text-sm text-gray-600">
+                    Page {{ bidCurrentPage }} of {{ bidTotalPages }}
+                  </span>
+                  <button 
+                    @click="bidCurrentPage++"
+                    :disabled="bidCurrentPage === bidTotalPages"
+                    class="px-3 py-1 rounded border"
+                    :class="bidCurrentPage === bidTotalPages ? 'bg-gray-100 text-gray-400' : 'hover:bg-gray-50'"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- No Bids Message -->
+            <div v-else class="text-center py-8 text-gray-500">
+              No bids found for your projects.
             </div>
           </div>
 
@@ -1119,7 +1232,6 @@ const fetchSettings = async () => {
   try {
     loading.value = true
     const schoolId = userStore.currentUser.school
-    console.log('Debug - Current user object:', userStore.currentUser)
     
     let userId = userStore.currentUser.id || 
                  userStore.currentUser.uid || 
@@ -1127,62 +1239,44 @@ const fetchSettings = async () => {
                  userStore.currentUser.userId
     
     if (!userId) {
-      console.warn('Debug - User ID (uid) is missing, using fallback')
       userId = "unknown-user-" + Date.now()
     }
     
-    console.log('Debug - User info:', {
-      id: userId,
-      school: schoolId,
-      role: userStore.currentUser.role
-    })
-    
-    // Get the selected academic year
     const yearData = {
       yearId: selectedAcademicYear.value,
       academicYear: formatAcademicYear(selectedAcademicYear.value)
     }
     
     if (!yearData.yearId) {
-      console.log('Debug - No year data found')
       loading.value = false
       return
     }
+
+    // Clear all data before fetching
+    projects.value = []
+    allProjects.value = []
+    projectBids.value = []
     
-    // Get all available majors regardless of user role
+    // Get all available majors
     const projectsRef = doc(db, 'schools', schoolId, 'projects', yearData.yearId)
-    console.log('Debug - Fetching majors from:', `schools/${schoolId}/projects/${yearData.yearId}`)
-    
     const projectsDoc = await getDoc(projectsRef)
-    console.log('Debug - Projects doc exists:', projectsDoc.exists(), 'Data:', projectsDoc.data())
     
     if (projectsDoc.exists() && projectsDoc.data().majors && projectsDoc.data().majors.length > 0) {
-      // Store all available majors
       availableMajors.value = projectsDoc.data().majors
-      console.log('Debug - Available majors:', availableMajors.value)
       
-      // For lecturers, set their assigned major as selected if it exists
       if (userStore.currentUser.role === 'lecturer' && userStore.currentUser.major) {
         selectedMajor.value = userStore.currentUser.major
-        console.log('Debug - Lecturer major:', selectedMajor.value)
       } else {
-        // For admin or lecturers without assigned major, use first major
         selectedMajor.value = projectsDoc.data().majors[0]
       }
-    } else {
-      console.log('Debug - No majors found in the document')
     }
     
     if (!selectedMajor.value) {
-      console.log('Debug - No selected major')
       loading.value = false
       return
     }
     
-    // Clear existing projects before fetching
-    projects.value = []
-    
-    // Get the project settings for the selected major
+    // Get project settings
     const majorRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, selectedMajor.value)
     const majorDocs = await getDocs(majorRef)
     
@@ -1195,7 +1289,6 @@ const fetchSettings = async () => {
         milestones: majorData.milestones || []
       }
       
-      // Initialize newProject with empty values for each header
       if (majorData.headers) {
         Object.keys(majorData.headers).forEach(headerName => {
           newProject.value[headerName] = ''
@@ -1203,37 +1296,33 @@ const fetchSettings = async () => {
       }
     }
     
-    // Now fetch all projects for the user across all majors
+    // Fetch data sequentially to avoid race conditions
     await fetchUserProjects(schoolId, userId, yearData.yearId)
-    
-    // Fetch all projects regardless of creator
     await fetchAllProjects()
+    await fetchProjectBids()
     
-    // If no project settings were loaded (because selected major had no settings),
-    // try to load settings from the first major that has projects
+    // Try to load settings from first project major if needed
     if (!projectSettings.value && projects.value.length > 0) {
-      const firstProjectMajor = projects.value[0].major;
-      console.log('Debug - No settings loaded, trying to load from first project major:', firstProjectMajor);
-      
-      const majorRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, firstProjectMajor);
-      const majorDocs = await getDocs(majorRef);
+      const firstProjectMajor = projects.value[0].major
+      const majorRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, firstProjectMajor)
+      const majorDocs = await getDocs(majorRef)
       
       if (!majorDocs.empty) {
-        const majorDoc = majorDocs.docs[0];
-        const majorData = majorDoc.data();
+        const majorDoc = majorDocs.docs[0]
+        const majorData = majorDoc.data()
         
         projectSettings.value = {
           headers: majorData.headers || {},
           milestones: majorData.milestones || []
-        };
+        }
         
-        // Update selected major to match
-        selectedMajor.value = firstProjectMajor;
+        selectedMajor.value = firstProjectMajor
       }
     }
+    
   } catch (error) {
-    console.error('Error fetching project settings:', error)
-    showToast('Failed to load project settings', 'error')
+    console.error('Error fetching settings:', error)
+    showToast('Failed to load settings', 'error')
   } finally {
     loading.value = false
   }
@@ -1631,10 +1720,9 @@ watch(selectedAcademicYear, async (newYear) => {
   }
 })
 
-// Update onMounted to fetch available years first
+// Update onMounted to only fetch years
 onMounted(async () => {
   await fetchAvailableYears()
-  await fetchSettings()
 })
 
 const showDeleteConfirmation = ref(false)
@@ -2147,6 +2235,199 @@ const getUserName = (userId) => {
   }
   
   return 'Unknown User';
+}
+
+// Add new state for bids
+const projectBids = ref([])
+const selectedBidMajorFilters = ref(new Set())
+const bidCurrentPage = ref(1)
+
+// Add computed properties for bids
+const uniqueBidProjectMajors = computed(() => {
+  return [...new Set(projectBids.value.map(bid => bid.major))]
+})
+
+const filteredBids = computed(() => {
+  if (selectedBidMajorFilters.value.size === 0) {
+    return projectBids.value
+  }
+  return projectBids.value.filter(bid => selectedBidMajorFilters.value.has(bid.major))
+})
+
+const paginatedBids = computed(() => {
+  const start = (bidCurrentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredBids.value.slice(start, end)
+})
+
+const bidTotalPages = computed(() => Math.ceil(filteredBids.value.length / itemsPerPage))
+
+// Add function to toggle bid major filter
+const toggleBidMajorFilter = (major) => {
+  if (selectedBidMajorFilters.value.has(major)) {
+    selectedBidMajorFilters.value.delete(major)
+  } else {
+    selectedBidMajorFilters.value.add(major)
+  }
+}
+
+// Watch for bids length changes to reset page if needed
+watch(projectBids, () => {
+  if (bidCurrentPage.value > bidTotalPages.value) {
+    bidCurrentPage.value = bidTotalPages.value || 1
+  }
+})
+
+// Function to fetch bids for lecturer's projects
+const fetchProjectBids = async () => {
+  try {
+    const schoolId = userStore.currentUser.school
+    const bidsMap = new Map() // Use a map to prevent duplicates
+    
+    for (const major of availableMajors.value) {
+      try {
+        const majorRef = collection(db, 'schools', schoolId, 'projects', selectedAcademicYear.value, major)
+        const majorDocs = await getDocs(majorRef)
+        
+        if (!majorDocs.empty) {
+          const majorDoc = majorDocs.docs[0]
+          const majorDocId = majorDoc.id
+          
+          const projectsRef = collection(
+            db, 
+            'schools', 
+            schoolId, 
+            'projects', 
+            selectedAcademicYear.value, 
+            major, 
+            majorDocId,
+            'projectsPerYear'
+          )
+          
+          const projectsQuery = query(projectsRef, where('userId', '==', userStore.currentUser.uid))
+          const projectsDocs = await getDocs(projectsQuery)
+          
+          for (const projectDoc of projectsDocs.docs) {
+            const projectId = projectDoc.id
+            const projectData = projectDoc.data()
+            
+            const bidsRef = collection(
+              db, 
+              'schools', 
+              schoolId, 
+              'projects', 
+              selectedAcademicYear.value, 
+              major, 
+              majorDocId,
+              'projectsPerYear',
+              projectId,
+              'bids'
+            )
+            
+            const bidsSnapshot = await getDocs(bidsRef)
+            
+            bidsSnapshot.forEach(bidDoc => {
+              const bidData = bidDoc.data()
+              const bidId = bidDoc.id
+              
+              // Use composite key to prevent duplicates
+              const compositeKey = `${bidId}-${projectId}-${bidData.studentId}`
+              
+              if (!bidsMap.has(compositeKey)) {
+                bidsMap.set(compositeKey, {
+                  id: bidId,
+                  projectId,
+                  projectTitle: projectData.Title,
+                  major: projectData.major,
+                  ...bidData
+                })
+              }
+            })
+          }
+        }
+      } catch (error) {
+        console.error(`Error fetching bids for major ${major}:`, error)
+      }
+    }
+    
+    // Convert map to array
+    projectBids.value = Array.from(bidsMap.values())
+    
+    // Fetch student names
+    const studentIds = new Set(projectBids.value.map(bid => bid.studentId))
+    await fetchUserNames(Array.from(studentIds))
+    
+  } catch (error) {
+    console.error('Error fetching project bids:', error)
+    showToast('Failed to load project bids', 'error')
+  }
+}
+
+// Function to update bid status
+const updateBidStatus = async (bid, newStatus) => {
+  try {
+    const schoolId = userStore.currentUser.school
+    
+    // Get the major document ID
+    const majorRef = collection(db, 'schools', schoolId, 'projects', selectedAcademicYear.value, bid.major)
+    const majorDocs = await getDocs(majorRef)
+    
+    if (majorDocs.empty) {
+      throw new Error('Major document not found')
+    }
+    
+    const majorDocId = majorDocs.docs[0].id
+    
+    // Update bid in project's bids collection
+    const bidRef = doc(
+      db, 
+      'schools', 
+      schoolId, 
+      'projects', 
+      selectedAcademicYear.value, 
+      bid.major, 
+      majorDocId,
+      'projectsPerYear',
+      bid.projectId,
+      'bids',
+      bid.id
+    )
+    
+    await updateDoc(bidRef, {
+      status: newStatus,
+      updatedAt: new Date()
+    })
+    
+    // Update bid in student's bids collection
+    const studentBidRef = doc(
+      db,
+      'schools',
+      schoolId,
+      'studentBids',
+      bid.studentId,
+      'bids',
+      bid.id
+    )
+    
+    await updateDoc(studentBidRef, {
+      status: newStatus,
+      updatedAt: new Date()
+    })
+    
+    // Update local state
+    const bidIndex = projectBids.value.findIndex(b => b.id === bid.id)
+    if (bidIndex !== -1) {
+      projectBids.value[bidIndex] = {
+        ...projectBids.value[bidIndex],
+        status: newStatus
+      }
+    }
+    
+    showToast(`Bid ${newStatus} successfully`)
+  } catch (error) {
+    console.error('Error updating bid status:', error)
+    showToast('Failed to update bid status', 'error')
+  }
 }
 </script>
 
