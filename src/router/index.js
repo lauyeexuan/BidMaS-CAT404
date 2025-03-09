@@ -6,6 +6,7 @@ import Dashboard from '@/views/Dashboard.vue'
 import { useUserStore } from '@/stores/userStore'
 import ProjectSettings from '@/views/ProjectSettings.vue'
 import ProjectWrapper from '@/views/ProjectWrapper.vue'
+import Profile from '@/views/Profile.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -56,12 +57,12 @@ const router = createRouter({
       component: ProjectWrapper,
       meta: { requiresAuth: true, roles: ['lecturer','student'] }
     },
-    // {
-    //   path: '/profile',
-    //   name: 'profile',
-    //   component: () => import('../views/ProfileView.vue'), // You'll need to create this
-    //   meta: { requiresAuth: true } // Protected route
-    // },
+    {
+      path: '/profile',
+      name: 'profile',
+      component: Profile,
+      meta: { requiresAuth: true } // Protected route accessible to all authenticated users
+    },
     // {
     //   path: '/:pathMatch(.*)*',
     //   name: 'notFound',

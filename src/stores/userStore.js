@@ -53,6 +53,7 @@ export const useUserStore = defineStore('user', () => {
                 school: userSchool,
                 role: userData.role || 'student',
                 lastLogin: userData.lastLogin,
+                profilePicture: userData.profilePicture || null,
                 ...userData
               }
               

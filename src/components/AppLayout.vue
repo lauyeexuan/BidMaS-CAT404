@@ -41,11 +41,12 @@ export default {
     // All possible menu items with their titles
     const allMenuItems = [
       { name: "Dashboard", route: 'dashboard' },
-      { name: "Project", route: 'projects' },
+      { name: "Project", route: 'Projects' },
       { name: "Feedback", route: 'feedback' },
       { name: "Track Progress", route: 'progress' },
       { name: "Account Management", route: 'account-management' },
-      { name: "Project Setting", route: 'project-settings' }
+      { name: "Project Setting", route: 'project-settings' },
+      { name: "Profile", route: 'profile' }
     ]
 
     // Get current page title
