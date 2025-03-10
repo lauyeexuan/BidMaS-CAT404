@@ -102,8 +102,9 @@
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" @click.stop>
                     <div class="flex items-center">
                       <router-link 
-                        :to="`/project-details/${project.id}`" 
-                        class="truncate hover:underline hover:text-blue-600 transition-colors w-full"
+                        :to="`/standalone-project/${project.id}`" 
+                        class="truncate hover:underline hover:text-blue-600 text-gray-900 transition-colors w-full"
+                        target="_blank"
                       >
                         {{ project.Title }}
                       </router-link>
