@@ -2544,7 +2544,7 @@ const updateBidStatus = async (bid, newStatus) => {
     // Update the selected bid in project's collection
     const projectBidRef = doc(
       db, 
-      'schools', 
+      'schools',
       schoolId, 
       'projects', 
       selectedAcademicYear.value, 
@@ -2575,9 +2575,9 @@ const updateBidStatus = async (bid, newStatus) => {
     batch.update(projectBidRef, updateData)
     batch.update(studentBidRef, updateData)
 
-    // If accepting the bid, update project assignment status and invalidate other bids
+    // If accepting the bid
     if (newStatus === 'accepted') {
-      // Update project document to mark it as assigned
+      // 1. Update project document to mark it as assigned
       const projectRef = doc(
         db,
         'schools',
@@ -2596,7 +2596,52 @@ const updateBidStatus = async (bid, newStatus) => {
         assignedAt: new Date()
       })
 
-      // Get all bids from this student
+      // 2. Reject all other students' bids for this project
+      const projectBidsRef = collection(
+        db,
+        'schools',
+        schoolId,
+        'projects',
+        selectedAcademicYear.value,
+        bid.major,
+        majorDocId,
+        'projectsPerYear',
+        bid.projectId,
+        'bids'
+      )
+      
+      const otherBidsSnapshot = await getDocs(projectBidsRef)
+      
+      for (const bidDoc of otherBidsSnapshot.docs) {
+        const otherBidData = bidDoc.data()
+        
+        // Skip the accepted bid
+        if (bidDoc.id === bid.id) continue
+        
+        // Update bid status to 'rejected' in project's collection
+        batch.update(bidDoc.ref, {
+          status: 'rejected',
+          updatedAt: new Date()
+        })
+        
+        // Update bid status to 'rejected' in student's collection
+        const otherStudentBidRef = doc(
+          db,
+          'schools',
+          schoolId,
+          'studentBids',
+          otherBidData.studentId,
+          'bids',
+          bidDoc.id
+        )
+        
+        batch.update(otherStudentBidRef, {
+          status: 'rejected',
+          updatedAt: new Date()
+        })
+      }
+
+      // 3. Invalidate all other bids from the accepted student
       const studentBidsRef = collection(db, 'schools', schoolId, 'studentBids', bid.studentId, 'bids')
       const studentBidsSnapshot = await getDocs(studentBidsRef)
       
@@ -2638,13 +2683,17 @@ const updateBidStatus = async (bid, newStatus) => {
     
     // Update local state
     if (newStatus === 'accepted') {
-      // Update all bids from the same student
       projectBids.value = projectBids.value.map(b => {
-        if (b.studentId === bid.studentId) {
-          return {
-            ...b,
-            status: b.id === bid.id ? 'accepted' : 'invalidated'
+        if (b.projectId === bid.projectId) {
+          // Update bids for the same project
+          if (b.id === bid.id) {
+            return { ...b, status: 'accepted' }
+          } else {
+            return { ...b, status: 'rejected' }
           }
+        } else if (b.studentId === bid.studentId) {
+          // Update other bids from the same student
+          return { ...b, status: 'invalidated' }
         }
         return b
       })
