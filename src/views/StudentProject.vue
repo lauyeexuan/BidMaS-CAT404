@@ -18,6 +18,7 @@
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
               'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm'
             ]"
+            data-tab="projects"
           >
             Projects
           </button>
@@ -29,6 +30,7 @@
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
               'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm'
             ]"
+            data-tab="mybid"
           >
             My Bids
           </button>
@@ -225,6 +227,35 @@
                   </div>
                 </div>
               </div>
+              
+              <!-- New congratulatory message for accepted bids -->
+              <div v-if="hasAcceptedBid" class="mt-2">
+                <div class="bg-green-50 border-l-4 border-green-400 p-4 mb-4">
+                  <div class="flex">
+                    <div class="flex-shrink-0">
+                      <svg class="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                    <div class="ml-3">
+                      <p class="text-sm font-medium text-green-800">
+                        Congratulations! Your bid for "{{ acceptedProjectTitle }}" has been accepted.
+                      </p>
+                      <p class="text-sm text-green-700 mt-1">
+                        You can now proceed to work on this project. Good luck!
+                      </p>
+                      <div class="mt-2">
+                        <button 
+                          @click="$router.push(`/project-details/${acceptedProjectId}`)"
+                          class="inline-flex items-center px-3 py-1.5 border border-green-600 text-xs font-medium rounded-md text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        >
+                          View Project Details
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="flex items-center gap-4">
               <span class="text-sm text-gray-500">
@@ -414,6 +445,23 @@ const bidsFinalized = ref(false)
 // Add new computed properties for bid status
 const allBidsRejected = computed(() => {
   return myBids.value.length > 0 && myBids.value.every(bid => bid.status === 'rejected')
+})
+
+// Add new computed property to check if any bid is accepted
+const hasAcceptedBid = computed(() => {
+  return myBids.value.some(bid => bid.status === 'accepted')
+})
+
+// Get the accepted project title if there is one
+const acceptedProjectTitle = computed(() => {
+  const acceptedBid = myBids.value.find(bid => bid.status === 'accepted')
+  return acceptedBid?.project?.Title || 'your project'
+})
+
+// Get the accepted project ID if there is one
+const acceptedProjectId = computed(() => {
+  const acceptedBid = myBids.value.find(bid => bid.status === 'accepted')
+  return acceptedBid?.projectId || ''
 })
 
 const hasAnyRejectedBids = computed(() => {
@@ -904,23 +952,48 @@ const fetchMyBids = async () => {
               const statusText = bidData.status.charAt(0).toUpperCase() + bidData.status.slice(1)
               const projectTitle = myBids.value[bidIndex].project?.Title || 'a project'
               
-              // Create notification
+              // Create notification with enhanced styling and content for accepted bids
               const notification = document.createElement('div')
-              notification.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg transform transition-transform duration-300 translate-y-0 ${
+              notification.className = `fixed bottom-4 right-4 px-6 py-4 rounded-lg shadow-lg transform transition-transform duration-300 translate-y-0 ${
                 bidData.status === 'accepted' ? 'bg-green-500 text-white' : 
                 bidData.status === 'rejected' ? 'bg-red-500 text-white' : 
                 'bg-blue-500 text-white'
               }`
-              notification.textContent = `Your bid for "${projectTitle}" has been ${statusText}`
+
+              // Enhanced content for accepted bids
+              if (bidData.status === 'accepted') {
+                notification.innerHTML = `
+                  <div class="flex flex-col gap-2">
+                    <div class="flex items-center gap-2">
+                      <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span class="font-bold">Congratulations!</span>
+                    </div>
+                    <p>Your bid for "${projectTitle}" has been accepted!</p>
+                    <p class="text-sm mt-1">You can now proceed to work on this project.</p>
+                    <div class="flex gap-2 mt-2">
+                      <button onclick="window.location.href='/project-details/${myBids.value[bidIndex].projectId}'" 
+                              class="text-sm bg-white text-green-600 px-3 py-1 rounded hover:bg-green-50 transition-colors">
+                        View Project Details
+                      </button>
+                    </div>
+                  </div>
+                `
+              } else {
+                notification.textContent = `Your bid for "${projectTitle}" has been ${statusText}`
+              }
+              
               document.body.appendChild(notification)
               
-              // Remove notification after 3 seconds
+              // Remove notification after 5 seconds for accepted bids, 3 seconds for others
+              const timeout = bidData.status === 'accepted' ? 5000 : 3000
               setTimeout(() => {
                 notification.style.transform = 'translateY(150%)'
                 setTimeout(() => {
                   document.body.removeChild(notification)
                 }, 300)
-              }, 3000)
+              }, timeout)
             }
           }
         } else if (change.type === 'removed') {
@@ -955,6 +1028,60 @@ const fetchMyBids = async () => {
             document.body.removeChild(notification)
           }, 300)
         }, 3000)
+      }
+      
+      // Check if any bid was just accepted
+      const newlyAcceptedBid = myBids.value.find(bid => 
+        bid.status === 'accepted' && 
+        snapshot.docChanges().some(change => 
+          change.doc.id === bid.id && 
+          change.type === 'modified' && 
+          change.doc.data().status === 'accepted'
+        )
+      )
+      
+      if (newlyAcceptedBid) {
+        // Show a more prominent notification for accepted bid
+        const projectTitle = newlyAcceptedBid.project?.Title || 'your project'
+        
+        // This notification is in addition to the individual bid notification
+        // and focuses on next steps
+        const notification = document.createElement('div')
+        notification.className = 'fixed top-4 right-4 bg-green-600 text-white px-6 py-4 rounded-lg shadow-xl transform transition-transform duration-500 translate-y-0 max-w-md'
+        notification.innerHTML = `
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center gap-2">
+              <svg class="h-6 w-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+              </svg>
+              <span class="font-bold text-lg">Project Assigned!</span>
+            </div>
+            <p>Great news! Your bid for "${projectTitle}" has been accepted.</p>
+            <p class="text-sm">You should now:</p>
+            <ul class="text-sm list-disc list-inside pl-2">
+              <li>Review the project details</li>
+              <li>Contact your project supervisor</li>
+              <li>Begin planning your approach</li>
+            </ul>
+            <div class="flex justify-end mt-2">
+              <button 
+                onclick="document.querySelector('[data-tab=mybid]')?.click()"
+                class="px-4 py-2 bg-white text-green-700 rounded-md hover:bg-green-50 transition-colors text-sm font-medium"
+              >
+                View My Bids
+              </button>
+            </div>
+          </div>
+        `
+        document.body.appendChild(notification)
+        
+        // Keep this notification visible longer (8 seconds)
+        setTimeout(() => {
+          notification.style.transform = 'translateY(-150%)'
+          setTimeout(() => {
+            document.body.removeChild(notification)
+          }, 500)
+        }, 8000)
       }
     })
   } catch (error) {
