@@ -93,12 +93,16 @@
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
-                <tr v-for="(project, index) in paginatedProjects" :key="index">
+                <tr v-for="(project, index) in paginatedProjects" :key="index"
+                    class="hover:bg-blue-50 cursor-pointer transition-colors duration-150 hover:shadow-sm"
+                    @click="viewProjectDetails(project.id)">
                   <td class="w-16 px-3 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                     {{ (currentPage - 1) * itemsPerPage + index + 1 }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ project.Title }}
+                    <div class="flex items-center">
+                      <span class="truncate hover:underline hover:text-blue-600 transition-colors">{{ project.Title }}</span>
+                    </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm">
                     <span 
@@ -114,7 +118,7 @@
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {{ getUserName(project.userId) }}
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm" @click.stop>
                     <!-- Show different button based on whether project has been bid on, is assigned, or bids are finalized -->
                     <button 
                       v-if="project.isAssigned"
@@ -411,11 +415,13 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useUserStore } from '@/stores/userStore'
+import { useRouter } from 'vue-router'
 import { db } from '@/firebase'
 import { doc, collection, getDocs, getDoc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore'
 import { getLatestAcademicYear, formatAcademicYear } from '@/utils/latestAcademicYear'
 
 const userStore = useUserStore()
+const router = useRouter()
 const loading = ref(true)
 const projects = ref([])
 const userNamesMap = ref(new Map())
@@ -626,11 +632,11 @@ const fetchUserNames = async (userIds) => {
 
 const fetchProjects = async () => {
   try {
-    console.log('Debug - fetchProjects called in StudentProject')
-    loading.value = true
-    const schoolId = userStore.currentUser.school
-    const userMajor = userStore.currentUser.major
-    console.log('Debug - Using school ID:', schoolId, 'and major:', userMajor)
+    console.log('Debug - fetchProjects called in StudentProject');
+    loading.value = true;
+    const schoolId = userStore.currentUser.school;
+    const userMajor = userStore.currentUser.major;
+    console.log('Debug - Using school ID:', schoolId, 'and major:', userMajor);
     
     if (!academicYearId.value || !userMajor) {
       console.error('Missing academic year or user major')
@@ -1026,7 +1032,7 @@ const fetchMyBids = async () => {
           notification.style.transform = 'translateY(150%)'
           setTimeout(() => {
             document.body.removeChild(notification)
-          }, 300)
+          }, 3000)
         }, 3000)
       }
       
@@ -1359,6 +1365,11 @@ const handleStartNewBids = async () => {
     console.error('Error starting new bids:', error)
     alert('Failed to clear previous bids. Please try again.')
   }
+}
+
+const viewProjectDetails = (projectId) => {
+  // Navigate to project details page using Vue Router
+  router.push(`/project-details/${projectId}`)
 }
 
 onMounted(async () => {

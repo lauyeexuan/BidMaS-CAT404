@@ -52,6 +52,15 @@ export default {
     // Get current page title
     const currentPageTitle = computed(() => {
       const currentRoute = route.name
+      const parentRoute = route.meta.parentRoute
+      
+      // If there's a parent route defined in meta, use that for the title
+      if (parentRoute) {
+        const parentMenuItem = allMenuItems.find(item => item.route === parentRoute)
+        return parentMenuItem ? parentMenuItem.name : 'Dashboard'
+      }
+      
+      // Otherwise use the current route
       const menuItem = allMenuItems.find(item => item.route === currentRoute)
       return menuItem ? menuItem.name : 'Dashboard'
     })
