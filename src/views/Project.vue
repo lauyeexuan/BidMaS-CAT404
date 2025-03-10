@@ -266,17 +266,6 @@
                     >
                       Active Only
                     </button>
-                    <button
-                      @click="bidStatusFilter = 'hide-invalidated'"
-                      class="px-3 py-1 text-sm rounded-full"
-                      :class="[
-                        bidStatusFilter === 'hide-invalidated'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      ]"
-                    >
-                      Hide Invalidated
-                    </button>
                   </div>
                 </div>
               </div>
@@ -344,10 +333,10 @@
                             class="px-2 py-1 rounded-full text-xs font-medium"
                             :class="{
                               'bg-yellow-100 text-yellow-800': project.hasPendingBids,
-                              'bg-green-100 text-green-800': project.allBidsProcessed && !project.hasPendingBids,
+                              //'bg-green-100 text-green-800': project.allBidsProcessed && !project.hasPendingBids,
                             }"
                           >
-                            {{ project.hasPendingBids ? 'Pending Review' : 'All Processed' }}
+                            {{ project.hasPendingBids ? 'Pending Review' : '✅' }}
                           </span>
                         </div>
                       </td>
@@ -1151,9 +1140,22 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { db } from '@/firebase'
-import { doc, collection, getDocs, query, where, getDoc, addDoc, updateDoc, deleteDoc, limit, writeBatch } from 'firebase/firestore'
+import { 
+  doc, 
+  collection, 
+  getDocs, 
+  query, 
+  where, 
+  getDoc, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  limit, 
+  writeBatch,
+  onSnapshot 
+} from 'firebase/firestore'
 import { useUserStore } from '@/stores/userStore'
 import { getLatestAcademicYear, formatAcademicYear } from '@/utils/latestAcademicYear'
 
@@ -2384,8 +2386,6 @@ const filteredBids = computed(() => {
   switch (bidStatusFilter.value) {
     case 'active':
       return bids.filter(bid => bid.status === 'pending')
-    case 'hide-invalidated':
-      return bids.filter(bid => bid.status !== 'invalidated')
     default: // 'all'
       return bids
   }
@@ -2759,20 +2759,215 @@ const paginatedGroupedBids = computed(() => {
 // Toggle project expansion
 const toggleProjectBids = (projectId) => {
   if (expandedProjects.value.has(projectId)) {
+    // Unsubscribe from listener when collapsing
+    const unsubscribe = bidListeners.value.get(projectId)
+    if (unsubscribe) {
+      unsubscribe()
+      bidListeners.value.delete(projectId)
+    }
     expandedProjects.value.delete(projectId)
   } else {
     expandedProjects.value.add(projectId)
+    // Set up real-time listener for this project's bids
+    setupBidListener(projectId)
   }
 }
 
 // Watch for filter changes to reset expanded projects
 watch(selectedBidMajorFilters, () => {
+  // Clean up listeners before clearing expanded projects
+  bidListeners.value.forEach(unsubscribe => unsubscribe())
+  bidListeners.value.clear()
   expandedProjects.value.clear()
 })
 
 // Watch for page changes to reset expanded projects
 watch(bidCurrentPage, () => {
+  // Clean up listeners before clearing expanded projects
+  bidListeners.value.forEach(unsubscribe => unsubscribe())
+  bidListeners.value.clear()
   expandedProjects.value.clear()
+})
+
+// Add new ref for bid listeners after other refs
+const bidListeners = ref(new Map())
+
+// Add new function to set up bid listener
+const setupBidListener = (projectId) => {
+  const schoolId = userStore.currentUser.school
+  const project = groupedBids.value.find(p => p.projectId === projectId)
+  
+  if (!project) return
+
+  // Get the major document ID
+  const majorRef = collection(db, 'schools', schoolId, 'projects', selectedAcademicYear.value, project.major)
+  getDocs(majorRef).then(majorDocs => {
+    if (!majorDocs.empty) {
+      const majorDocId = majorDocs.docs[0].id
+      
+      const bidsRef = collection(
+        db,
+        'schools',
+        schoolId,
+        'projects',
+        selectedAcademicYear.value,
+        project.major,
+        majorDocId,
+        'projectsPerYear',
+        projectId,
+        'bids'
+      )
+
+      // Set up real-time listener
+      const unsubscribe = onSnapshot(bidsRef, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+          const bidData = change.doc.data()
+          const bidId = change.doc.id
+          
+          // Update local state
+          const bidIndex = projectBids.value.findIndex(b => b.id === bidId)
+          if (bidIndex !== -1) {
+            projectBids.value[bidIndex] = {
+              ...projectBids.value[bidIndex],
+              ...bidData
+            }
+          }
+        })
+      }, (error) => {
+        console.error('Error in bid listener:', error)
+      })
+
+      // Store unsubscribe function
+      bidListeners.value.set(projectId, unsubscribe)
+    }
+  }).catch(error => {
+    console.error('Error setting up bid listener:', error)
+  })
+}
+
+// Add cleanup on component unmount
+onBeforeUnmount(() => {
+  // Unsubscribe from all listeners
+  bidListeners.value.forEach(unsubscribe => unsubscribe())
+  bidListeners.value.clear()
+})
+
+// Add new function to set up listeners for all bids
+const setupAllBidsListeners = async () => {
+  const schoolId = userStore.currentUser.school
+  
+  // Clean up existing listeners first
+  bidListeners.value.forEach(unsubscribe => unsubscribe())
+  bidListeners.value.clear()
+  
+  for (const major of availableMajors.value) {
+    try {
+      const majorRef = collection(db, 'schools', schoolId, 'projects', selectedAcademicYear.value, major)
+      const majorDocs = await getDocs(majorRef)
+      
+      if (!majorDocs.empty) {
+        const majorDoc = majorDocs.docs[0]
+        const majorDocId = majorDoc.id
+        
+        const projectsRef = collection(
+          db, 
+          'schools', 
+          schoolId, 
+          'projects', 
+          selectedAcademicYear.value, 
+          major, 
+          majorDocId,
+          'projectsPerYear'
+        )
+        
+        const projectsQuery = query(projectsRef, where('userId', '==', userStore.currentUser.uid))
+        const projectsDocs = await getDocs(projectsQuery)
+        
+        for (const projectDoc of projectsDocs.docs) {
+          const projectId = projectDoc.id
+          const projectData = projectDoc.data()
+          
+          const bidsRef = collection(
+            db, 
+            'schools', 
+            schoolId, 
+            'projects', 
+            selectedAcademicYear.value, 
+            major, 
+            majorDocId,
+            'projectsPerYear',
+            projectId,
+            'bids'
+          )
+          
+          // Set up real-time listener for this project's bids
+          const unsubscribe = onSnapshot(bidsRef, (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+              const bidData = change.doc.data()
+              const bidId = change.doc.id
+              
+              if (change.type === 'added') {
+                // New bid added
+                const newBid = {
+                  id: bidId,
+                  projectId,
+                  projectTitle: projectData.Title,
+                  major: projectData.major,
+                  ...bidData
+                }
+                
+                // Check if bid already exists
+                const existingIndex = projectBids.value.findIndex(b => b.id === bidId)
+                if (existingIndex === -1) {
+                  projectBids.value.push(newBid)
+                }
+                
+                // Fetch student name if needed
+                if (bidData.studentId && !userNamesMap.value.has(bidData.studentId)) {
+                  fetchUserNames([bidData.studentId])
+                }
+              } else if (change.type === 'modified') {
+                // Bid updated
+                const bidIndex = projectBids.value.findIndex(b => b.id === bidId)
+                if (bidIndex !== -1) {
+                  projectBids.value[bidIndex] = {
+                    ...projectBids.value[bidIndex],
+                    ...bidData
+                  }
+                }
+              } else if (change.type === 'removed') {
+                // Bid removed
+                const bidIndex = projectBids.value.findIndex(b => b.id === bidId)
+                if (bidIndex !== -1) {
+                  projectBids.value.splice(bidIndex, 1)
+                }
+              }
+            })
+          }, (error) => {
+            console.error('Error in bid listener:', error)
+          })
+          
+          // Store unsubscribe function with a unique key
+          const listenerKey = `${major}-${projectId}`
+          bidListeners.value.set(listenerKey, unsubscribe)
+        }
+      }
+    } catch (error) {
+      console.error(`Error setting up listeners for major ${major}:`, error)
+    }
+  }
+}
+
+// Add watcher for activeTab
+watch(activeTab, async (newTab, oldTab) => {
+  if (newTab === 'bids') {
+    // Set up listeners when entering bids tab
+    await setupAllBidsListeners()
+  } else if (oldTab === 'bids') {
+    // Clean up listeners when leaving bids tab
+    bidListeners.value.forEach(unsubscribe => unsubscribe())
+    bidListeners.value.clear()
+  }
 })
 </script>
 
