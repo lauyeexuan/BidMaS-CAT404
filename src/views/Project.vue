@@ -2259,9 +2259,7 @@ const fetchAllProjects = async () => {
     // Convert map values to array
     allProjects.value = Array.from(projectsMap.values())
     
-    console.log('Debug - Total unique loaded all projects:', allProjects.value.length)
-    
-    // Fetch user names for all projects
+    // Fetch user names for all creators
     await fetchUserNames(Array.from(userIds))
     
   } catch (error) {
@@ -2270,15 +2268,12 @@ const fetchAllProjects = async () => {
   }
 }
 
-// Function to fetch user names by IDs
+// Update the fetchUserNames function to handle batch fetching
 const fetchUserNames = async (userIds) => {
   try {
     if (!userIds.length) return
     
     console.log('Debug - Fetching names for', userIds.length, 'users')
-    
-    // Clear the map before fetching new data
-    userNamesMap.value.clear()
     
     // Get the current user's school ID
     const schoolId = userStore.currentUser.school
@@ -2288,43 +2283,45 @@ const fetchUserNames = async (userIds) => {
       return
     }
     
-    console.log(`Debug - Using school ID: ${schoolId}`)
+    // Clear the map before fetching new data
+    userNamesMap.value.clear()
     
-    // Define the collection path using the current user's school
-    const collectionPath = `schools/${schoolId}/users`
-    
-    // Fetch user documents directly
-    for (const userId of userIds) {
-      try {
-        const userDocRef = doc(db, collectionPath, userId)
-        const userDoc = await getDoc(userDocRef)
-        
-        if (userDoc.exists()) {
-          const userData = userDoc.data()
-          
-          // Store the user's name in the map using their ID as the key
-          if (userData.name || userData.displayName || userData.email) {
-            const userName = userData.name || userData.displayName || userData.email.split('@')[0]
-            userNamesMap.value.set(userId, userName)
-            console.log(`Found user: ${userId} -> ${userName}`)
-          }
-        }
-      } catch (docError) {
-        console.error(`Error fetching user: ${userId}`, docError.message)
-      }
-    }
-    
-    // If we couldn't find any users, add current user as fallback
-    if (userNamesMap.value.size === 0 && userIds.includes(userStore.currentUser.uid)) {
+    // Add current user to the map first
+    if (userStore.currentUser) {
       userNamesMap.value.set(
-        userStore.currentUser.uid, 
+        userStore.currentUser.uid,
         userStore.currentUser.name || userStore.currentUser.displayName || 'You'
       )
     }
     
+    // Fetch user documents in parallel using Promise.all
+    const userPromises = userIds.map(async (userId) => {
+      // Skip if it's the current user or if we already have the name
+      if (userId === userStore.currentUser.uid || userNamesMap.value.has(userId)) {
+        return
+      }
+      
+      try {
+        const userDocRef = doc(db, 'schools', schoolId, 'users', userId)
+        const userDoc = await getDoc(userDocRef)
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data()
+          const userName = userData.name || userData.displayName || userData.email?.split('@')[0] || userId
+          userNamesMap.value.set(userId, userName)
+          console.log(`Found user: ${userId} -> ${userName}`)
+        }
+      } catch (error) {
+        console.error(`Error fetching user ${userId}:`, error)
+      }
+    })
+    
+    // Wait for all user fetches to complete
+    await Promise.all(userPromises)
+    
     console.log(`Successfully fetched ${userNamesMap.value.size} user names`)
   } catch (error) {
-    console.error('Error fetching user names:', error.message)
+    console.error('Error fetching user names:', error)
   }
 }
 
@@ -2336,11 +2333,14 @@ const getUserName = (userId) => {
   }
   
   // If we have the name in our map, use it
-  const name = userNamesMap.value.get(userId);
-  if (name) return name;
+  if (userNamesMap.value.has(userId)) {
+    return userNamesMap.value.get(userId);
+  }
   
-  // Otherwise, format the user ID to be more readable
-  // Show first 4 and last 4 characters of the ID
+  // If we don't have the name yet, trigger a fetch for this specific user
+  fetchUserNames([userId]).catch(console.error);
+  
+  // Return a formatted ID while we wait for the name to load
   if (userId && userId.length > 8) {
     return `User ${userId.substring(0, 4)}...${userId.substring(userId.length - 4)}`;
   }
