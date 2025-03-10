@@ -99,9 +99,14 @@
                   <td class="w-16 px-3 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                     {{ (currentPage - 1) * itemsPerPage + index + 1 }}
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" @click.stop>
                     <div class="flex items-center">
-                      <span class="truncate hover:underline hover:text-blue-600 transition-colors">{{ project.Title }}</span>
+                      <router-link 
+                        :to="`/project-details/${project.id}`" 
+                        class="truncate hover:underline hover:text-blue-600 transition-colors w-full"
+                      >
+                        {{ project.Title }}
+                      </router-link>
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm">
