@@ -310,10 +310,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useUserStore } from '@/stores/userStore'
 import { db } from '@/firebase'
-import { doc, collection, getDocs, getDoc, setDoc, deleteDoc } from 'firebase/firestore'
+import { doc, collection, getDocs, getDoc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore'
 import { getLatestAcademicYear, formatAcademicYear } from '@/utils/latestAcademicYear'
 
 const userStore = useUserStore()
@@ -330,6 +330,8 @@ const bidIconLoaded = ref(true)
 const myBids = ref([])
 const loadingBids = ref(false)
 const bidCount = ref(0)
+// Add ref for unsubscribe function
+const unsubscribeBids = ref(null)
 
 // Pagination
 const currentPage = ref(1)
@@ -343,6 +345,9 @@ const bidsFinalized = ref(false)
 
 // Add modal state
 const showFinalizeModal = ref(false)
+
+// Add this near the top with other refs
+const isUpdatingPriorities = ref(false)
 
 // Color palette for majors
 const colorPalette = [
@@ -660,6 +665,7 @@ const handleBid = async (projectId) => {
 
     await setDoc(studentBidRef, studentBidData)
 
+    // Add to local array immediately for responsive UI
     myBids.value.push({
       id: newBidId,
       ...studentBidData,
@@ -670,6 +676,8 @@ const handleBid = async (projectId) => {
     })
     
     bidCount.value = myBids.value.length
+    
+    // Sort bids by priority
     myBids.value.sort((a, b) => a.priority - b.priority)
   } catch (error) {
     console.error('Error placing bid:', error)
@@ -685,6 +693,11 @@ const fetchMyBids = async () => {
     const schoolId = userStore.currentUser.school
     const studentId = userStore.currentUser.uid
 
+    // Clear existing unsubscribe if it exists
+    if (unsubscribeBids.value) {
+      unsubscribeBids.value()
+    }
+
     const tempBiddedProjectIds = new Set()
     const bidsRef = collection(db,
       'schools', schoolId,
@@ -692,6 +705,7 @@ const fetchMyBids = async () => {
       'bids'
     )
 
+    // Initial fetch to get all bids
     const bidsSnapshot = await getDocs(bidsRef)
     const bids = []
     
@@ -746,6 +760,68 @@ const fetchMyBids = async () => {
     myBids.value = bids
     bidCount.value = bids.length
     bidsFinalized.value = hasFinalized
+    
+    // Set up real-time listener for bid updates
+    unsubscribeBids.value = onSnapshot(bidsRef, async (snapshot) => {
+      // Skip processing if we're currently updating priorities
+      if (isUpdatingPriorities.value) return;
+      
+      let needsReordering = false;
+      
+      for (const change of snapshot.docChanges()) {
+        const bidData = change.doc.data()
+        const bidId = change.doc.id
+        
+        if (change.type === 'modified') {
+          // Find the bid in our array
+          const bidIndex = myBids.value.findIndex(b => b.id === bidId)
+          
+          if (bidIndex !== -1) {
+            // Update the bid with new data
+            myBids.value[bidIndex] = {
+              ...myBids.value[bidIndex],
+              ...bidData
+            }
+            
+            // If the status changed, show a notification
+            if (bidData.status && myBids.value[bidIndex].status !== bidData.status) {
+              const statusText = bidData.status.charAt(0).toUpperCase() + bidData.status.slice(1)
+              const projectTitle = myBids.value[bidIndex].project?.Title || 'a project'
+              
+              // Create notification
+              const notification = document.createElement('div')
+              notification.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg transform transition-transform duration-300 translate-y-0 ${
+                bidData.status === 'accepted' ? 'bg-green-500 text-white' : 
+                bidData.status === 'rejected' ? 'bg-red-500 text-white' : 
+                'bg-blue-500 text-white'
+              }`
+              notification.textContent = `Your bid for "${projectTitle}" has been ${statusText}`
+              document.body.appendChild(notification)
+              
+              // Remove notification after 3 seconds
+              setTimeout(() => {
+                notification.style.transform = 'translateY(150%)'
+                setTimeout(() => {
+                  document.body.removeChild(notification)
+                }, 300)
+              }, 3000)
+            }
+          }
+        } else if (change.type === 'removed') {
+          // Remove the bid from our array
+          const bidIndex = myBids.value.findIndex(b => b.id === bidId)
+          if (bidIndex !== -1) {
+            myBids.value.splice(bidIndex, 1)
+            bidCount.value = myBids.value.length
+            
+            // Update biddedProjectIds
+            if (bidData.projectId) {
+              biddedProjectIds.value.delete(bidData.projectId)
+            }
+          }
+        }
+      }
+    })
   } catch (error) {
     console.error('Error fetching bids:', error)
   } finally {
@@ -763,6 +839,9 @@ const cancelBid = async (bidId) => {
     const schoolId = userStore.currentUser.school
     const studentId = userStore.currentUser.uid
 
+    // Set the flag to prevent listener interference
+    isUpdatingPriorities.value = true
+
     const studentBidRef = doc(db,
       'schools', schoolId,
       'studentBids', studentId,
@@ -777,40 +856,69 @@ const cancelBid = async (bidId) => {
     const bidData = bidDoc.data()
     const projectId = bidData.projectId
 
-    if (projectId) {
-      biddedProjectIds.value.delete(projectId)
+    // Find the bid index before any modifications
+    const bidIndex = myBids.value.findIndex(bid => bid.id === bidId)
+    if (bidIndex === -1) {
+      throw new Error('Bid not found in local array')
     }
 
-    // Only delete from student's collection
-    await deleteDoc(studentBidRef)
+    // Create a copy of bids array without the bid to be removed
+    const updatedBids = myBids.value.filter(bid => bid.id !== bidId)
+    
+    // Update priorities for remaining bids
+    const priorityUpdates = updatedBids.map((bid, index) => ({
+      ...bid,
+      priority: index + 1,
+      updatedAt: new Date()
+    }))
 
-    const bidIndex = myBids.value.findIndex(bid => bid.id === bidId)
-    if (bidIndex !== -1) {
-      myBids.value.splice(bidIndex, 1)
-      bidCount.value = myBids.value.length
-      
-      myBids.value.forEach((bid, index) => {
-        bid.priority = index + 1
-      })
-      
-      // Update priorities in student collection only
-      if (myBids.value.length > 0) {
-        const updatePromises = myBids.value.map(bid => {
-          const studentBidRef = doc(db,
+    try {
+      // First, update all remaining bids with new priorities
+      if (priorityUpdates.length > 0) {
+        const updatePromises = priorityUpdates.map(bid => {
+          const bidRef = doc(db,
             'schools', schoolId,
             'studentBids', studentId,
             'bids', bid.id
           )
-          return setDoc(studentBidRef, { priority: bid.priority }, { merge: true })
+          
+          // Only update necessary fields
+          return setDoc(bidRef, {
+            priority: bid.priority,
+            updatedAt: bid.updatedAt
+          }, { merge: true })
         })
         
         await Promise.all(updatePromises)
       }
+
+      // Then delete the bid
+      await deleteDoc(studentBidRef)
+
+      // Update local state after successful Firestore updates
+      if (projectId) {
+        biddedProjectIds.value.delete(projectId)
+      }
+      
+      // Update local array with new priorities
+      myBids.value = priorityUpdates.map(bid => ({
+        ...bid,
+        project: myBids.value.find(b => b.id === bid.id)?.project
+      }))
+      bidCount.value = myBids.value.length
+
+    } catch (error) {
+      console.error('Error updating priorities:', error)
+      // If there's an error, refresh the bids to ensure consistency
+      await fetchMyBids()
     }
   } catch (error) {
     console.error('Error canceling bid:', error)
     alert('Failed to cancel bid. Please try again.')
     await fetchMyBids()
+  } finally {
+    // Reset the flag after all operations are complete
+    isUpdatingPriorities.value = false
   }
 }
 
@@ -923,6 +1031,13 @@ onMounted(async () => {
     ])
   } else {
     loading.value = false
+  }
+})
+
+onUnmounted(() => {
+  // Clean up function on component unmount
+  if (unsubscribeBids.value) {
+    unsubscribeBids.value()
   }
 })
 </script>
