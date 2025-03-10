@@ -2271,57 +2271,50 @@ const fetchAllProjects = async () => {
 // Update the fetchUserNames function to handle batch fetching
 const fetchUserNames = async (userIds) => {
   try {
-    if (!userIds.length) return
-    
-    console.log('Debug - Fetching names for', userIds.length, 'users')
+    if (!userIds.length) return;
     
     // Get the current user's school ID
-    const schoolId = userStore.currentUser.school
-    
+    const schoolId = userStore.currentUser.school;
     if (!schoolId) {
-      console.error('Error: No school ID found for current user')
-      return
+      console.error('Error: No school ID found for current user');
+      return;
     }
     
-    // Clear the map before fetching new data
-    userNamesMap.value.clear()
+    // Filter out IDs we already have
+    const idsToFetch = userIds.filter(id => 
+      id !== userStore.currentUser.uid && !userNamesMap.value.has(id)
+    );
     
-    // Add current user to the map first
-    if (userStore.currentUser) {
+    if (idsToFetch.length === 0) return;
+    
+    // Add current user to the map if not already there
+    if (userStore.currentUser && !userNamesMap.value.has(userStore.currentUser.uid)) {
       userNamesMap.value.set(
         userStore.currentUser.uid,
         userStore.currentUser.name || userStore.currentUser.displayName || 'You'
-      )
+      );
     }
     
-    // Fetch user documents in parallel using Promise.all
-    const userPromises = userIds.map(async (userId) => {
-      // Skip if it's the current user or if we already have the name
-      if (userId === userStore.currentUser.uid || userNamesMap.value.has(userId)) {
-        return
-      }
-      
+    // Fetch user documents in parallel
+    const userPromises = idsToFetch.map(async (userId) => {
       try {
-        const userDocRef = doc(db, 'schools', schoolId, 'users', userId)
-        const userDoc = await getDoc(userDocRef)
+        const userDocRef = doc(db, 'schools', schoolId, 'users', userId);
+        const userDoc = await getDoc(userDocRef);
         
         if (userDoc.exists()) {
-          const userData = userDoc.data()
-          const userName = userData.name || userData.displayName || userData.email?.split('@')[0] || userId
-          userNamesMap.value.set(userId, userName)
-          console.log(`Found user: ${userId} -> ${userName}`)
+          const userData = userDoc.data();
+          const userName = userData.name || userData.displayName || userData.email?.split('@')[0] || '...';
+          userNamesMap.value.set(userId, userName);
         }
       } catch (error) {
-        console.error(`Error fetching user ${userId}:`, error)
+        console.error(`Error fetching user ${userId}:`, error);
+        userNamesMap.value.set(userId, '...'); // Set loading state on error
       }
-    })
+    });
     
-    // Wait for all user fetches to complete
-    await Promise.all(userPromises)
-    
-    console.log(`Successfully fetched ${userNamesMap.value.size} user names`)
+    await Promise.all(userPromises);
   } catch (error) {
-    console.error('Error fetching user names:', error)
+    console.error('Error fetching user names:', error);
   }
 }
 
@@ -2337,15 +2330,9 @@ const getUserName = (userId) => {
     return userNamesMap.value.get(userId);
   }
   
-  // If we don't have the name yet, trigger a fetch for this specific user
+  // If we don't have the name yet, trigger a fetch and return loading state
   fetchUserNames([userId]).catch(console.error);
-  
-  // Return a formatted ID while we wait for the name to load
-  if (userId && userId.length > 8) {
-    return `User ${userId.substring(0, 4)}...${userId.substring(userId.length - 4)}`;
-  }
-  
-  return 'Unknown User';
+  return '...'; // Show loading indicator instead of formatted ID
 }
 
 // Add new state for bids
