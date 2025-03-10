@@ -29,10 +29,13 @@ schools (collection)
      │                       ├─ description: string
      │                       ├─ userId: string (owner/lecturer that created it)
      │                       ├─ major: string
+     │                       ├─ isAssigned: boolean      // NEW: tracks if project is assigned
+     │                       ├─ assignedTo: string       // NEW: studentId of assigned student
+     │                       ├─ assignedAt: timestamp    // NEW: when the project was assigned
      │                       └─ bids (subcollection)
      │                           └─ {bidId} (document)
      │                               ├─ studentId: string
-     │                               ├─ status: string ('pending', 'accepted', 'rejected')
+     │                               ├─ status: string ('pending', 'accepted', 'rejected', 'invalidated')  // UPDATED: added 'invalidated' status
      │                               ├─ priority: number
      │                               ├─ createdAt: timestamp
      │                               └─ updatedAt: timestamp
@@ -45,7 +48,7 @@ schools (collection)
                      ├─ majorId: string
                      ├─ majorDocId: string
                      ├─ year: string
-                     ├─ status: string ('pending', 'accepted', 'rejected')
+                     ├─ status: string ('pending', 'accepted', 'rejected', 'invalidated')  // UPDATED: added 'invalidated' status
                      ├─ priority: number
                      ├─ createdAt: timestamp
                      └─ updatedAt: timestamp
