@@ -237,7 +237,7 @@
               <div class="space-y-2">
                 <div class="flex items-center gap-4">
                   <h2 class="text-2xl font-semibold text-gray-900">Project Bids</h2>
-                  <span class="text-sm text-gray-500">(Total: {{ projectBids.length }})</span>
+                  <span class="text-sm text-gray-500">(Total Projects with Bids: {{ groupedBids.length }})</span>
                 </div>
                 
                 <!-- Major filter tags -->
@@ -260,8 +260,8 @@
               </div>
             </div>
 
-            <!-- Bids Table -->
-            <div v-if="projectBids.length > 0" class="overflow-x-auto">
+            <!-- Projects with Bids Table -->
+            <div v-if="groupedBids.length > 0" class="overflow-x-auto">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
@@ -275,81 +275,192 @@
                       Major
                     </th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Student
-                    </th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Priority
+                      Total Bids
                     </th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                  <tr v-for="(bid, index) in paginatedBids" :key="bid.id">
-                    <td class="w-16 px-3 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                      {{ (bidCurrentPage - 1) * itemsPerPage + index + 1 }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {{ bid.projectTitle }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                      <span 
-                        class="px-2 py-1 rounded-full text-xs"
-                        :class="[
-                          getMajorColorClasses(bid.major).bg,
-                          getMajorColorClasses(bid.major).text
-                        ]"
-                      >
-                        {{ bid.major }}
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {{ getUserName(bid.studentId) }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {{ bid.priority }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span 
-                        class="px-2 py-1 rounded-full text-xs"
-                        :class="{
-                          'bg-yellow-100 text-yellow-800': bid.status === 'pending',
-                          'bg-green-100 text-green-800': bid.status === 'accepted',
-                          'bg-red-100 text-red-800': bid.status === 'rejected'
-                        }"
-                      >
-                        {{ bid.status }}
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                      <div class="flex items-center gap-2">
-                        <button 
-                          v-if="bid.status === 'pending'"
-                          @click="updateBidStatus(bid, 'accepted')"
-                          class="text-green-600 hover:text-green-800"
-                          title="Accept bid"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  <template v-for="(project, index) in paginatedGroupedBids" :key="project.projectId">
+                    <!-- Project Row -->
+                    <tr class="hover:bg-gray-50 cursor-pointer" @click="toggleProjectBids(project.projectId)">
+                      <td class="w-16 px-3 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                        {{ (bidCurrentPage - 1) * itemsPerPage + index + 1 }}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div class="flex items-center">
+                          <svg 
+                            class="h-5 w-5 mr-2 transform transition-transform"
+                            :class="expandedProjects.has(project.projectId) ? 'rotate-90' : ''"
+                            fill="currentColor" 
+                            viewBox="0 0 20 20"
+                          >
+                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                           </svg>
-                        </button>
-                        <button 
-                          v-if="bid.status === 'pending'"
-                          @click="updateBidStatus(bid, 'rejected')"
-                          class="text-red-600 hover:text-red-800"
-                          title="Reject bid"
+                          {{ project.projectTitle }}
+                        </div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span 
+                          class="px-2 py-1 rounded-full text-xs"
+                          :class="[
+                            getMajorColorClasses(project.major).bg,
+                            getMajorColorClasses(project.major).text
+                          ]"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                          {{ project.major }}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {{ project.bids.length }}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center gap-2">
+                          <span 
+                            class="px-2 py-1 rounded-full text-xs"
+                            :class="{
+                              'bg-yellow-100 text-yellow-800': project.hasPendingBids,
+                              'bg-green-100 text-green-800': project.allBidsProcessed && !project.hasPendingBids,
+                            }"
+                          >
+                            {{ project.hasPendingBids ? 'Pending Review' : 'All Processed' }}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                    <!-- Expanded Bids -->
+                    <tr v-if="expandedProjects.has(project.projectId)" class="bg-gray-50">
+                      <td colspan="5" class="px-6">
+                        <div 
+                          class="overflow-hidden transition-all duration-300 ease-in-out transform"
+                          :class="expandedProjects.has(project.projectId) ? 'max-h-[1000px] opacity-100 py-4' : 'max-h-0 opacity-0 py-0'"
+                        >
+                          <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                            <!-- Header with summary -->
+                            <div class="px-6 py-4 bg-gradient-to-r from-blue-50 to-white border-b border-gray-200">
+                              <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-4">
+                                  <span class="text-sm font-medium text-gray-600">
+                                    Bids Summary
+                                  </span>
+                                  <div class="flex items-center gap-2">
+                                    <span class="px-2 py-1 bg-stone-100 text-zinc-800 rounded-full text-xs">
+                                      Total: {{ project.bids.length }}
+                                    </span>
+                                    <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">
+                                      Pending: {{ project.bids.filter(b => b.status === 'pending').length }}
+                                    </span>
+                                    <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                                      Accepted: {{ project.bids.filter(b => b.status === 'accepted').length }}
+                                    </span>
+                                    <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">
+                                      Rejected: {{ project.bids.filter(b => b.status === 'rejected').length }}
+                                    </span>
+                                  </div>
+                                </div>
+                                <button 
+                                  @click="toggleProjectBids(project.projectId)"
+                                  class="text-gray-500 hover:text-gray-700"
+                                  title="Close"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+
+                            <!-- Bids Table -->
+                            <div class="overflow-x-auto">
+                              <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                  <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                      Student
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                      Priority
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                      Status
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                      Actions
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                  <tr 
+                                    v-for="bid in project.bids" 
+                                    :key="bid.id"
+                                    class="hover:bg-gray-50 transition-colors duration-150"
+                                  >
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                      <div class="flex items-center">
+                                        <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                          <span class="text-sm font-medium text-blue-800">
+                                            {{ getUserName(bid.studentId).charAt(0).toUpperCase() }}
+                                          </span>
+                                        </div>
+                                        <div class="ml-3">
+                                          <div class="text-sm font-medium text-gray-900">
+                                            {{ getUserName(bid.studentId) }}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                        {{ bid.priority }}
+                                      </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                      <span 
+                                        class="px-2 py-1 rounded-full text-xs font-medium"
+                                        :class="{
+                                          'bg-yellow-100 text-yellow-800': bid.status === 'pending',
+                                          'bg-green-100 text-green-800': bid.status === 'accepted',
+                                          'bg-red-100 text-red-800': bid.status === 'rejected'
+                                        }"
+                                      >
+                                        {{ bid.status.charAt(0).toUpperCase() + bid.status.slice(1) }}
+                                      </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                      <div class="flex items-center gap-2">
+                                        <button 
+                                          v-if="bid.status === 'pending'"
+                                          @click.stop="updateBidStatus(bid, 'accepted')"
+                                          class="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-150"
+                                        >
+                                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                          </svg>
+                                          Accept
+                                        </button>
+                                        <button 
+                                          v-if="bid.status === 'pending'"
+                                          @click.stop="updateBidStatus(bid, 'rejected')"
+                                          class="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-150"
+                                        >
+                                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                          </svg>
+                                          Reject
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  </template>
                 </tbody>
               </table>
 
@@ -1051,10 +1162,10 @@ const majorProjectSettings = ref(null)
 // Remove predefined major colors and add dynamic color generation
 const colorPalette = [
   { bg: 'bg-blue-100', text: 'text-blue-800' ,selectedBg: 'bg-blue-500'},
-  { bg: 'bg-yellow-100', text: 'text-yellow-800',selectedBg: 'bg-yellow-500' },
+  { bg: 'bg-lime-100', text: 'text-lime-800',selectedBg: 'bg-lime-500' },
   { bg: 'bg-pink-100', text: 'text-pink-800',selectedBg: 'bg-pink-500' },
-  { bg: 'bg-red-100', text: 'text-red-800',selectedBg: 'bg-red-500' },
-  { bg: 'bg-lime-100', text: 'text-lime-800',selectedBg: 'bg-lime-500' }
+  { bg: 'bg-teal-100', text: 'text-teal-800',selectedBg: 'bg-teal-500' },
+  { bg: 'bg-orange-100', text: 'text-orange-800',selectedBg: 'bg-orange-500' }
 ]
 
 // Map to store major-color associations
@@ -2260,7 +2371,9 @@ const paginatedBids = computed(() => {
   return filteredBids.value.slice(start, end)
 })
 
-const bidTotalPages = computed(() => Math.ceil(filteredBids.value.length / itemsPerPage))
+const bidTotalPages = computed(() => 
+  Math.ceil(filteredGroupedBids.value.length / itemsPerPage)
+)
 
 // Add function to toggle bid major filter
 const toggleBidMajorFilter = (major) => {
@@ -2429,6 +2542,84 @@ const updateBidStatus = async (bid, newStatus) => {
     showToast('Failed to update bid status', 'error')
   }
 }
+
+// Add these refs and computed properties after the existing projectBids ref
+
+// Track expanded projects
+const expandedProjects = ref(new Set())
+
+// Group bids by project
+const groupedBids = computed(() => {
+  const groups = new Map()
+  
+  projectBids.value.forEach(bid => {
+    if (!groups.has(bid.projectId)) {
+      groups.set(bid.projectId, {
+        projectId: bid.projectId,
+        projectTitle: bid.projectTitle,
+        major: bid.major,
+        bids: [],
+        hasPendingBids: false,
+        allBidsProcessed: true
+      })
+    }
+    
+    const group = groups.get(bid.projectId)
+    group.bids.push(bid)
+    
+    // Update status flags
+    if (bid.status === 'pending') {
+      group.hasPendingBids = true
+    }
+    if (bid.status !== 'accepted' && bid.status !== 'rejected') {
+      group.allBidsProcessed = false
+    }
+    
+    // Sort bids by priority
+    group.bids.sort((a, b) => a.priority - b.priority)
+  })
+  
+  // Convert to array and sort by project title
+  return Array.from(groups.values()).sort((a, b) => 
+    a.projectTitle.localeCompare(b.projectTitle)
+  )
+})
+
+// Filter grouped bids by major
+const filteredGroupedBids = computed(() => {
+  if (selectedBidMajorFilters.value.size === 0) {
+    return groupedBids.value
+  }
+  return groupedBids.value.filter(project => 
+    selectedBidMajorFilters.value.has(project.major)
+  )
+})
+
+// Paginate grouped bids
+const paginatedGroupedBids = computed(() => {
+  const start = (bidCurrentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredGroupedBids.value.slice(start, end)
+})
+
+// Toggle project expansion
+const toggleProjectBids = (projectId) => {
+  if (expandedProjects.value.has(projectId)) {
+    expandedProjects.value.delete(projectId)
+  } else {
+    expandedProjects.value.add(projectId)
+  }
+}
+
+// Watch for filter changes to reset expanded projects
+watch(selectedBidMajorFilters, () => {
+  expandedProjects.value.clear()
+})
+
+// Watch for page changes to reset expanded projects
+watch(bidCurrentPage, () => {
+  expandedProjects.value.clear()
+})
 </script>
 
 <style scoped>
