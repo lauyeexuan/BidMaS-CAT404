@@ -205,66 +205,134 @@
           <div class="flex justify-between items-center mb-6">
             <div>
               <h2 class="text-2xl font-semibold text-gray-900">My Bids</h2>
-              <p v-if="bidsFinalized" class="mt-2 text-sm text-green-600">
+              <p v-if="bidsFinalized && !allBidsRejected" class="mt-2 text-sm text-green-600">
                 Your bids have been finalized and submitted to lecturers
               </p>
+              <!-- New message for rejected bids -->
+              <div v-if="allBidsRejected" class="mt-2">
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                  <div class="flex">
+                    <div class="flex-shrink-0">
+                      <svg class="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                    <div class="ml-3">
+                      <p class="text-sm text-yellow-700">
+                        All your bids have been rejected. You can start a new round of bidding.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="flex items-center gap-4">
               <span class="text-sm text-gray-500">
                 {{ bidCount }}/3 bids used
               </span>
               <button 
-                v-if="!bidsFinalized && myBids.length > 0"
+                v-if="!bidsFinalized && myBids.length > 0 && !allBidsRejected"
                 @click="finalizeBids"
                 class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
               >
                 Finalize Bids
               </button>
+              <!-- New Start New Bids button -->
+              <button
+                v-if="allBidsRejected"
+                @click="handleStartNewBids"
+                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+                </svg>
+                Start New Bids
+              </button>
             </div>
           </div>
 
-          <div v-if="myBids.length > 0" class="space-y-4">
-            <div v-for="bid in myBids" :key="bid.id" 
-              class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div class="flex justify-between items-start">
-                <div class="flex items-start gap-3">
-                  <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">
-                    {{ bid.priority || '?' }}
-                  </div>
-                  <div>
-                    <h3 class="text-lg font-medium text-gray-900">{{ bid.project.Title }}</h3>
-                    <p class="text-sm text-gray-500 mt-1">Created by: {{ getUserName(bid.project.userId) }}</p>
-                    <div class="mt-2 flex items-center gap-2">
-                      <span 
-                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                        :class="{
-                          'bg-yellow-100 text-yellow-800': bid.status === 'pending',
-                          'bg-green-100 text-green-800': bid.status === 'accepted',
-                          'bg-red-100 text-red-800': bid.status === 'rejected',
-                          'bg-gray-100 text-gray-600': bid.status === 'invalidated'
-                        }"
-                      >
-                        {{ bid.status.charAt(0).toUpperCase() + bid.status.slice(1) }}
-                      </span>
-                      <span class="text-xs text-gray-500">
-                        Priority: {{ bid.priority || 'Not set' }}
-                      </span>
+          <!-- Modified condition: Show if there are active bids OR reference rejected bids -->
+          <div v-if="myBids.length > 0 || rejectedBidsReference.length > 0" class="space-y-4">
+            <!-- Add rejected bids section if there are any -->
+            <template v-if="hasAnyRejectedBids">
+              <div class="border-b border-gray-200 pb-4 mb-4">
+                <h3 class="text-sm font-medium text-gray-500 mb-4">Previous Rejected Bids (Reference Only)</h3>
+                <div v-for="bid in visibleRejectedBids" 
+                  :key="bid.id"
+                  class="bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-sm opacity-75 mb-2"
+                >
+                  <div class="flex justify-between items-start">
+                    <div class="flex items-start gap-3">
+                      <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gray-400 text-white flex items-center justify-center font-bold">
+                        {{ bid.priority || '?' }}
+                      </div>
+                      <div>
+                        <h3 class="text-lg font-medium text-gray-700">{{ bid.project?.Title || 'Unknown Project' }}</h3>
+                        <p class="text-sm text-gray-500 mt-1">Created by: {{ getUserName(bid.project?.userId) }}</p>
+                        <div class="mt-2 flex items-center gap-2">
+                          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            Rejected
+                          </span>
+                          <span v-if="bid.isReference" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            Reference
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <button 
-                  v-if="!bidsFinalized"
-                  @click="cancelBid(bid.id)"
-                  class="text-sm text-red-600 hover:text-red-800"
-                >
-                  Cancel Bid
-                </button>
+                <!-- Debug info -->
+                <div class="text-xs text-gray-400 mt-2">
+                  {{ rejectedBidsReference.length }} reference bid(s), {{ myBids.filter(b => b.status === 'rejected').length }} current rejected bid(s)
+                </div>
+              </div>
+            </template>
+
+            <!-- Active bids section only if there are active bids -->
+            <div v-if="myBids.filter(b => b.status !== 'rejected').length > 0" class="active-bids">
+              <div v-for="bid in myBids.filter(b => b.status !== 'rejected')" :key="bid.id" 
+                class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow mb-4"
+              >
+                <!-- Existing bid card content -->
+                <div class="flex justify-between items-start">
+                  <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">
+                      {{ bid.priority || '?' }}
+                    </div>
+                    <div>
+                      <h3 class="text-lg font-medium text-gray-900">{{ bid.project.Title }}</h3>
+                      <p class="text-sm text-gray-500 mt-1">Created by: {{ getUserName(bid.project.userId) }}</p>
+                      <div class="mt-2 flex items-center gap-2">
+                        <span 
+                          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                          :class="{
+                            'bg-yellow-100 text-yellow-800': bid.status === 'pending',
+                            'bg-green-100 text-green-800': bid.status === 'accepted',
+                            'bg-red-100 text-red-800': bid.status === 'rejected',
+                            'bg-gray-100 text-gray-600': bid.status === 'invalidated'
+                          }"
+                        >
+                          {{ bid.status.charAt(0).toUpperCase() + bid.status.slice(1) }}
+                        </span>
+                        <span class="text-xs text-gray-500">
+                          Priority: {{ bid.priority || 'Not set' }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <button 
+                    v-if="!bidsFinalized && bid.status === 'pending'"
+                    @click="cancelBid(bid.id)"
+                    class="text-sm text-red-600 hover:text-red-800"
+                  >
+                    Cancel Bid
+                  </button>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Empty State -->
+          <!-- Empty State - Only show when there are NO active bids AND NO reference bids -->
           <div v-else class="text-center py-8">
             <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -343,6 +411,23 @@ const biddedProjectIds = ref(new Set())
 // Add new ref for finalization status
 const bidsFinalized = ref(false)
 
+// Add new computed properties for bid status
+const allBidsRejected = computed(() => {
+  return myBids.value.length > 0 && myBids.value.every(bid => bid.status === 'rejected')
+})
+
+const hasAnyRejectedBids = computed(() => {
+  // Check both current bids and reference bids
+  const hasRejectedCurrentBids = myBids.value.some(bid => bid.status === 'rejected')
+  const hasReferenceRejectedBids = rejectedBidsReference.value.length > 0
+  console.log('Rejected bids check:', { 
+    current: hasRejectedCurrentBids, 
+    reference: hasReferenceRejectedBids, 
+    referenceCount: rejectedBidsReference.value.length 
+  })
+  return hasRejectedCurrentBids || hasReferenceRejectedBids
+})
+
 // Add modal state
 const showFinalizeModal = ref(false)
 
@@ -383,6 +468,34 @@ const paginatedProjects = computed(() => {
 })
 
 const totalPages = computed(() => Math.ceil(filteredProjects.value.length / itemsPerPage))
+
+// Add new ref for storing reference bids
+const rejectedBidsReference = ref([])
+
+// Add new computed property to determine which rejected bids to show
+const visibleRejectedBids = computed(() => {
+  // If finalized, don't show any rejected bids
+  if (bidsFinalized.value) {
+    return []
+  }
+  
+  // Show both current rejected bids and reference bids
+  const currentRejected = myBids.value.filter(b => b.status === 'rejected')
+  
+  console.log('Visible rejected bids calculation:', {
+    currentRejected: currentRejected.length,
+    referenceRejected: rejectedBidsReference.value.length
+  })
+  
+  // Ensure we don't show duplicate bids (same project) from reference
+  const referenceWithoutDuplicates = rejectedBidsReference.value.filter(refBid => 
+    !currentRejected.some(curBid => curBid.projectId === refBid.projectId)
+  )
+  
+  const combined = [...currentRejected, ...referenceWithoutDuplicates]
+  console.log('Combined rejected bids:', combined.length)
+  return combined
+})
 
 // Methods
 const fetchLatestAcademicYear = async () => {
@@ -767,6 +880,7 @@ const fetchMyBids = async () => {
       if (isUpdatingPriorities.value) return;
       
       let needsReordering = false;
+      let statusChanged = false;
       
       for (const change of snapshot.docChanges()) {
         const bidData = change.doc.data()
@@ -777,14 +891,16 @@ const fetchMyBids = async () => {
           const bidIndex = myBids.value.findIndex(b => b.id === bidId)
           
           if (bidIndex !== -1) {
+            const oldStatus = myBids.value[bidIndex].status
             // Update the bid with new data
             myBids.value[bidIndex] = {
               ...myBids.value[bidIndex],
               ...bidData
             }
             
-            // If the status changed, show a notification
-            if (bidData.status && myBids.value[bidIndex].status !== bidData.status) {
+            // Check if status changed
+            if (bidData.status && oldStatus !== bidData.status) {
+              statusChanged = true;
               const statusText = bidData.status.charAt(0).toUpperCase() + bidData.status.slice(1)
               const projectTitle = myBids.value[bidIndex].project?.Title || 'a project'
               
@@ -820,6 +936,25 @@ const fetchMyBids = async () => {
             }
           }
         }
+      }
+
+      // After processing all changes, check if all bids are now rejected
+      if (statusChanged && allBidsRejected.value) {
+        // Reset finalization state since all bids were rejected
+        bidsFinalized.value = false
+        
+        // Show notification about starting new bids
+        const notification = document.createElement('div')
+        notification.className = 'fixed bottom-4 right-4 bg-yellow-500 text-white px-6 py-3 rounded-lg shadow-lg transform transition-transform duration-300 translate-y-0'
+        notification.textContent = 'All your bids have been rejected. You can start a new round of bidding.'
+        document.body.appendChild(notification)
+        
+        setTimeout(() => {
+          notification.style.transform = 'translateY(150%)'
+          setTimeout(() => {
+            document.body.removeChild(notification)
+          }, 300)
+        }, 3000)
       }
     })
   } catch (error) {
@@ -931,11 +1066,18 @@ const finalizeBids = () => {
   showFinalizeModal.value = true
 }
 
-// Add new confirmation function
+// Modify confirmFinalization to clear reference bids
 const confirmFinalization = async () => {
   try {
     const schoolId = userStore.currentUser.school
     const studentId = userStore.currentUser.uid
+
+    console.log('Before finalization: Reference bids count:', rejectedBidsReference.value.length)
+    
+    // Clear reference bids when finalizing
+    rejectedBidsReference.value = []
+    
+    console.log('After clearing reference bids:', rejectedBidsReference.value.length)
 
     // Update all bids in both collections
     const updatePromises = myBids.value.map(async (bid) => {
@@ -973,6 +1115,12 @@ const confirmFinalization = async () => {
     await Promise.all(updatePromises.flat())
     bidsFinalized.value = true
     showFinalizeModal.value = false
+    
+    console.log('After finalization:', { 
+      finalized: bidsFinalized.value,
+      referenceBidsCount: rejectedBidsReference.value.length,
+      hasAnyRejected: hasAnyRejectedBids.value
+    })
     
     // Show success message
     const successMessage = document.createElement('div')
@@ -1018,6 +1166,73 @@ watch(projects, () => {
     currentPage.value = totalPages.value || 1
   }
 })
+
+// Modify handleStartNewBids function
+const handleStartNewBids = async () => {
+  try {
+    const schoolId = userStore.currentUser.school
+    const studentId = userStore.currentUser.uid
+
+    // Store current rejected bids in reference array with full project data
+    const rejectedBids = myBids.value.filter(bid => bid.status === 'rejected')
+    console.log('Rejected bids before storing as reference:', rejectedBids.length)
+    
+    // Make sure we create a new array with full copies, not references
+    rejectedBidsReference.value = rejectedBids.map(bid => ({
+      ...bid,
+      isReference: true,  // Add flag to identify reference bids
+      project: { ...bid.project }  // Make sure to copy project data properly
+    }))
+    
+    console.log('Reference bids after storing:', rejectedBidsReference.value.length)
+
+    // Only delete rejected bids from the student's bids collection
+    // We keep them in the project's collection for record-keeping
+    const updatePromises = rejectedBids.map(bid => {
+      // Delete from student's bids collection only
+      const studentBidRef = doc(db,
+        'schools', schoolId,
+        'studentBids', studentId,
+        'bids', bid.id
+      )
+
+      return deleteDoc(studentBidRef)
+    })
+
+    await Promise.all(updatePromises)
+    
+    // Reset local state
+    bidsFinalized.value = false
+    biddedProjectIds.value.clear()
+    
+    // Update myBids to remove rejected bids
+    myBids.value = myBids.value.filter(bid => bid.status !== 'rejected')
+    bidCount.value = myBids.value.length
+    
+    console.log('After removing rejected bids:', { 
+      myBidsCount: myBids.value.length, 
+      referenceCount: rejectedBidsReference.value.length,
+      hasAnyRejected: hasAnyRejectedBids.value
+    })
+
+    // Show success message
+    const successMessage = document.createElement('div')
+    successMessage.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transform transition-transform duration-300 translate-y-0'
+    successMessage.textContent = 'Previous bids cleared. You can now start bidding again!'
+    document.body.appendChild(successMessage)
+    
+    setTimeout(() => {
+      successMessage.style.transform = 'translateY(150%)'
+      setTimeout(() => {
+        document.body.removeChild(successMessage)
+      }, 300)
+    }, 3000)
+
+  } catch (error) {
+    console.error('Error starting new bids:', error)
+    alert('Failed to clear previous bids. Please try again.')
+  }
+}
 
 onMounted(async () => {
   console.log('Student Project page loaded')
