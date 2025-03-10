@@ -95,7 +95,7 @@
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr v-for="(project, index) in paginatedProjects" :key="index"
                     class="hover:bg-blue-50 cursor-pointer transition-colors duration-150 hover:shadow-sm"
-                    @click="viewProjectDetails(project.id)">
+                    @click="openProjectDetailsWindow(project)">
                   <td class="w-16 px-3 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                     {{ (currentPage - 1) * itemsPerPage + index + 1 }}
                   </td>
@@ -703,6 +703,7 @@ const fetchProjects = async () => {
           if (!projectsMap.has(projectId)) {
             projectsMap.set(projectId, {
               id: projectId,
+              majorDocId,
               ...projectData,
               isAssigned: projectData.isAssigned || hasAcceptedBid
             })
@@ -1372,149 +1373,216 @@ const handleStartNewBids = async () => {
   }
 }
 
-const viewProjectDetails = (projectId) => {
-  // Navigate to project details page using Vue Router
-  router.push(`/project-details/${projectId}`)
-}
-
-const openProjectDetailsWindow = (project) => {
-  // Open a new window
-  const newWindow = window.open('', '_blank', 'width=800,height=700,scrollbars=yes,resizable=yes');
-  
-  // Get user name for creator
-  let creatorName = getUserName(project.userId) || 'Unknown';
-  
-  // Create color class for major
-  const majorColorClass = getMajorColorClasses(project.major);
-  const [bgClass, textClass] = majorColorClass ? [majorColorClass.bg, majorColorClass.text] : ['bg-blue-100', 'text-blue-800'];
-  
-  // Format fields
-  const excludedFields = ['id', 'userId', 'isAssigned', 'createdAt', 'Title', 'major', 'Description'];
-  const projectFields = {};
-  
-  for (const [key, value] of Object.entries(project)) {
-    if (!excludedFields.includes(key)) {
-      projectFields[key] = value;
-    }
-  }
-  
-  // Helper function to format field names
-  const formatFieldName = (key) => {
-    return key
-      .replace(/([A-Z])/g, ' $1') // Insert a space before all capital letters
-      .replace(/^./, (str) => str.toUpperCase()); // Uppercase the first letter
-  };
-  
-  // Helper function to format field values
-  const formatFieldValue = (value) => {
-    if (value === null || value === undefined) return 'Not specified';
-    
-    if (typeof value === 'boolean') {
-      return value ? 'Yes' : 'No';
-    }
-    
-    if (value instanceof Date) {
-      return value.toLocaleDateString();
-    }
-    
-    if (typeof value === 'object') {
-      if (value.toDate && typeof value.toDate === 'function') {
-        return value.toDate().toLocaleDateString();
-      }
-      return JSON.stringify(value);
-    }
-    
-    return value;
-  };
-  
-  // Generate fields HTML
-  let fieldsHtml = '';
-  for (const [key, value] of Object.entries(projectFields)) {
-    fieldsHtml += `
-      <div class="border border-gray-200 rounded-md p-4 bg-gray-50">
-        <h3 class="text-sm font-medium text-gray-500 mb-1">${formatFieldName(key)}</h3>
-        <div class="text-gray-900">${formatFieldValue(value)}</div>
-      </div>
-    `;
-  }
-  
-  // Create HTML content
-  const htmlContent = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>${project.Title} - Project Details</title>
-      <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    </head>
-    <body class="bg-gray-50">
-      <div class="min-h-screen p-8">
-        <div class="max-w-5xl mx-auto bg-white rounded-lg shadow-lg p-6">
-          <!-- Project Header -->
-          <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900">${project.Title}</h1>
-            <div class="mt-2 flex items-center">
-              <span class="px-2.5 py-0.5 rounded-full text-xs font-medium ${bgClass} ${textClass}">
-                ${project.major}
-              </span>
-              <span class="mx-2 text-gray-300">•</span>
-              <span class="text-sm text-gray-500">Created by ${creatorName}</span>
-            </div>
-          </div>
-
-          <!-- Project Description -->
-          <div class="mb-8">
-            <h2 class="text-xl font-semibold text-gray-900 mb-2">Description</h2>
-            ${project.Description 
-              ? `<div class="text-gray-700 whitespace-pre-line">${project.Description}</div>`
-              : `<div class="text-gray-500 italic">No description provided</div>`
-            }
-          </div>
-
-          <!-- Project Details Fields -->
-          <div>
-            <h2 class="text-xl font-semibold text-gray-900 mb-4">Project Details</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              ${fieldsHtml}
-            </div>
-          </div>
-
-          <!-- Close Print Button -->
-          <div class="mt-10 flex justify-between">
-            <button
-              onclick="window.close()"
-              class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
-            >
-              Close
-            </button>
-            <button
-              onclick="window.print()"
-              class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none"
-            >
-              <svg class="h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-              </svg>
-              Print
-            </button>
+const openProjectDetailsWindow = async (project) => {
+  try {
+    // First show a loading window
+    const newWindow = window.open('', '_blank', 'width=800,height=700,scrollbars=yes,resizable=yes');
+    newWindow.document.write(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Loading...</title>
+        <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+      </head>
+      <body class="bg-gray-50">
+        <div class="flex items-center justify-center min-h-screen">
+          <div class="text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p class="text-gray-600">Loading project details...</p>
           </div>
         </div>
-      </div>
-      
-      <style>
-        @media print {
-          button {
-            display: none !important;
+      </body>
+      </html>
+    `);
+    
+    // Get user name for creator
+    let creatorName = getUserName(project.userId) || 'Unknown';
+    
+    // Get project headers from the majorDocId document
+    const schoolId = userStore.currentUser.school;
+    const majorId = project.major;
+    const majorDocId = project.majorDocId;
+    const year = academicYearId.value;
+    
+    console.log('Debug - Fetching headers with:', { schoolId, year, majorId, majorDocId });
+    
+    let headers = {};
+    
+    // Fetch the headers map from the majorDocId document
+    if (schoolId && year && majorId && majorDocId) {
+      try {
+        const majorDocRef = doc(db, 
+          'schools', schoolId, 
+          'projects', year, 
+          majorId, majorDocId // Use correct path based on Firestore structure
+        );
+        
+        const majorDoc = await getDoc(majorDocRef);
+        if (majorDoc.exists()) {
+          const majorData = majorDoc.data();
+          if (majorData.headers && typeof majorData.headers === 'object') {
+            headers = majorData.headers;
+            console.log('Found headers:', Object.keys(headers));
+          } else {
+            console.log('No headers found in major document');
           }
+        } else {
+          console.log('Major document not found');
         }
-      </style>
-    </body>
-    </html>
-  `;
-  
-  // Write the HTML to the new window
-  newWindow.document.write(htmlContent);
-  newWindow.document.close();
+      } catch (error) {
+        console.error('Error fetching headers:', error);
+      }
+    } else {
+      console.log('Missing data for headers fetch:', { schoolId, year, majorId, majorDocId });
+    }
+    
+    // Create color class for major
+    const majorColorClass = getMajorColorClasses(project.major);
+    const [bgClass, textClass] = majorColorClass ? [majorColorClass.bg, majorColorClass.text] : ['bg-blue-100', 'text-blue-800'];
+    
+    // Get only the fields that are in the headers
+    const projectFields = {};
+    
+    // If we have headers, use them to filter fields
+    if (Object.keys(headers).length > 0) {
+      for (const [key, value] of Object.entries(project)) {
+        if (headers[key] && key !== 'Title') { // Skip Title field
+          projectFields[key] = value;
+        }
+      }
+    } else {
+      // Fallback: exclude some standard fields if no headers found
+      const excludedFields = ['id', 'userId', 'isAssigned', 'createdAt', 'Title', 'major', 'Description', 'majorDocId'];
+      for (const [key, value] of Object.entries(project)) {
+        if (!excludedFields.includes(key)) {
+          projectFields[key] = value;
+        }
+      }
+    }
+    
+    // Helper function to format field names
+    const formatFieldName = (key) => {
+      // If we have a header label, use it
+      if (headers[key] && headers[key].label) {
+        return headers[key].label;
+      }
+      
+      // Otherwise format the key
+      return key
+        .replace(/([A-Z])/g, ' $1') // Insert a space before all capital letters
+        .replace(/^./, (str) => str.toUpperCase()); // Uppercase the first letter
+    };
+    
+    // Helper function to format field values
+    const formatFieldValue = (value) => {
+      if (value === null || value === undefined) return 'Not specified';
+      
+      if (typeof value === 'boolean') {
+        return value ? 'Yes' : 'No';
+      }
+      
+      if (value instanceof Date) {
+        return value.toLocaleDateString();
+      }
+      
+      if (Array.isArray(value)) {
+        return value.map(item => 
+          `<span class="inline-block px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mr-2 mb-2">${item}</span>`
+        ).join('');
+      }
+      
+      if (typeof value === 'object') {
+        if (value.toDate && typeof value.toDate === 'function') {
+          return value.toDate().toLocaleDateString();
+        }
+        // Handle other objects by converting to string but removing brackets and quotes
+        return JSON.stringify(value).replace(/[[\]"]/g, '');
+      }
+      
+      return value;
+    };
+    
+    // Generate fields HTML
+    let fieldsHtml = '';
+    for (const [key, value] of Object.entries(projectFields)) {
+      fieldsHtml += `
+        <div class="border border-gray-200 rounded-md p-4 bg-gray-50">
+          <h3 class="text-sm font-medium text-gray-500 mb-1">${formatFieldName(key)}</h3>
+          <div class="text-gray-900">${formatFieldValue(value)}</div>
+        </div>
+      `;
+    }
+    
+    // Create HTML content
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${project.Title} - Project Details</title>
+        <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+      </head>
+      <body class="bg-gray-50">
+        <div class="min-h-screen p-8">
+          <div class="max-w-5xl mx-auto bg-white rounded-lg shadow-lg p-6">
+            <!-- Project Header -->
+            <div class="mb-8">
+              <h1 class="text-3xl font-bold text-gray-900">${project.Title}</h1>
+              <div class="mt-2 flex items-center">
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-medium ${bgClass} ${textClass}">
+                  ${project.major}
+                </span>
+                <span class="mx-2 text-gray-300">•</span>
+                <span class="text-sm text-gray-500">Created by ${creatorName}</span>
+              </div>
+            </div>
+
+            <!-- Project Description -->
+            <div class="mb-8">
+              <h2 class="text-xl font-semibold text-gray-900 mb-2">Description</h2>
+              ${project.Description 
+                ? `<div class="text-gray-700 whitespace-pre-line">${project.Description}</div>`
+                : `<div class="text-gray-500 italic">No description provided</div>`
+              }
+            </div>
+
+            <!-- Project Details Fields -->
+            <div>
+              <h2 class="text-xl font-semibold text-gray-900 mb-4">Project Details</h2>
+              ${Object.keys(projectFields).length > 0 ? 
+                `<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  ${fieldsHtml}
+                </div>` : 
+                `<div class="text-gray-500 italic">No additional details available</div>`
+              }
+            </div>
+
+            <!-- Close Print Button -->
+            <div class="mt-10 flex justify-end">
+              <button
+                onclick="window.close()"
+                class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    // Write the HTML to the new window
+    newWindow.document.open();
+    newWindow.document.write(htmlContent);
+    newWindow.document.close();
+  } catch (error) {
+    console.error('Error opening project details window:', error);
+    alert('There was an error opening the project details. Please try again.');
+  }
 }
 
 onMounted(async () => {

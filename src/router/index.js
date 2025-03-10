@@ -63,12 +63,6 @@ const router = createRouter({
       component: Profile,
       meta: { requiresAuth: true } // Protected route accessible to all authenticated users
     },
-    {
-      path: '/project-details/:projectId',
-      name: 'project-details',
-      component: () => import('@/views/ProjectDetails.vue'),
-      meta: { requiresAuth: true, roles: ['student', 'lecturer'], parentRoute: 'Projects' }
-    },
     // {
     //   path: '/:pathMatch(.*)*',
     //   name: 'notFound',
