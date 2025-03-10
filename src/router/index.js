@@ -7,7 +7,6 @@ import { useUserStore } from '@/stores/userStore'
 import ProjectSettings from '@/views/ProjectSettings.vue'
 import ProjectWrapper from '@/views/ProjectWrapper.vue'
 import Profile from '@/views/Profile.vue'
-import StandaloneProjectDetails from '@/views/StandaloneProjectDetails.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -69,12 +68,6 @@ const router = createRouter({
       name: 'project-details',
       component: () => import('@/views/ProjectDetails.vue'),
       meta: { requiresAuth: true, roles: ['student', 'lecturer'], parentRoute: 'Projects' }
-    },
-    {
-      path: '/standalone-project/:projectId',
-      name: 'standalone-project',
-      component: StandaloneProjectDetails,
-      meta: { requiresAuth: true, roles: ['student', 'lecturer'] }
     },
     // {
     //   path: '/:pathMatch(.*)*',
