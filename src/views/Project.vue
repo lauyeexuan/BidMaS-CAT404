@@ -237,25 +237,47 @@
               <div class="space-y-2">
                 <div class="flex items-center gap-4">
                   <h2 class="text-2xl font-semibold text-gray-900">Project Bids</h2>
-                  <span class="text-sm text-gray-500">(Total Projects with Bids: {{ groupedBids.length }})</span>
+                  <span class="text-sm text-gray-500">(Total: {{ projectBids.length }})</span>
                 </div>
                 
-                <!-- Major filter tags -->
-                <div v-if="uniqueBidProjectMajors.length > 0" class="flex flex-wrap gap-2">
-                  <button
-                    v-for="major in uniqueBidProjectMajors"
-                    :key="major"
-                    @click="toggleBidMajorFilter(major)"
-                    class="px-3 py-1 rounded-full text-sm font-medium transition-colors flex items-center gap-1"
-                    :class="[
-                      selectedBidMajorFilters.has(major) 
-                        ? getMajorColorClasses(major).selected 
-                        : [getMajorColorClasses(major).bg, getMajorColorClasses(major).text, 'hover:bg-opacity-75'],
-                    ]"
-                  >
-                    <span v-if="selectedBidMajorFilters.has(major)" class="w-2 h-2 rounded-full bg-white"></span>
-                    {{ major }}
-                  </button>
+                <!-- Add Status Filter -->
+                <div class="flex items-center gap-4 mt-4">
+                  <span class="text-sm text-gray-600">Status Filter:</span>
+                  <div class="flex gap-2">
+                    <button
+                      @click="bidStatusFilter = 'all'"
+                      class="px-3 py-1 text-sm rounded-full"
+                      :class="[
+                        bidStatusFilter === 'all'
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      ]"
+                    >
+                      All Bids
+                    </button>
+                    <button
+                      @click="bidStatusFilter = 'active'"
+                      class="px-3 py-1 text-sm rounded-full"
+                      :class="[
+                        bidStatusFilter === 'active'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      ]"
+                    >
+                      Active Only
+                    </button>
+                    <button
+                      @click="bidStatusFilter = 'hide-invalidated'"
+                      class="px-3 py-1 text-sm rounded-full"
+                      :class="[
+                        bidStatusFilter === 'hide-invalidated'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      ]"
+                    >
+                      Hide Invalidated
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -319,7 +341,7 @@
                       <td class="px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center gap-2">
                           <span 
-                            class="px-2 py-1 rounded-full text-xs"
+                            class="px-2 py-1 rounded-full text-xs font-medium"
                             :class="{
                               'bg-yellow-100 text-yellow-800': project.hasPendingBids,
                               'bg-green-100 text-green-800': project.allBidsProcessed && !project.hasPendingBids,
@@ -422,7 +444,8 @@
                                         :class="{
                                           'bg-yellow-100 text-yellow-800': bid.status === 'pending',
                                           'bg-green-100 text-green-800': bid.status === 'accepted',
-                                          'bg-red-100 text-red-800': bid.status === 'rejected'
+                                          'bg-red-100 text-red-800': bid.status === 'rejected',
+                                          'bg-gray-100 text-gray-600': bid.status === 'invalidated'
                                         }"
                                       >
                                         {{ bid.status.charAt(0).toUpperCase() + bid.status.slice(1) }}
@@ -1130,7 +1153,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { db } from '@/firebase'
-import { doc, collection, getDocs, query, where, getDoc, addDoc, updateDoc, deleteDoc, limit } from 'firebase/firestore'
+import { doc, collection, getDocs, query, where, getDoc, addDoc, updateDoc, deleteDoc, limit, writeBatch } from 'firebase/firestore'
 import { useUserStore } from '@/stores/userStore'
 import { getLatestAcademicYear, formatAcademicYear } from '@/utils/latestAcademicYear'
 
@@ -2345,11 +2368,27 @@ const uniqueBidProjectMajors = computed(() => {
   return [...new Set(projectBids.value.map(bid => bid.major))]
 })
 
+// Add new ref for bid status filter after other refs
+const bidStatusFilter = ref('all') // possible values: 'all', 'active', 'hide-invalidated'
+
+// Modify the filteredBids computed property
 const filteredBids = computed(() => {
-  if (selectedBidMajorFilters.value.size === 0) {
-    return projectBids.value
+  let bids = projectBids.value
+
+  // Apply major filter
+  if (selectedBidMajorFilters.value.size > 0) {
+    bids = bids.filter(bid => selectedBidMajorFilters.value.has(bid.major))
   }
-  return projectBids.value.filter(bid => selectedBidMajorFilters.value.has(bid.major))
+
+  // Apply status filter
+  switch (bidStatusFilter.value) {
+    case 'active':
+      return bids.filter(bid => bid.status === 'pending')
+    case 'hide-invalidated':
+      return bids.filter(bid => bid.status !== 'invalidated')
+    default: // 'all'
+      return bids
+  }
 })
 
 const paginatedBids = computed(() => {
@@ -2463,10 +2502,31 @@ const fetchProjectBids = async () => {
   }
 }
 
+// Add helper function to check if student has accepted bid
+const checkStudentHasAcceptedBid = async (schoolId, studentId) => {
+  try {
+    const studentBidsRef = collection(db, 'schools', schoolId, 'studentBids', studentId, 'bids')
+    const bidsSnapshot = await getDocs(studentBidsRef)
+    return bidsSnapshot.docs.some(doc => doc.data().status === 'accepted')
+  } catch (error) {
+    console.error('Error checking student accepted bids:', error)
+    throw error
+  }
+}
+
 // Function to update bid status
 const updateBidStatus = async (bid, newStatus) => {
   try {
     const schoolId = userStore.currentUser.school
+    
+    // If trying to accept, check if student already has an accepted bid
+    if (newStatus === 'accepted') {
+      const hasAcceptedBid = await checkStudentHasAcceptedBid(schoolId, bid.studentId)
+      if (hasAcceptedBid) {
+        showToast('Cannot accept bid: Student already has an accepted project', 'error')
+        return
+      }
+    }
     
     // Get the major document ID
     const majorRef = collection(db, 'schools', schoolId, 'projects', selectedAcademicYear.value, bid.major)
@@ -2477,9 +2537,12 @@ const updateBidStatus = async (bid, newStatus) => {
     }
     
     const majorDocId = majorDocs.docs[0].id
+
+    // Start a batch write
+    const batch = writeBatch(db)
     
-    // Update bid in project's bids collection
-    const bidRef = doc(
+    // Update the selected bid in project's collection
+    const projectBidRef = doc(
       db, 
       'schools', 
       schoolId, 
@@ -2493,12 +2556,7 @@ const updateBidStatus = async (bid, newStatus) => {
       bid.id
     )
     
-    await updateDoc(bidRef, {
-      status: newStatus,
-      updatedAt: new Date()
-    })
-    
-    // Update bid in student's bids collection
+    // Update the selected bid in student's collection
     const studentBidRef = doc(
       db,
       'schools',
@@ -2508,18 +2566,96 @@ const updateBidStatus = async (bid, newStatus) => {
       'bids',
       bid.id
     )
-    
-    await updateDoc(studentBidRef, {
+
+    const updateData = {
       status: newStatus,
       updatedAt: new Date()
-    })
+    }
+
+    batch.update(projectBidRef, updateData)
+    batch.update(studentBidRef, updateData)
+
+    // If accepting the bid, update project assignment status and invalidate other bids
+    if (newStatus === 'accepted') {
+      // Update project document to mark it as assigned
+      const projectRef = doc(
+        db,
+        'schools',
+        schoolId,
+        'projects',
+        selectedAcademicYear.value,
+        bid.major,
+        majorDocId,
+        'projectsPerYear',
+        bid.projectId
+      )
+      
+      batch.update(projectRef, {
+        isAssigned: true,
+        assignedTo: bid.studentId,
+        assignedAt: new Date()
+      })
+
+      // Get all bids from this student
+      const studentBidsRef = collection(db, 'schools', schoolId, 'studentBids', bid.studentId, 'bids')
+      const studentBidsSnapshot = await getDocs(studentBidsRef)
+      
+      for (const bidDoc of studentBidsSnapshot.docs) {
+        if (bidDoc.id !== bid.id) {  // Skip the accepted bid
+          const otherBidData = bidDoc.data()
+          
+          // Update in student's collection
+          batch.update(doc(studentBidsRef, bidDoc.id), {
+            status: 'invalidated',
+            updatedAt: new Date()
+          })
+          
+          // Update in project's collection
+          const otherProjectBidRef = doc(
+            db,
+            'schools',
+            schoolId,
+            'projects',
+            otherBidData.year,
+            otherBidData.majorId,
+            otherBidData.majorDocId,
+            'projectsPerYear',
+            otherBidData.projectId,
+            'bids',
+            bidDoc.id
+          )
+          
+          batch.update(otherProjectBidRef, {
+            status: 'invalidated',
+            updatedAt: new Date()
+          })
+        }
+      }
+    }
+
+    // Commit all the updates
+    await batch.commit()
     
     // Update local state
-    const bidIndex = projectBids.value.findIndex(b => b.id === bid.id)
-    if (bidIndex !== -1) {
-      projectBids.value[bidIndex] = {
-        ...projectBids.value[bidIndex],
-        status: newStatus
+    if (newStatus === 'accepted') {
+      // Update all bids from the same student
+      projectBids.value = projectBids.value.map(b => {
+        if (b.studentId === bid.studentId) {
+          return {
+            ...b,
+            status: b.id === bid.id ? 'accepted' : 'invalidated'
+          }
+        }
+        return b
+      })
+    } else {
+      // Just update the single bid
+      const bidIndex = projectBids.value.findIndex(b => b.id === bid.id)
+      if (bidIndex !== -1) {
+        projectBids.value[bidIndex] = {
+          ...projectBids.value[bidIndex],
+          status: newStatus
+        }
       }
     }
     
@@ -2539,7 +2675,7 @@ const expandedProjects = ref(new Set())
 const groupedBids = computed(() => {
   const groups = new Map()
   
-  projectBids.value.forEach(bid => {
+  filteredBids.value.forEach(bid => {
     if (!groups.has(bid.projectId)) {
       groups.set(bid.projectId, {
         projectId: bid.projectId,
@@ -2561,8 +2697,10 @@ const groupedBids = computed(() => {
     if (bid.status !== 'accepted' && bid.status !== 'rejected') {
       group.allBidsProcessed = false
     }
-    
-    // Sort bids by priority
+  })
+  
+  // Sort bids within each group by priority
+  groups.forEach(group => {
     group.bids.sort((a, b) => a.priority - b.priority)
   })
   
@@ -2574,11 +2712,40 @@ const groupedBids = computed(() => {
 
 // Filter grouped bids by major
 const filteredGroupedBids = computed(() => {
-  if (selectedBidMajorFilters.value.size === 0) {
-    return groupedBids.value
-  }
-  return groupedBids.value.filter(project => 
-    selectedBidMajorFilters.value.has(project.major)
+  const groups = new Map()
+  
+  filteredBids.value.forEach(bid => {
+    if (!groups.has(bid.projectId)) {
+      groups.set(bid.projectId, {
+        projectId: bid.projectId,
+        projectTitle: bid.projectTitle,
+        major: bid.major,
+        bids: [],
+        hasPendingBids: false,
+        allBidsProcessed: true
+      })
+    }
+    
+    const group = groups.get(bid.projectId)
+    group.bids.push(bid)
+    
+    // Update status flags
+    if (bid.status === 'pending') {
+      group.hasPendingBids = true
+    }
+    if (bid.status !== 'accepted' && bid.status !== 'rejected') {
+      group.allBidsProcessed = false
+    }
+  })
+  
+  // Sort bids within each group by priority
+  groups.forEach(group => {
+    group.bids.sort((a, b) => a.priority - b.priority)
+  })
+  
+  // Convert to array and sort by project title
+  return Array.from(groups.values()).sort((a, b) => 
+    a.projectTitle.localeCompare(b.projectTitle)
   )
 })
 

@@ -113,9 +113,16 @@
                     {{ getUserName(project.userId) }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm">
-                    <!-- Show different button based on whether project has been bid on or bids are finalized -->
+                    <!-- Show different button based on whether project has been bid on, is assigned, or bids are finalized -->
                     <button 
-                      v-if="biddedProjectIds.has(project.id)"
+                      v-if="project.isAssigned"
+                      class="inline-flex items-center justify-center w-28 px-3 py-1.5 bg-gray-100 text-gray-500 rounded-md cursor-not-allowed"
+                      disabled
+                    >
+                      Taken
+                    </button>
+                    <button 
+                      v-else-if="biddedProjectIds.has(project.id)"
                       class="inline-flex items-center justify-center w-28 px-3 py-1.5 bg-green-100 text-green-700 rounded-md cursor-default"
                       disabled
                     >
@@ -136,9 +143,6 @@
                       @click="handleBid(project.id)"
                       class="inline-flex items-center justify-center w-28 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors"
                     >
-                      <svg v-if="!bidIconLoaded" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
-                      </svg>
                       <img 
                         v-if="bidIconLoaded"
                         src="@/assets/bid.png" 
@@ -146,6 +150,9 @@
                         class="h-4 w-4 mr-1.5 object-contain" 
                         @error="bidIconLoaded = false"
                       />
+                      <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                      </svg>
                       Bid
                     </button>
                   </td>
@@ -234,7 +241,8 @@
                         :class="{
                           'bg-yellow-100 text-yellow-800': bid.status === 'pending',
                           'bg-green-100 text-green-800': bid.status === 'accepted',
-                          'bg-red-100 text-red-800': bid.status === 'rejected'
+                          'bg-red-100 text-red-800': bid.status === 'rejected',
+                          'bg-gray-100 text-gray-600': bid.status === 'invalidated'
                         }"
                       >
                         {{ bid.status.charAt(0).toUpperCase() + bid.status.slice(1) }}
@@ -500,7 +508,7 @@ const fetchProjects = async () => {
         
         console.log(`Debug - Found ${projectsDocs.docs.length} projects for major ${userMajor}`)
         
-        projectsDocs.forEach(doc => {
+        for (const doc of projectsDocs.docs) {
           const projectId = doc.id
           const projectData = doc.data()
           
@@ -509,14 +517,20 @@ const fetchProjects = async () => {
             userIds.add(projectData.userId)
           }
           
+          // Check if project has any accepted bids
+          const bidsRef = collection(projectsRef, projectId, 'bids')
+          const bidsSnapshot = await getDocs(bidsRef)
+          const hasAcceptedBid = bidsSnapshot.docs.some(bid => bid.data().status === 'accepted')
+          
           // Use Map to ensure uniqueness by project ID
           if (!projectsMap.has(projectId)) {
             projectsMap.set(projectId, {
               id: projectId,
-              ...projectData
+              ...projectData,
+              isAssigned: projectData.isAssigned || hasAcceptedBid
             })
           }
-        })
+        }
       }
     } catch (majorError) {
       console.error(`Error fetching projects for major ${userMajor}:`, majorError)
