@@ -1790,7 +1790,13 @@ watch(selectedAcademicYear, async (newYear) => {
   if (newYear) {
     latestAcademicYear.value = formatAcademicYear(newYear)
     latestAcademicYearId.value = newYear
-    // Load data for current tab instead of fetching everything
+    
+    // Reset the loaded flags since we need fresh data for the new year
+    myProjectsLoaded.value = false
+    allProjectsLoaded.value = false
+    bidsLoaded.value = false
+    
+    // Reload data for the current tab when year changes
     await loadTabData(activeTab.value)
   }
 })
@@ -2967,6 +2973,11 @@ watch(selectedAcademicYear, async (newYear) => {
     latestAcademicYear.value = formatAcademicYear(newYear)
     latestAcademicYearId.value = newYear
     
+    // Reset the loaded flags since we need fresh data for the new year
+    myProjectsLoaded.value = false
+    allProjectsLoaded.value = false
+    bidsLoaded.value = false
+    
     // Reload data for the current tab when year changes
     await loadTabData(activeTab.value)
   }
@@ -2983,6 +2994,11 @@ onMounted(async () => {
 const myProjectsLoading = ref(false)
 const allProjectsLoading = ref(false) 
 const bidsLoading = ref(false)
+
+// Add tracking for which tabs have been loaded
+const myProjectsLoaded = ref(false)
+const allProjectsLoaded = ref(false)
+const bidsLoaded = ref(false)
 
 // New function to load data based on active tab
 const loadTabData = async (tab) => {
@@ -3003,24 +3019,36 @@ const loadTabData = async (tab) => {
     
     // Load specific data based on active tab
     if (tab === 'myProjects') {
-      myProjectsLoading.value = true
-      // Clear current data
-      projects.value = []
-      await fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
-      myProjectsLoading.value = false
+      // Only load if not already loaded
+      if (!myProjectsLoaded.value) {
+        myProjectsLoading.value = true
+        // Clear current data
+        projects.value = []
+        await fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
+        myProjectsLoaded.value = true
+        myProjectsLoading.value = false
+      }
     } else if (tab === 'allProjects') {
-      allProjectsLoading.value = true
-      // Clear current data
-      allProjects.value = []
-      await fetchAllProjects()
-      allProjectsLoading.value = false
+      // Only load if not already loaded
+      if (!allProjectsLoaded.value) {
+        allProjectsLoading.value = true
+        // Clear current data
+        allProjects.value = []
+        await fetchAllProjects()
+        allProjectsLoaded.value = true
+        allProjectsLoading.value = false
+      }
     } else if (tab === 'bids') {
-      bidsLoading.value = true
-      // Clear current data
-      projectBids.value = []
-      await fetchProjectBids()
-      await setupAllBidsListeners()
-      bidsLoading.value = false
+      // Only load if not already loaded
+      if (!bidsLoaded.value) {
+        bidsLoading.value = true
+        // Clear current data
+        projectBids.value = []
+        await fetchProjectBids()
+        await setupAllBidsListeners()
+        bidsLoaded.value = true
+        bidsLoading.value = false
+      }
     }
   } catch (error) {
     console.error('Error loading tab data:', error)
