@@ -124,14 +124,8 @@
               </div>
             </div>
 
-            <!-- Loading State -->
-            <div v-if="myProjectsLoading" class="text-center py-8">
-              <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2"></div>
-              <p class="text-gray-600">Loading projects...</p>
-            </div>
-
             <!-- Projects Table -->
-            <div v-else-if="projects.length > 0" class="overflow-x-auto">
+            <div v-if="projects.length > 0" class="overflow-x-auto">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
@@ -276,15 +270,9 @@
                 </div>
               </div>
             </div>
-            
-            <!-- Loading State -->
-            <div v-if="bidsLoading" class="text-center py-8">
-              <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2"></div>
-              <p class="text-gray-600">Loading project bids...</p>
-            </div>
 
             <!-- Projects with Bids Table -->
-            <div v-else-if="groupedBids.length > 0" class="overflow-x-auto">
+            <div v-if="groupedBids.length > 0" class="overflow-x-auto">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
@@ -549,14 +537,8 @@
               </div>
             </div>
 
-            <!-- Loading State -->
-            <div v-if="allProjectsLoading" class="text-center py-8">
-              <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2"></div>
-              <p class="text-gray-600">Loading all projects...</p>
-            </div>
-
             <!-- Projects Table -->
-            <div v-else-if="allProjects.length > 0" class="overflow-x-auto">
+            <div v-if="allProjects.length > 0" class="overflow-x-auto">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
@@ -628,7 +610,7 @@
 
             <!-- No Projects Message -->
             <div v-else class="text-center py-8 text-gray-500">
-              No projects available for the selected academic year.
+              No projects found.
             </div>
           </div>
         </div>
@@ -2998,8 +2980,8 @@ const loadTabData = async (tab) => {
       userId = "unknown-user-" + Date.now()
     }
     
-    // Call fetchSettings to ensure we load all necessary data
-    await fetchSettings()
+    // Ensure we have basic settings (majors, etc.) regardless of tab
+    await fetchBasicSettings()
     
     // Load specific data based on active tab
     if (tab === 'myProjects') {
@@ -3109,6 +3091,8 @@ const fetchBasicSettings = async () => {
   } catch (error) {
     console.error('Error fetching basic settings:', error)
     showToast('Failed to load settings', 'error')
+  }
+}
   }
 }
 </script>

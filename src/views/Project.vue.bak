@@ -124,14 +124,8 @@
               </div>
             </div>
 
-            <!-- Loading State -->
-            <div v-if="myProjectsLoading" class="text-center py-8">
-              <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2"></div>
-              <p class="text-gray-600">Loading projects...</p>
-            </div>
-
             <!-- Projects Table -->
-            <div v-else-if="projects.length > 0" class="overflow-x-auto">
+            <div v-if="projects.length > 0" class="overflow-x-auto">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
@@ -276,15 +270,9 @@
                 </div>
               </div>
             </div>
-            
-            <!-- Loading State -->
-            <div v-if="bidsLoading" class="text-center py-8">
-              <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2"></div>
-              <p class="text-gray-600">Loading project bids...</p>
-            </div>
 
             <!-- Projects with Bids Table -->
-            <div v-else-if="groupedBids.length > 0" class="overflow-x-auto">
+            <div v-if="groupedBids.length > 0" class="overflow-x-auto">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
@@ -549,14 +537,8 @@
               </div>
             </div>
 
-            <!-- Loading State -->
-            <div v-if="allProjectsLoading" class="text-center py-8">
-              <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2"></div>
-              <p class="text-gray-600">Loading all projects...</p>
-            </div>
-
             <!-- Projects Table -->
-            <div v-else-if="allProjects.length > 0" class="overflow-x-auto">
+            <div v-if="allProjects.length > 0" class="overflow-x-auto">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
@@ -628,7 +610,7 @@
 
             <!-- No Projects Message -->
             <div v-else class="text-center py-8 text-gray-500">
-              No projects available for the selected academic year.
+              No projects found.
             </div>
           </div>
         </div>
@@ -1385,15 +1367,95 @@ const fetchAvailableYears = async () => {
 const fetchSettings = async () => {
   try {
     loading.value = true
+    const schoolId = userStore.currentUser.school
     
-    // Get basic settings (majors, etc.)
-    await fetchBasicSettings()
+    let userId = userStore.currentUser.id || 
+                 userStore.currentUser.uid || 
+                 userStore.currentUser._id || 
+                 userStore.currentUser.userId
     
-    // Note: We no longer call these functions here for lazy loading
-    // Instead, they will be called selectively based on the active tab
-    // - fetchUserProjects() 
-    // - fetchAllProjects()
-    // - fetchProjectBids()
+    if (!userId) {
+      userId = "unknown-user-" + Date.now()
+    }
+    
+    const yearData = {
+      yearId: selectedAcademicYear.value,
+      academicYear: formatAcademicYear(selectedAcademicYear.value)
+    }
+    
+    if (!yearData.yearId) {
+      loading.value = false
+      return
+    }
+
+    // Clear all data before fetching
+    projects.value = []
+    allProjects.value = []
+    projectBids.value = []
+    
+    // Get all available majors
+    const projectsRef = doc(db, 'schools', schoolId, 'projects', yearData.yearId)
+    const projectsDoc = await getDoc(projectsRef)
+    
+    if (projectsDoc.exists() && projectsDoc.data().majors && projectsDoc.data().majors.length > 0) {
+      availableMajors.value = projectsDoc.data().majors
+      
+      if (userStore.currentUser.role === 'lecturer' && userStore.currentUser.major) {
+        selectedMajor.value = userStore.currentUser.major
+      } else {
+        selectedMajor.value = projectsDoc.data().majors[0]
+      }
+    }
+    
+    if (!selectedMajor.value) {
+      loading.value = false
+      return
+    }
+    
+    // Get project settings
+    const majorRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, selectedMajor.value)
+    const majorDocs = await getDocs(majorRef)
+    
+    if (!majorDocs.empty) {
+      const majorDoc = majorDocs.docs[0]
+      const majorData = majorDoc.data()
+      
+      projectSettings.value = {
+        headers: majorData.headers || {},
+        milestones: majorData.milestones || []
+      }
+      
+      if (majorData.headers) {
+        Object.keys(majorData.headers).forEach(headerName => {
+          newProject.value[headerName] = ''
+        })
+      }
+    }
+    
+    // Fetch data sequentially to avoid race conditions
+    await fetchUserProjects(schoolId, userId, yearData.yearId)
+    await fetchAllProjects()
+    await fetchProjectBids()
+    
+    // Try to load settings from first project major if needed
+    if (!projectSettings.value && projects.value.length > 0) {
+      const firstProjectMajor = projects.value[0].major
+      const majorRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, firstProjectMajor)
+      const majorDocs = await getDocs(majorRef)
+      
+      if (!majorDocs.empty) {
+        const majorDoc = majorDocs.docs[0]
+        const majorData = majorDoc.data()
+        
+        projectSettings.value = {
+          headers: majorData.headers || {},
+          milestones: majorData.milestones || []
+        }
+        
+        selectedMajor.value = firstProjectMajor
+      }
+    }
+    
   } catch (error) {
     console.error('Error fetching settings:', error)
     showToast('Failed to load settings', 'error')
@@ -2989,35 +3051,20 @@ const loadTabData = async (tab) => {
   try {
     const schoolId = userStore.currentUser.school
     
-    let userId = userStore.currentUser.id || 
-                 userStore.currentUser.uid || 
-                 userStore.currentUser._id || 
-                 userStore.currentUser.userId
-    
-    if (!userId) {
-      userId = "unknown-user-" + Date.now()
-    }
-    
-    // Call fetchSettings to ensure we load all necessary data
-    await fetchSettings()
+    // Ensure we have basic settings (majors, etc.) regardless of tab
+    await fetchBasicSettings()
     
     // Load specific data based on active tab
     if (tab === 'myProjects') {
       myProjectsLoading.value = true
-      // Clear current data
-      projects.value = []
-      await fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
+      await fetchUserProjects(schoolId, userStore.currentUser.uid, selectedAcademicYear.value)
       myProjectsLoading.value = false
     } else if (tab === 'allProjects') {
       allProjectsLoading.value = true
-      // Clear current data
-      allProjects.value = []
       await fetchAllProjects()
       allProjectsLoading.value = false
     } else if (tab === 'bids') {
       bidsLoading.value = true
-      // Clear current data
-      projectBids.value = []
       await fetchProjectBids()
       await setupAllBidsListeners()
       bidsLoading.value = false
@@ -3036,22 +3083,11 @@ const loadTabData = async (tab) => {
 // New function to fetch only basic settings without all project data
 const fetchBasicSettings = async () => {
   try {
+    loading.value = true
     const schoolId = userStore.currentUser.school
     
-    const yearData = {
-      yearId: selectedAcademicYear.value,
-      academicYear: formatAcademicYear(selectedAcademicYear.value)
-    }
-    
-    if (!yearData.yearId) {
-      return
-    }
-
-    // Clear project settings but not project data (will be loaded per tab)
-    projectSettings.value = null
-    
     // Get all available majors
-    const projectsRef = doc(db, 'schools', schoolId, 'projects', yearData.yearId)
+    const projectsRef = doc(db, 'schools', schoolId, 'projects', selectedAcademicYear.value)
     const projectsDoc = await getDoc(projectsRef)
     
     if (projectsDoc.exists() && projectsDoc.data().majors && projectsDoc.data().majors.length > 0) {
@@ -3065,11 +3101,12 @@ const fetchBasicSettings = async () => {
     }
     
     if (!selectedMajor.value) {
+      loading.value = false
       return
     }
     
     // Get project settings for the selected major
-    const majorRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, selectedMajor.value)
+    const majorRef = collection(db, 'schools', schoolId, 'projects', selectedAcademicYear.value, selectedMajor.value)
     const majorDocs = await getDocs(majorRef)
     
     if (!majorDocs.empty) {
@@ -3087,28 +3124,28 @@ const fetchBasicSettings = async () => {
         })
       }
     }
-    
-    // Try to load settings from first project major if needed
-    if (!projectSettings.value && projects.value.length > 0) {
-      const firstProjectMajor = projects.value[0].major
-      const majorRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, firstProjectMajor)
-      const majorDocs = await getDocs(majorRef)
-      
-      if (!majorDocs.empty) {
-        const majorDoc = majorDocs.docs[0]
-        const majorData = majorDoc.data()
-        
-        projectSettings.value = {
-          headers: majorData.headers || {},
-          milestones: majorData.milestones || []
-        }
-        
-        selectedMajor.value = firstProjectMajor
-      }
-    }
   } catch (error) {
     console.error('Error fetching basic settings:', error)
     showToast('Failed to load settings', 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
+// Modify fetchSettings to not load all data
+const fetchSettings = async () => {
+  try {
+    loading.value = true
+    await fetchBasicSettings()
+    // We no longer call these functions here:
+    // - fetchUserProjects()
+    // - fetchAllProjects()
+    // - fetchProjectBids()
+  } catch (error) {
+    console.error('Error fetching settings:', error)
+    showToast('Failed to load settings', 'error')
+  } finally {
+    loading.value = false
   }
 }
 </script>
