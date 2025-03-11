@@ -246,6 +246,13 @@
                   <span class="text-sm text-gray-500">(Total: {{ projectBids.length }})</span>
                 </div>
                 
+                <!-- Add Milestone Display -->
+                <MilestoneDisplay
+                  :milestone="projectBiddingMilestone"
+                  :show-lecturer-info="true"
+                  :show-countdown="true"
+                />
+                
                 <!-- Add Status Filter -->
                 <div class="flex items-center gap-4 mt-4">
                   <span class="text-sm text-gray-600">Status Filter:</span>
@@ -1177,6 +1184,8 @@ import {
 } from 'firebase/firestore'
 import { useUserStore } from '@/stores/userStore'
 import { getLatestAcademicYear, formatAcademicYear } from '@/utils/latestAcademicYear'
+import MilestoneDisplay from '@/components/MilestoneDisplay.vue';
+import { getMilestone, ensureBiddingMilestoneHasCompletedField, hasBiddingDeadlinePassed } from '@/utils/milestones';
 
 const userStore = useUserStore()
 const loading = ref(true)
@@ -3024,6 +3033,78 @@ const fetchBasicSettings = async () => {
     showToast('Failed to load settings', 'error')
   }
 }
+
+// Add new state for bids
+const projectBiddingMilestone = ref(null)
+const milestoneLoading = ref(false)
+const currentMajorId = ref(null)
+const currentMajorDocId = ref(null)
+
+// Add new method to fetch bidding milestone
+const fetchBiddingMilestone = async () => {
+  try {
+    milestoneLoading.value = true
+    const schoolId = userStore.currentUser.school
+    
+    // Get user's major ID
+    currentMajorId.value = userStore.currentUser.major
+    
+    // Find the major document
+    const majorRef = collection(db, 'schools', schoolId, 'projects', selectedAcademicYear.value, currentMajorId.value)
+    const majorDocs = await getDocs(majorRef)
+    
+    if (!majorDocs.empty) {
+      currentMajorDocId.value = majorDocs.docs[0].id
+      
+      // Ensure the milestone has completed field
+      await ensureBiddingMilestoneHasCompletedField(
+        schoolId,
+        selectedAcademicYear.value,
+        currentMajorId.value,
+        currentMajorDocId.value
+      )
+      
+      // Get the milestone
+      const milestone = await getMilestone(
+        schoolId,
+        selectedAcademicYear.value,
+        currentMajorId.value,
+        currentMajorDocId.value,
+        "Project Bidding Done"
+      )
+      
+      projectBiddingMilestone.value = milestone
+    }
+  } catch (error) {
+    console.error('Error fetching bidding milestone:', error)
+  } finally {
+    milestoneLoading.value = false
+  }
+}
+
+// Modify existing onMounted
+onMounted(async () => {
+  await fetchAvailableYears()
+  await loadTabData(activeTab.value)
+  await fetchBiddingMilestone()
+})
+
+// Add watcher for selectedAcademicYear
+watch(selectedAcademicYear, async (newYear) => {
+  if (newYear) {
+    latestAcademicYear.value = formatAcademicYear(newYear)
+    latestAcademicYearId.value = newYear
+    
+    // Reset the loaded flags
+    myProjectsLoaded.value = false
+    allProjectsLoaded.value = false
+    bidsLoaded.value = false
+    
+    // Reload data
+    await loadTabData(activeTab.value)
+    await fetchBiddingMilestone()
+  }
+})
 </script>
 
 <style scoped>
