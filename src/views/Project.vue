@@ -3046,8 +3046,18 @@ const fetchBiddingMilestone = async () => {
     milestoneLoading.value = true
     const schoolId = userStore.currentUser.school
     
-    // Get user's major ID
-    currentMajorId.value = userStore.currentUser.major
+    // Check for required values
+    if (!selectedAcademicYear.value) {
+      console.log('No academic year selected yet')
+      return
+    }
+    
+    // For lecturers, use selectedMajor instead of user's major
+    currentMajorId.value = selectedMajor.value
+    if (!currentMajorId.value) {
+      console.log('No major selected')
+      return
+    }
     
     // Find the major document
     const majorRef = collection(db, 'schools', schoolId, 'projects', selectedAcademicYear.value, currentMajorId.value)
@@ -3085,12 +3095,19 @@ const fetchBiddingMilestone = async () => {
 // Modify existing onMounted
 onMounted(async () => {
   await fetchAvailableYears()
-  await loadTabData(activeTab.value)
-  await fetchBiddingMilestone()
+  if (selectedAcademicYear.value && selectedMajor.value) {
+    await loadTabData(activeTab.value)
+    await fetchBiddingMilestone()
+  } else {
+    console.log('Missing required data:', {
+      hasAcademicYear: !!selectedAcademicYear.value,
+      hasSelectedMajor: !!selectedMajor.value
+    })
+  }
 })
 
-// Add watcher for selectedAcademicYear
-watch(selectedAcademicYear, async (newYear) => {
+// Add watcher for both selectedAcademicYear and selectedMajor
+watch([selectedAcademicYear, selectedMajor], async ([newYear, newMajor]) => {
   if (newYear) {
     latestAcademicYear.value = formatAcademicYear(newYear)
     latestAcademicYearId.value = newYear
@@ -3102,7 +3119,9 @@ watch(selectedAcademicYear, async (newYear) => {
     
     // Reload data
     await loadTabData(activeTab.value)
-    await fetchBiddingMilestone()
+    if (newMajor) {
+      await fetchBiddingMilestone()
+    }
   }
 })
 </script>
