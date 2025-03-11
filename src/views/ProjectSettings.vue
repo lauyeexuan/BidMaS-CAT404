@@ -307,7 +307,7 @@
                     >
                       Project Milestones
                       <span 
-                        v-if="currentMilestones.length > 0" 
+                        v-if="currentMilestones.length > 0 && currentMilestones.find(m => m.description === 'Project Bidding Done')?.deadline" 
                         class="inline-flex items-center justify-center w-5 h-5 text-xs font-semibold rounded-full bg-green-100 text-green-800"
                       >
                         ✓
@@ -323,7 +323,8 @@
                   
                   <!-- Reminder message -->
                   <div 
-                    v-if="(currentHeaders.filter(h => !h.required).length === 0) || currentMilestones.length === 0"
+                    v-if="(currentHeaders.filter(h => !h.required).length === 0) || 
+                         (currentMilestones.length <= 1 || !currentMilestones.find(m => m.description === 'Project Bidding Done')?.deadline)"
                     class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md"
                   >
                     <div class="flex">
@@ -338,7 +339,8 @@
                           <p>
                             Please complete both Project Headers and Project Milestones configuration. 
                             {{ currentHeaders.filter(h => !h.required).length === 0 ? 'Additional Project Headers are needed.' : '' }}
-                            {{ currentMilestones.length === 0 ? 'Project Milestones are missing.' : '' }}
+                            {{ !currentMilestones.find(m => m.description === 'Project Bidding Done')?.deadline ? 'Project Bidding Done milestone requires a deadline date.' : '' }}
+                            {{ currentMilestones.length <= 1 && currentMilestones.find(m => m.description === 'Project Bidding Done')?.deadline ? 'Additional Project Milestones are recommended.' : '' }}
                           </p>
                         </div>
                       </div>
@@ -468,17 +470,42 @@
                     </h4>
                     <div class="space-y-4">
                       <div v-for="(milestone, index) in currentMilestones" :key="index" 
-                           class="flex items-start justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
-                        <div>
-                          <p class="font-medium text-gray-900">{{ milestone.description }}</p>
-                          <p class="text-sm text-gray-500 mt-1 flex items-center">
+                           class="flex items-start justify-between p-4 bg-gray-50 rounded-lg border"
+                           :class="[milestone.required ? 'border-blue-200 bg-blue-50' : 'border-gray-200']">
+                        <div class="w-full">
+                          <div class="flex items-center gap-2">
+                            <p class="font-medium text-gray-900">{{ milestone.description }}</p>
+                            <span v-if="milestone.required" class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Required</span>
+                          </div>
+                          
+                          <!-- Date display and edit for required milestone -->
+                          <div v-if="milestone.required" class="mt-3 flex items-center flex-wrap gap-2">
+                            <div class="flex items-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
+                              </svg>
+                              <input 
+                                type="date" 
+                                v-model="milestone.deadline"
+                                class="ml-1 px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                                :class="{'border-red-500 bg-red-50': !milestone.deadline}"
+                              >
+                              <span v-if="!milestone.deadline" class="ml-2 text-red-500 text-xs font-medium">
+                                Date required
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <!-- Regular date display for non-required milestones -->
+                          <p v-else class="text-sm text-gray-500 mt-1 flex items-center">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
                               <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
                             </svg>
-                            {{ new Date(milestone.deadline).toLocaleDateString() }}
+                            {{ milestone.deadline ? new Date(milestone.deadline).toLocaleDateString() : 'No date set' }}
                           </p>
                         </div>
                         <button 
+                          v-if="!milestone.required"
                           @click="removeMilestone(index)"
                           class="text-red-600 hover:text-red-800"
                         >
@@ -994,15 +1021,31 @@ const openHeadersModal = async (major, academicYear) => {
           description: m.description,
           deadline: m.deadline instanceof Date 
             ? m.deadline.toISOString().split('T')[0]
-            : new Date(m.deadline.seconds * 1000).toISOString().split('T')[0]
+            : new Date(m.deadline.seconds * 1000).toISOString().split('T')[0],
+          required: m.description === 'Project Bidding Done' // Mark Project Bidding Done as required
         }))
+        
+        // Add Project Bidding Done milestone if it doesn't exist
+        if (!currentMilestones.value.find(m => m.description === 'Project Bidding Done')) {
+          currentMilestones.value.unshift({
+            description: 'Project Bidding Done',
+            deadline: '',
+            required: true
+          })
+        }
       } else {
-        currentMilestones.value = []
+        // Initialize with mandatory Project Bidding Done milestone
+        currentMilestones.value = [{
+          description: 'Project Bidding Done',
+          deadline: '',
+          required: true
+        }]
       }
       
       // Set active tab based on configuration state
       const hasConfiguredHeaders = currentHeaders.value.length > 1 // More than just Title
-      const hasConfiguredMilestones = currentMilestones.value.length > 0
+      const hasConfiguredMilestones = currentMilestones.value.length > 1 && // More than just Project Bidding Done
+                                     currentMilestones.value.find(m => m.description === 'Project Bidding Done')?.deadline
 
       // If neither is configured or only milestones are configured, show headers tab
       if (!hasConfiguredHeaders) {
@@ -1024,7 +1067,11 @@ const openHeadersModal = async (major, academicYear) => {
         values: null,
         required: true
       }]
-      currentMilestones.value = []
+      currentMilestones.value = [{
+        description: 'Project Bidding Done',
+        deadline: '',
+        required: true
+      }]
       isEditMode.value = false
       activeTab.value = 'headers'
     }
@@ -1260,6 +1307,12 @@ const getMilestoneAtIndex = (index) => {
 }
 
 const removeMilestone = (index) => {
+  // Don't remove if it's a required milestone
+  if (currentMilestones.value[index].required) {
+    showToast('Cannot remove required milestone', 'error')
+    return
+  }
+  
   currentMilestones.value.splice(index, 1)
   // Update milestone count if needed
   if (milestoneCount.value > currentMilestones.value.length) {
@@ -1279,9 +1332,16 @@ const addMilestone = () => {
 
 const saveMilestones = async () => {
   try {
-    // Filter out empty milestones
+    // Check if Project Bidding Done milestone has a date
+    const biddingMilestone = currentMilestones.value.find(m => m.description === 'Project Bidding Done')
+    if (!biddingMilestone || !biddingMilestone.deadline) {
+      showToast('Project Bidding Done milestone must have a deadline', 'error')
+      return
+    }
+    
+    // Filter out empty milestones but keep required ones
     const milestones = currentMilestones.value
-      .filter(m => m.description.trim() !== '' && m.deadline)
+      .filter(m => m.required || (m.description.trim() !== '' && m.deadline))
       .map(m => {
         // Create a date object and set time to midnight (00:00:00)
         const date = new Date(m.deadline);
@@ -1289,7 +1349,8 @@ const saveMilestones = async () => {
         
         return {
           description: m.description.trim(),
-          deadline: date
+          deadline: date,
+          required: m.required || false
         };
       })
 
@@ -1355,12 +1416,19 @@ const saveMilestones = async () => {
 
 // Helper function to check if a major has complete configuration
 const isConfigurationComplete = (major) => {
-  return major.docId && 
-         major.headers && 
-         Object.keys(major.headers).length > 0 && 
-         major.milestones && 
-         Array.isArray(major.milestones) && 
-         major.milestones.length > 0
+  // Check if headers are configured
+  const headersConfigured = major.docId && 
+                           major.headers && 
+                           Object.keys(major.headers).length > 0;
+  
+  // Check if milestones are configured, including the required Project Bidding Done
+  const milestonesConfigured = major.docId && 
+                              major.milestones && 
+                              Array.isArray(major.milestones) && 
+                              major.milestones.length > 0 &&
+                              major.milestones.some(m => m.description === 'Project Bidding Done');
+  
+  return headersConfigured && milestonesConfigured;
 }
 </script>
   
