@@ -577,7 +577,7 @@
                 <tbody class="bg-white divide-y divide-gray-200">
                   <tr v-for="(project, index) in paginatedAllProjects" :key="index">
                     <td class="w-16 px-3 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                      {{ (allProjectsCurrentPage - 1) * itemsPerPage + index + 1 }}
+                      {{ (allProjectsCurrentPage.value - 1) * itemsPerPage + index + 1 }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {{ project.Title }}
@@ -604,21 +604,21 @@
               <div class="flex items-center justify-between mt-4 px-4">
                 <div class="flex items-center gap-2">
                   <button 
-                    @click="allProjectsCurrentPage--"
-                    :disabled="allProjectsCurrentPage === 1"
+                    @click="allProjectsCurrentPage.value--"
+                    :disabled="allProjectsCurrentPage.value === 1"
                     class="px-3 py-1 rounded border"
-                    :class="allProjectsCurrentPage === 1 ? 'bg-gray-100 text-gray-400' : 'hover:bg-gray-50'"
+                    :class="allProjectsCurrentPage.value === 1 ? 'bg-gray-100 text-gray-400' : 'hover:bg-gray-50'"
                   >
                     Previous
                   </button>
                   <span class="text-sm text-gray-600">
-                    Page {{ allProjectsCurrentPage }} of {{ allProjectsTotalPages }}
+                    Page {{ allProjectsCurrentPage.value }} of {{ allProjectsTotalPages.value }}
                   </span>
                   <button 
-                    @click="allProjectsCurrentPage++"
-                    :disabled="allProjectsCurrentPage === allProjectsTotalPages"
+                    @click="allProjectsCurrentPage.value++"
+                    :disabled="allProjectsCurrentPage.value === allProjectsTotalPages.value"
                     class="px-3 py-1 rounded border"
-                    :class="allProjectsCurrentPage === allProjectsTotalPages ? 'bg-gray-100 text-gray-400' : 'hover:bg-gray-50'"
+                    :class="allProjectsCurrentPage.value === allProjectsTotalPages.value ? 'bg-gray-100 text-gray-400' : 'hover:bg-gray-50'"
                   >
                     Next
                   </button>
@@ -1172,7 +1172,8 @@ import {
   deleteDoc, 
   limit, 
   writeBatch,
-  onSnapshot 
+  onSnapshot,
+  arrayUnion
 } from 'firebase/firestore'
 import { useUserStore } from '@/stores/userStore'
 import { getLatestAcademicYear, formatAcademicYear } from '@/utils/latestAcademicYear'
@@ -2466,15 +2467,6 @@ const updateBidStatus = async (bid, newStatus) => {
   try {
     const schoolId = userStore.currentUser.school
     
-    // If trying to accept, check if student already has an accepted bid
-    if (newStatus === 'accepted') {
-      const hasAcceptedBid = await checkStudentHasAcceptedBid(schoolId, bid.studentId)
-      if (hasAcceptedBid) {
-        showToast('Cannot accept bid: Student already has an accepted project', 'error')
-        return
-      }
-    }
-    
     // Get the major document ID
     const majorRef = collection(db, 'schools', schoolId, 'projects', selectedAcademicYear.value, bid.major)
     const majorDocs = await getDocs(majorRef)
@@ -2502,29 +2494,21 @@ const updateBidStatus = async (bid, newStatus) => {
       'bids',
       bid.id
     )
-    
-    // Update the selected bid in student's collection
-    const studentBidRef = doc(
-      db,
-      'schools',
-      schoolId,
-      'studentBids',
-      bid.studentId,
-      'bids',
-      bid.id
-    )
 
     const updateData = {
       status: newStatus,
       updatedAt: new Date()
     }
 
-    batch.update(projectBidRef, updateData)
-    batch.update(studentBidRef, updateData)
-
-    // If accepting the bid
+    // If accepting the bid, add lecturerAccepted flag
     if (newStatus === 'accepted') {
-      // 1. Update project document to mark it as assigned
+      updateData.lecturerAccepted = true
+    }
+
+    batch.update(projectBidRef, updateData)
+
+    // If accepting the bid, update project document to add student to tentativeStudentIds
+    if (newStatus === 'accepted') {
       const projectRef = doc(
         db,
         'schools',
@@ -2538,120 +2522,21 @@ const updateBidStatus = async (bid, newStatus) => {
       )
       
       batch.update(projectRef, {
-        isAssigned: true,
-        assignedTo: bid.studentId,
-        assignedAt: new Date()
+        tentativeStudentIds: arrayUnion(bid.studentId),
+        updatedAt: new Date()
       })
-
-      // 2. Reject all other students' bids for this project
-      const projectBidsRef = collection(
-        db,
-        'schools',
-        schoolId,
-        'projects',
-        selectedAcademicYear.value,
-        bid.major,
-        majorDocId,
-        'projectsPerYear',
-        bid.projectId,
-        'bids'
-      )
-      
-      const otherBidsSnapshot = await getDocs(projectBidsRef)
-      
-      for (const bidDoc of otherBidsSnapshot.docs) {
-        const otherBidData = bidDoc.data()
-        
-        // Skip the accepted bid
-        if (bidDoc.id === bid.id) continue
-        
-        // Update bid status to 'rejected' in project's collection
-        batch.update(bidDoc.ref, {
-          status: 'rejected',
-          updatedAt: new Date()
-        })
-        
-        // Update bid status to 'rejected' in student's collection
-        const otherStudentBidRef = doc(
-          db,
-          'schools',
-          schoolId,
-          'studentBids',
-          otherBidData.studentId,
-          'bids',
-          bidDoc.id
-        )
-        
-        batch.update(otherStudentBidRef, {
-          status: 'rejected',
-          updatedAt: new Date()
-        })
-      }
-
-      // 3. Invalidate all other bids from the accepted student
-      const studentBidsRef = collection(db, 'schools', schoolId, 'studentBids', bid.studentId, 'bids')
-      const studentBidsSnapshot = await getDocs(studentBidsRef)
-      
-      for (const bidDoc of studentBidsSnapshot.docs) {
-        if (bidDoc.id !== bid.id) {  // Skip the accepted bid
-          const otherBidData = bidDoc.data()
-          
-          // Update in student's collection
-          batch.update(doc(studentBidsRef, bidDoc.id), {
-            status: 'invalidated',
-            updatedAt: new Date()
-          })
-          
-          // Update in project's collection
-          const otherProjectBidRef = doc(
-            db,
-            'schools',
-            schoolId,
-            'projects',
-            otherBidData.year,
-            otherBidData.majorId,
-            otherBidData.majorDocId,
-            'projectsPerYear',
-            otherBidData.projectId,
-            'bids',
-            bidDoc.id
-          )
-          
-          batch.update(otherProjectBidRef, {
-            status: 'invalidated',
-            updatedAt: new Date()
-          })
-        }
-      }
     }
 
     // Commit all the updates
     await batch.commit()
     
     // Update local state
-    if (newStatus === 'accepted') {
-      projectBids.value = projectBids.value.map(b => {
-        if (b.projectId === bid.projectId) {
-          // Update bids for the same project
-          if (b.id === bid.id) {
-            return { ...b, status: 'accepted' }
-          } else {
-            return { ...b, status: 'rejected' }
-          }
-        } else if (b.studentId === bid.studentId) {
-          // Update other bids from the same student
-          return { ...b, status: 'invalidated' }
-        }
-        return b
-      })
-    } else {
-      // Just update the single bid
-      const bidIndex = projectBids.value.findIndex(b => b.id === bid.id)
-      if (bidIndex !== -1) {
-        projectBids.value[bidIndex] = {
-          ...projectBids.value[bidIndex],
-          status: newStatus
-        }
+    const bidIndex = projectBids.value.findIndex(b => b.id === bid.id)
+    if (bidIndex !== -1) {
+      projectBids.value[bidIndex] = {
+        ...projectBids.value[bidIndex],
+        status: newStatus,
+        lecturerAccepted: newStatus === 'accepted'
       }
     }
     

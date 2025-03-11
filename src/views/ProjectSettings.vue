@@ -747,7 +747,7 @@ const activeTab = ref('headers')
 
 // Add new refs for managing milestones
 const currentMilestones = ref([])
-const newMilestone = ref({ description: '', deadline: '' })
+const newMilestone = ref({ description: '', deadline: '', completed: false })
 const milestoneCount = ref(0)
 
 // Fetch existing settings
@@ -1022,7 +1022,8 @@ const openHeadersModal = async (major, academicYear) => {
           deadline: m.deadline instanceof Date 
             ? m.deadline.toISOString().split('T')[0]
             : new Date(m.deadline.seconds * 1000).toISOString().split('T')[0],
-          required: m.description === 'Project Bidding Done' // Mark Project Bidding Done as required
+          required: m.description === 'Project Bidding Done', // Mark Project Bidding Done as required
+          completed: m.completed || false
         }))
         
         // Add Project Bidding Done milestone if it doesn't exist
@@ -1030,7 +1031,8 @@ const openHeadersModal = async (major, academicYear) => {
           currentMilestones.value.unshift({
             description: 'Project Bidding Done',
             deadline: '',
-            required: true
+            required: true,
+            completed: false
           })
         }
       } else {
@@ -1038,7 +1040,8 @@ const openHeadersModal = async (major, academicYear) => {
         currentMilestones.value = [{
           description: 'Project Bidding Done',
           deadline: '',
-          required: true
+          required: true,
+          completed: false
         }]
       }
       
@@ -1070,7 +1073,8 @@ const openHeadersModal = async (major, academicYear) => {
       currentMilestones.value = [{
         description: 'Project Bidding Done',
         deadline: '',
-        required: true
+        required: true,
+        completed: false
       }]
       isEditMode.value = false
       activeTab.value = 'headers'
@@ -1324,9 +1328,10 @@ const addMilestone = () => {
   if (newMilestone.value.description.trim() && newMilestone.value.deadline) {
     currentMilestones.value.push({
       description: newMilestone.value.description.trim(),
-      deadline: newMilestone.value.deadline
+      deadline: newMilestone.value.deadline,
+      completed: false
     })
-    newMilestone.value = { description: '', deadline: '' }
+    newMilestone.value = { description: '', deadline: '', completed: false }
   }
 }
 
@@ -1350,7 +1355,8 @@ const saveMilestones = async () => {
         return {
           description: m.description.trim(),
           deadline: date,
-          required: m.required || false
+          required: m.required || false,
+          completed: m.completed || false
         };
       })
 
