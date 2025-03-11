@@ -13,7 +13,8 @@ export const getMilestones = async (schoolId, year, majorId, majorDocId) => {
     try {
       const majorRef = doc(db, 'schools', schoolId, 'projects', year, majorId, majorDocId)
       const majorDoc = await getDoc(majorRef)
-  
+      console.log(`Starting majorDocId ${majorDocId}`);
+      
       if (!majorDoc.exists()) {
         throw new Error('Major document not found')
       }

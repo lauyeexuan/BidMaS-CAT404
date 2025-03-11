@@ -35,7 +35,7 @@ schools (collection)
      │                       └─ bids (subcollection)
      │                           └─ {bidId} (document)
      │                               ├─ studentId: string
-     │                               ├─ status: string ('pending', 'accepted', 'rejected', 'invalidated')  // UPDATED: added 'invalidated' status
+     │                               ├─ status: string ('pending', 'accepted', 'rejected')  
      │                               ├─ priority: number
      │                               ├─ createdAt: timestamp
      │                               └─ updatedAt: timestamp
