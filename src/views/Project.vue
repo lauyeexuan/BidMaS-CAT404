@@ -238,20 +238,22 @@
           </div>
 
           <!-- Bids Tab -->
-          <div v-else-if="activeTab === 'bids'">
+          <div v-else-if="activeTab === 'bids'" class="max-w-full">
             <div class="flex justify-between items-center mb-6">
-              <div class="space-y-2">
+              <div class="space-y-2 w-full">
                 <div class="flex items-center gap-4">
                   <h2 class="text-2xl font-semibold text-gray-900">Project Bids</h2>
                   <span class="text-sm text-gray-500">(Total: {{ projectBids.length }})</span>
                 </div>
                 
                 <!-- Add Milestone Display -->
-                <MilestoneDisplay
-                  :milestone="projectBiddingMilestone"
-                  :show-lecturer-info="true"
-                  :show-countdown="true"
-                />
+                <div class="w-full">
+                  <MilestoneDisplay
+                    :milestone="projectBiddingMilestone"
+                    :show-lecturer-info="true"
+                    :show-countdown="true"
+                  />
+                </div>
                 
                 <!-- Add Status Filter -->
                 <div class="flex items-center gap-4 mt-4">

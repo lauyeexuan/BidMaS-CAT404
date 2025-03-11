@@ -24,10 +24,10 @@
           </p>
           
           <!-- Additional explanation for lecturers -->
-          <div v-if="showLecturerInfo && !isDeadlinePassed" class="mt-2 p-2 bg-white bg-opacity-50 rounded border border-blue-100">
-            <p class="text-xs text-blue-800">
-              <strong>Note for lecturers:</strong> You can accept bids from multiple students before the deadline. 
-              After the deadline passes, students will be assigned to projects based on their bid priorities.
+          <div v-if="showLecturerInfo && !isDeadlinePassed" class="mt-2 p-2 bg-red-50 rounded border border-red-200">
+            <p class="text-sm text-red-800">
+              <strong class="text-base">Important Notice for Lecturers:</strong><br>
+              Your bid acceptance order will affect final project assignments. Please accept bids carefully.
             </p>
           </div>
         </div>
