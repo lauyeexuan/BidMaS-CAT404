@@ -437,8 +437,10 @@
                                           </span>
                                         </div>
                                         <div class="ml-3">
-                                          <div class="text-sm font-medium text-gray-900">
+                                          <div class="text-sm font-medium text-gray-900 relative group">
                                             {{ getUserName(bid.studentId) }}
+                                            <div class="fixed bottom-auto left-0 transform translate-y-[-100%] mt-[-10px] hidden group-hover:block bg-white shadow-lg rounded-md px-20 py-10 text-sm z-[10000]">                                              Student
+                                            </div>
                                           </div>
                                         </div>
                                       </div>
