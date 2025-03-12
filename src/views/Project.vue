@@ -1188,6 +1188,8 @@ import { useUserStore } from '@/stores/userStore'
 import { getLatestAcademicYear, formatAcademicYear } from '@/utils/latestAcademicYear'
 import MilestoneDisplay from '@/components/MilestoneDisplay.vue';
 import { getMilestone, ensureBiddingMilestoneHasCompletedField, hasBiddingDeadlinePassed } from '@/utils/milestones';
+import { processPassedDeadlines } from '@/utils/deadlineProcessor';
+
 
 const userStore = useUserStore()
 const loading = ref(true)
@@ -1796,23 +1798,6 @@ const showToast = (message, type = 'success') => {
     toast.remove()
   }, 3000)
 }
-
-// Watch for changes in selected academic year
-watch(selectedAcademicYear, async (newYear) => {
-  if (newYear) {
-    latestAcademicYear.value = formatAcademicYear(newYear)
-    latestAcademicYearId.value = newYear
-    
-    // Reset the loaded flags since we need fresh data for the new year
-    myProjectsLoaded.value = false
-    allProjectsLoaded.value = false
-    bidsLoaded.value = false
-    
-    // Reload data for the current tab when year changes
-    await loadTabData(activeTab.value)
-  }
-})
-
 
 
 const showDeleteConfirmation = ref(false)
@@ -2858,24 +2843,6 @@ watch(activeTab, async (newTab, oldTab) => {
   await loadTabData(newTab)
 })
 
-// Modify watcher for selectedAcademicYear
-watch(selectedAcademicYear, async (newYear) => {
-  if (newYear) {
-    latestAcademicYear.value = formatAcademicYear(newYear)
-    latestAcademicYearId.value = newYear
-    
-    // Reset the loaded flags since we need fresh data for the new year
-    myProjectsLoaded.value = false
-    allProjectsLoaded.value = false
-    bidsLoaded.value = false
-    
-    // Reload data for the current tab when year changes
-    await loadTabData(activeTab.value)
-  }
-})
-
-
-
 // Add tab-specific loading states
 const myProjectsLoading = ref(false)
 const allProjectsLoading = ref(false) 
@@ -2977,7 +2944,7 @@ const fetchBasicSettings = async () => {
         selectedMajor.value = projectsDoc.data().majors[0]
       }
     }
-    
+    console.log("selected major", selectedMajor.value)
     if (!selectedMajor.value) {
       return
     }
@@ -3084,12 +3051,46 @@ const fetchBiddingMilestone = async () => {
   }
 }
 
+// Add this method to your component
+async function checkAndProcessDeadlines() {
+  try {
+    // Only allow admins or lecturers to trigger deadline processing
+    if (userStore.currentUser.role !== 'admin' && userStore.currentUser.role !== 'lecturer') {
+      return;
+    }
+    
+    // Check if any deadlines need processing
+    const schoolId = userStore.currentUser.school;
+    const year = selectedAcademicYear.value;
+   
+    // Call the deadline processor
+    const result = await processPassedDeadlines(schoolId, year);
+    
+    console.log("Deadline processing result:", result);
+    
+    // Show success message if anything was processed
+    if (result.processedMajors > 0) {
+      console.log(`Processed ${result.processedMajors} majors with passed deadlines.`);
+      
+      // Refresh data if needed
+      await loadTabData(activeTab.value);
+    } else {
+      console.log("No deadlines needed processing.");
+    }
+  } catch (error) {
+    console.error("Error processing deadlines:", error);
+  }
+}
+
 // This is the only onMounted hook we need to keep
 onMounted(async () => {
   await fetchAvailableYears()
   if (selectedAcademicYear.value && selectedMajor.value) {
-    await loadTabData(activeTab.value)
-    await fetchBiddingMilestone()
+    console.log(" selected major on mount", selectedMajor.value)
+    //await loadTabData(activeTab.value)
+    //await fetchBiddingMilestone()
+    // Add this line to trigger deadline processing on page load
+    await checkAndProcessDeadlines();
   } else {
     console.log('Missing required data:', {
       hasAcademicYear: !!selectedAcademicYear.value,
@@ -3114,6 +3115,7 @@ watch([selectedAcademicYear, selectedMajor], async ([newYear, newMajor]) => {
     if (newMajor) {
       await fetchBiddingMilestone()
     }
+    await checkAndProcessDeadlines();
   }
 })
 </script>

@@ -5,6 +5,7 @@ import {
   runTransaction, serverTimestamp
 } from 'firebase/firestore';
 import { resolveProjectAssignments } from './assignmentResolver';
+import { compileScript } from 'vue/compiler-sfc';
 
 // Milestone states
 const MILESTONE_STATES = {
@@ -62,37 +63,47 @@ export async function getMajorsWithPassedDeadlines(schoolId, year) {
     const yearData = yearDoc.data();
     const majors = yearData.majors || [];
     const majorsWithPassedDeadlines = [];
+    console.log("majors:", majors)
 
     // Check each major listed in the year document
     for (const majorId of majors) {
       // Get all major documents in the majorId subcollection
       const majorDocsRef = collection(db, 'schools', schoolId, 'projects', year, majorId);
       const majorDocsSnap = await getDocs(majorDocsRef);
+      console.log("majorId:", majorId)
 
       for (const majorDoc of majorDocsSnap.docs) {
+        console.log("Major document path:", majorDoc.ref.path);
         const majorData = majorDoc.data();
-        
-        // Get milestone status
-        const milestoneRef = getMilestoneRef(schoolId, year, majorId, majorDoc.id);
-        const milestoneSnap = await getDoc(milestoneRef);
-        const milestoneData = milestoneSnap.data() || {};
-        
+        console.log("majorDoc.id:", majorDoc.id)
+        console.log("majorData.name:", majorData.name)
+
+        // Get milestone information directly from the majorData
+        const milestones = majorData.milestones || [];
+        // Find the "Project Bidding Done" milestone
+        const milestoneData = milestones.find(m => m.description === "Project Bidding Done") || {};
+        console.log("milestoneData", milestoneData);
+        console.log("milestoneData.status", milestoneData.status)
+
         // Check if milestone needs processing
         if (
-          hasDeadlinePassed(majorData.biddingDeadline) && 
-          (!milestoneData.state || 
-           milestoneData.state === MILESTONE_STATES.PENDING ||
-           (milestoneData.state === MILESTONE_STATES.PROCESSING && 
-            Date.now() - milestoneData.lastUpdated?.toMillis() > 5 * 60 * 1000)) // Reset if processing for > 5 minutes
+          hasDeadlinePassed(milestoneData.deadline) &&
+          (!milestoneData.status || 
+           milestoneData.status === MILESTONE_STATES.PENDING ||
+           (milestoneData.status === MILESTONE_STATES.PROCESSING && 
+            Date.now() - (milestoneData.lastUpdated?.seconds * 1000) > 5 * 60 * 1000))
         ) {
           // Check if any unassigned projects with accepted bids exist
           const projectsRef = collection(majorDoc.ref, 'projectsPerYear');
-          const projectsQuery = query(projectsRef, where('isAssigned', '==', false));
-          const projectsSnap = await getDocs(projectsQuery);
+          
+          const projectsSnap = await getDocs(projectsRef);
+          const unassignedProjects = projectsSnap.docs.filter(
+            doc => doc.data().isAssigned !== true
+          );
 
-          if (!projectsSnap.empty) {
+          if (unassignedProjects.length > 0) {
             let hasUnprocessedBids = false;
-            for (const projectDoc of projectsSnap.docs) {
+            for (const projectDoc of unassignedProjects) {
               const bidsRef = collection(projectDoc.ref, 'bids');
               const acceptedBidsQuery = query(bidsRef, where('status', '==', 'accepted'));
               const acceptedBidsSnap = await getDocs(acceptedBidsQuery);
@@ -107,12 +118,15 @@ export async function getMajorsWithPassedDeadlines(schoolId, year) {
               majorsWithPassedDeadlines.push({
                 id: majorId,
                 docId: majorDoc.id,
-                name: majorData.name,
-                deadline: majorData.biddingDeadline,
-                milestoneState: milestoneData.state || MILESTONE_STATES.PENDING
+                deadline: milestoneData.deadline,
               });
             }
           }
+        }
+        else {
+          //console.log("No milestone found for major:", majorId);
+          //console.log("milestone status", milestoneData.status);
+          //console.log("milestone deadline", new Date(milestoneData.deadline.seconds * 1000));
         }
       }
     }
@@ -139,76 +153,98 @@ export async function processPassedDeadlines(schoolId, year) {
 
   try {
     const majorsWithPassedDeadlines = await getMajorsWithPassedDeadlines(schoolId, year);
-    
-    for (const major of majorsWithPassedDeadlines) {
-      const milestoneRef = getMilestoneRef(schoolId, year, major.id, major.docId);
-      
-      try {
-        // Use transaction to safely update milestone state
-        await runTransaction(db, async (transaction) => {
-          const milestoneDoc = await transaction.get(milestoneRef);
-          const milestoneData = milestoneDoc.data() || {};
-          
-          // Check if milestone is already being processed
-          if (milestoneData.state === MILESTONE_STATES.PROCESSING &&
-              Date.now() - milestoneData.lastUpdated?.toMillis() <= 5 * 60 * 1000) {
-            throw new Error('Milestone is already being processed');
-          }
+    console.log("majorsWithPassedDeadlines", majorsWithPassedDeadlines);
 
-          // Set processing state
-          transaction.update(milestoneRef, {
-            state: MILESTONE_STATES.PROCESSING,
-            lastUpdated: serverTimestamp(),
-            processingStarted: serverTimestamp()
+    for (const major of majorsWithPassedDeadlines) {
+      let milestones;
+      let milestoneIndex;
+      const majorDocRef = doc(db, 'schools', schoolId, 'projects', year, major.id, major.docId);
+
+      try {
+        await runTransaction(db, async (transaction) => {
+          const majorDoc = await transaction.get(majorDocRef);
+          const majorData = majorDoc.data();
+          
+          milestones = majorData.milestones || [];
+          milestoneIndex = milestones.findIndex(m => m.description === "Project Bidding Done");
+          console.log("milestoneIndex:", milestoneIndex);
+
+          if (milestoneIndex === -1) {
+            throw new Error('Bidding milestone not found');
+          }
+        
+          milestones[milestoneIndex] = {
+            ...milestones[milestoneIndex],
+            processing: true,
+            lastUpdated: new Date()
+          };
+
+          transaction.update(majorDoc.ref, {
+            milestones: milestones
           });
+          console.log("update milestones array successfully");
         });
 
-        // Process assignments
         const assignmentResults = await resolveProjectAssignments(
           schoolId,
           year,
           major.id,
           major.docId
         );
+        console.log("assignmentResults after resolveProjectAssignments:", assignmentResults);
 
         results.processedMajors++;
 
-        // Update milestone state based on results
         if (assignmentResults.success) {
           results.successfulAssignments++;
-          await updateDoc(milestoneRef, {
-            state: MILESTONE_STATES.COMPLETED,
-            lastUpdated: serverTimestamp(),
-            completedAt: serverTimestamp(),
+          const now = new Date();
+          milestones[milestoneIndex] = {
+            ...milestones[milestoneIndex],
+            processing: false,
+            completed: true,
+            lastUpdated: now,
+            completedAt: now,
             assignmentResults: {
               assignedStudents: assignmentResults.assignedStudents,
-              completedDate: new Date()
+              completedDate: now
             }
-          });
+          };
         } else {
-          await updateDoc(milestoneRef, {
-            state: MILESTONE_STATES.FAILED,
-            lastUpdated: serverTimestamp(),
+          milestones[milestoneIndex] = {
+            ...milestones[milestoneIndex],
+            processing: false,
+            failed: true,
+            lastUpdated: new Date(),
             errors: assignmentResults.errors
-          });
+          };
           
           results.errors.push({
             majorId: major.id,
-            majorName: major.name,
             errors: assignmentResults.errors
           });
         }
-      } catch (error) {
-        // Update milestone state to failed
-        await updateDoc(milestoneRef, {
-          state: MILESTONE_STATES.FAILED,
-          lastUpdated: serverTimestamp(),
-          error: error.message
+
+        await updateDoc(majorDocRef, {
+          milestones: milestones
         });
+
+      } catch (error) {
+        if (milestones && milestoneIndex !== undefined && milestoneIndex !== -1) {
+          milestones[milestoneIndex] = {
+            ...milestones[milestoneIndex],
+            processing: false,
+            failed: true,
+            lastUpdated: new Date(),
+            error: error.message
+          };
+
+          await updateDoc(majorDocRef, {
+            milestones: milestones
+          });
+        }
 
         results.errors.push({
           majorId: major.id,
-          majorName: major.name,
           error: error.message
         });
       }

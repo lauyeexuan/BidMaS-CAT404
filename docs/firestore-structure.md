@@ -26,7 +26,7 @@ schools (collection)
      │               └─ projectsPerYear (subcollection)
      │                   └─ {projectId} (document)
      │                       ├─ Title: string
-     │                       ├─ description: string
+     │                       ├─ tentativeStudentIds: array  // store student ids that got accepted before final assignment of prejects
      │                       ├─ userId: string (owner/lecturer that created it)
      │                       ├─ major: string
      │                       ├─ isAssigned: boolean      // NEW: tracks if project is assigned
@@ -38,7 +38,7 @@ schools (collection)
      │                               ├─ status: string ('pending', 'accepted', 'rejected')  
      │                               ├─ priority: number
      │                               ├─ createdAt: timestamp
-     │                               └─ updatedAt: timestamp
+     │                               └─ lecturerAccepted: boolean (updated when lecturer accept a bid)
      │
      └─ studentBids (subcollection)
          └─ {studentId} (document)
