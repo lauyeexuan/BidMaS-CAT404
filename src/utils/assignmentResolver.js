@@ -2,8 +2,9 @@ import { db } from '@/firebase';
 import { 
   collection, query, where, getDocs, doc, 
   updateDoc, writeBatch, runTransaction, getDoc,
-  collectionGroup
+  collectionGroup, arrayRemove, arrayUnion
 } from 'firebase/firestore';
+import { auth } from '@/firebase';
 
 /**
  * Resolves project assignments after bidding deadline has passed.
@@ -27,10 +28,19 @@ export async function resolveProjectAssignments(
   };
 
   try {
+    
+    console.log('Parameters:', {
+      schoolId,
+      year,
+      majorId,
+      majorDocId
+    });
     await runTransaction(db, async (transaction) => {
       console.log(`Starting assignment resolution transaction for ${majorId}`);
+      console.log('Full path:', `schools/${schoolId}/projects/${year}/${majorId}/${majorDocId}/projectsPerYear`);
       
-      // Step 1: Get all projects for this major
+      // READS SECTION - Gather all data first
+      // 1. Read projects
       const projectsRef = collection(
         db, 
         'schools', schoolId,
@@ -49,7 +59,7 @@ export async function resolveProjectAssignments(
         });
       });
 
-      // Step 2: Get all accepted bids for all projects
+      // 2. Read all accepted bids
       const allBids = [];
       const studentBids = {};
 
@@ -79,46 +89,81 @@ export async function resolveProjectAssignments(
         });
       }
       
-      // Step 4: For each student, find their highest priority accepted bid
-      const projectAssignments = new Map(); // Map projectId -> studentId
-      const finalStudentAssignments = {}; // studentId -> projectId
+      // 3. Read milestone data
+      const majorDocRef = doc(
+        db, 
+        'schools', schoolId,
+        'projects', year, 
+        majorId, majorDocId
+      );
       
-      // Sort bids by priority (1 = highest priority, 3 = lowest priority)
-      Object.keys(studentBids).forEach(studentId => {
-        // Sort bids so that priority 1 comes first (most preferred)
+      // First get the current milestone data
+      const majorDoc = await transaction.get(majorDocRef);
+      const milestones = majorDoc.data().milestones;
+      const targetMilestone = milestones.find(m => m.description === 'Project Bidding Done');
+
+      // PROCESS SECTION - Do all computations
+      // 4. Sort students and determine assignments
+      const sortedStudentIds = Object.keys(studentBids).sort((studentA, studentB) => {
+        const studentABids = studentBids[studentA];
+        const studentAEarliestTime = studentABids.reduce((earliest, bid) => {
+          const bidTime = bid.createdAt.toMillis();
+          return bidTime < earliest ? bidTime : earliest;
+        }, studentABids[0].createdAt.toMillis());
+
+        const studentBBids = studentBids[studentB];
+        const studentBEarliestTime = studentBBids.reduce((earliest, bid) => {
+          const bidTime = bid.createdAt.toMillis();
+          return bidTime < earliest ? bidTime : earliest;
+        }, studentBBids[0].createdAt.toMillis());
+
+        return studentAEarliestTime - studentBEarliestTime;
+      });
+
+      const projectAssignments = new Map();
+      const finalStudentAssignments = {};
+
+      sortedStudentIds.forEach(studentId => {
         const sortedBids = studentBids[studentId].sort((a, b) => a.priority - b.priority);
-        const topBid = sortedBids[0]; // Get the highest priority bid (lowest number)
         
-        if (!projectAssignments.has(topBid.projectId)) {
-          // Project not assigned yet, assign to this student
-          projectAssignments.set(topBid.projectId, {
-            studentId,
-            bidId: topBid.id,
-            priority: topBid.priority
-          });
-          
-          finalStudentAssignments[studentId] = {
-            projectId: topBid.projectId,
-            bidId: topBid.id,
-            priority: topBid.priority
-          };
-          
-          results.assignmentDetails.push({
-            studentId,
-            projectId: topBid.projectId,
-            priority: topBid.priority,
-            status: 'assigned'
-          });
-        } else {
+        // Try each bid in priority order until one succeeds
+        let assigned = false;
+        for (const bid of sortedBids) {
+          if (!projectAssignments.has(bid.projectId)) {
+            projectAssignments.set(bid.projectId, {
+              studentId,
+              bidId: bid.id,
+              priority: bid.priority
+            });
+            
+            finalStudentAssignments[studentId] = {
+              projectId: bid.projectId,
+              bidId: bid.id,
+              priority: bid.priority
+            };
+            
+            results.assignmentDetails.push({
+              studentId,
+              projectId: bid.projectId,
+              priority: bid.priority,
+              status: 'assigned'
+            });
+            
+            assigned = true;
+            break;
+          }
+        }
+        
+        if (!assigned) {
           results.errors.push({
             studentId,
-            projectId: topBid.projectId,
-            message: "Project already assigned to another student"
+            message: "Could not assign any of student's project choices"
           });
         }
       });
       
-      // Step 5: Update projects with final assignments
+      // WRITES SECTION - Do all updates
+      // 5. Update projects
       for (const [projectId, assignment] of projectAssignments.entries()) {
         const projectDoc = projects.find(p => p.id === projectId);
         if (!projectDoc) continue;
@@ -132,30 +177,48 @@ export async function resolveProjectAssignments(
         });
       }
       
-      // Step 6: Update all bids to show final status
+      // 6. Update all bids to show final status
       for (const bid of allBids) {
         const studentId = bid.studentId;
         const isAssigned = finalStudentAssignments[studentId] && 
                           finalStudentAssignments[studentId].bidId === bid.id;
         
+        // Update bid in project's bids collection
         transaction.update(bid.docRef, {
-          finalStatus: isAssigned ? "assigned" : "rejected",
-          status: isAssigned ? "assigned" : "rejected"
+          finalStatus: isAssigned ? "accepted" : "rejected",
+          status: isAssigned ? "accepted" : "rejected"
+        });
+        
+        // NEW: Update bid in student's bids collection
+        const studentBidRef = doc(
+          db,
+          'schools', schoolId,
+          'studentBids', studentId,
+          'bids', bid.id
+        );
+        
+        transaction.update(studentBidRef, {
+          status: isAssigned ? "accepted" : "rejected",
         });
       }
       
-      // Step 7: Update the milestone
-      const milestoneRef = doc(
-        db, 
-        'schools', schoolId,
-        'projects', year, 
-        majorId, majorDocId,
-        'milestones', 'Project Bidding Done'
-      );
-      
-      transaction.update(milestoneRef, {
-        completed: true,
-        completedDate: new Date()
+      // 7. Update the milestone
+      transaction.update(majorDocRef, {
+        milestones: arrayRemove({
+          deadline: targetMilestone.deadline,
+          description: 'Project Bidding Done',
+          required: targetMilestone.required
+        })
+      });
+
+      transaction.update(majorDocRef, {
+        milestones: arrayUnion({
+          deadline: targetMilestone.deadline,
+          description: 'Project Bidding Done',
+          required: targetMilestone.required,
+          completed: true,
+          completedDate: new Date()
+        })
       });
       
       results.assignedStudents = Object.keys(finalStudentAssignments).length;
