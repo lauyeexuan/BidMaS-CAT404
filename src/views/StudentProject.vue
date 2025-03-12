@@ -255,7 +255,7 @@
                       </p>
                       <div class="mt-2">
                         <button 
-                          @click="$router.push(`/project-details/${acceptedProjectId}`)"
+                          @click="openProjectDetailsWindow(myBids.value.find(bid => bid.status === 'accepted')?.project)"
                           class="inline-flex items-center px-3 py-1.5 border border-green-600 text-xs font-medium rounded-md text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                         >
                           View Project Details
