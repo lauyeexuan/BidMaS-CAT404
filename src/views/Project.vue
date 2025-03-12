@@ -439,7 +439,21 @@
                                         <div class="ml-3">
                                           <div class="text-sm font-medium text-gray-900 relative group">
                                             {{ getUserName(bid.studentId) }}
-                                            <div class="fixed bottom-auto left-0 transform translate-y-[-100%] mt-[-10px] hidden group-hover:block bg-white shadow-lg rounded-md px-20 py-10 text-sm z-[10000]">                                              Student
+                                            <div class="fixed bottom-auto left-0 transform translate-y-[-100%] mt-[-10px] hidden group-hover:block bg-white shadow-lg rounded-md px-4 py-3 text-sm z-[10000]">
+                                              <div class="space-y-2">
+                                                <div>
+                                                  <span class="font-semibold">CGPA:</span> {{ getUserDetails(bid.studentId).cgpa }}
+                                                </div>
+                                                <div>
+                                                  <span class="font-semibold">Skills:</span>
+                                                  <div v-if="getUserDetails(bid.studentId).skills.length > 0" class="mt-1">
+                                                    <span v-for="skill in getUserDetails(bid.studentId).skills" :key="skill" class="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full mr-1 mb-1">
+                                                      {{ skill }}
+                                                    </span>
+                                                  </div>
+                                                  <div v-else class="text-gray-500 italic">No skills specified</div>
+                                                </div>
+                                              </div>
                                             </div>
                                           </div>
                                         </div>
@@ -2128,6 +2142,7 @@ const uniqueAllProjectMajors = computed(() => {
 
 // Map to store user names by ID
 const userNamesMap = ref(new Map())
+const userDetailsMap = ref(new Map()) // Map to store user details like CGPA and skills
 
 // Filtered all projects
 const filteredAllProjects = computed(() => {
@@ -2259,6 +2274,15 @@ const fetchUserNames = async (userIds) => {
         userStore.currentUser.uid,
         userStore.currentUser.name || userStore.currentUser.displayName || 'You'
       );
+      
+      // Also add current user details
+      userDetailsMap.value.set(
+        userStore.currentUser.uid,
+        {
+          cgpa: userStore.currentUser.cgpa || 'N/A',
+          skills: userStore.currentUser.skills || []
+        }
+      );
     }
     
     // Fetch user documents in parallel
@@ -2271,6 +2295,12 @@ const fetchUserNames = async (userIds) => {
           const userData = userDoc.data();
           const userName = userData.name || userData.displayName || userData.email?.split('@')[0] || '...';
           userNamesMap.value.set(userId, userName);
+          
+          // Also store user details in userDetailsMap
+          userDetailsMap.value.set(userId, {
+            cgpa: userData.cgpa || 'N/A',
+            skills: userData.skills || []
+          });
         }
       } catch (error) {
         console.error(`Error fetching user ${userId}:`, error);
@@ -2299,6 +2329,26 @@ const getUserName = (userId) => {
   // If we don't have the name yet, trigger a fetch and return loading state
   fetchUserNames([userId]).catch(console.error);
   return '...'; // Show loading indicator instead of formatted ID
+}
+
+// Function to get user details by ID
+const getUserDetails = (userId) => {
+  // If it's the current user, use details from the userStore
+  if (userId === userStore.currentUser.uid) {
+    return {
+      cgpa: userStore.currentUser.cgpa || 'N/A',
+      skills: userStore.currentUser.skills || []
+    };
+  }
+  
+  // If we have the details in our map, use them
+  if (userDetailsMap.value.has(userId)) {
+    return userDetailsMap.value.get(userId);
+  }
+  
+  // If we don't have the details yet, trigger a fetch and return empty details
+  fetchUserNames([userId]).catch(console.error);
+  return { cgpa: '...', skills: [] };
 }
 
 // Add new state for bids
