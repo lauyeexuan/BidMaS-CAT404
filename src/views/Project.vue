@@ -1813,12 +1813,7 @@ watch(selectedAcademicYear, async (newYear) => {
   }
 })
 
-// Update onMounted to fetch years and load initial tab data
-onMounted(async () => {
-  await fetchAvailableYears()
-  // Load data for initial tab
-  await loadTabData(activeTab.value)
-})
+
 
 const showDeleteConfirmation = ref(false)
 const projectToDelete = ref(null)
@@ -2879,12 +2874,7 @@ watch(selectedAcademicYear, async (newYear) => {
   }
 })
 
-// Update onMounted to only fetch years and minimal initial data
-onMounted(async () => {
-  await fetchAvailableYears()
-  // Only load data for the active tab
-  await loadTabData(activeTab.value)
-})
+
 
 // Add tab-specific loading states
 const myProjectsLoading = ref(false)
@@ -3094,7 +3084,7 @@ const fetchBiddingMilestone = async () => {
   }
 }
 
-// Modify existing onMounted
+// This is the only onMounted hook we need to keep
 onMounted(async () => {
   await fetchAvailableYears()
   if (selectedAcademicYear.value && selectedMajor.value) {
