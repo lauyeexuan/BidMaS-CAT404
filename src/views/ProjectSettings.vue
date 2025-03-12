@@ -992,9 +992,9 @@ const openHeadersModal = async (major, academicYear) => {
           name,
           type: config.type,
           values: config.values || [],
-          required: name === 'Title' // Mark Title as required
+          required: name === 'Title' || name === 'Description' // Mark both Title and Description as required
         }))
-        // Add Title header if it doesn't exist
+        // Add Title and Description headers if they don't exist
         if (!currentHeaders.value.find(h => h.name === 'Title')) {
           currentHeaders.value.unshift({
             name: 'Title',
@@ -1003,15 +1003,31 @@ const openHeadersModal = async (major, academicYear) => {
             required: true
           })
         }
+        if (!currentHeaders.value.find(h => h.name === 'Description')) {
+          currentHeaders.value.push({
+            name: 'Description',
+            type: 'string',
+            values: null,
+            required: true
+          })
+        }
         isEditMode.value = true
       } else {
-        // Initialize with mandatory Title header
-        currentHeaders.value = [{
-          name: 'Title',
-          type: 'string',
-          values: null,
-          required: true
-        }]
+        // Initialize with mandatory Title and Description headers
+        currentHeaders.value = [
+          {
+            name: 'Title',
+            type: 'string',
+            values: null,
+            required: true
+          },
+          {
+            name: 'Description',
+            type: 'string',
+            values: null,
+            required: true
+          }
+        ]
         isEditMode.value = false
       }
       
@@ -1117,10 +1133,18 @@ const removeHeader = (index) => {
 const saveHeaders = async () => {
   try {
     const headers = {}
-    // Ensure Title header exists
+    // Ensure Title and Description headers exist
     if (!currentHeaders.value.find(h => h.name === 'Title')) {
       currentHeaders.value.unshift({
         name: 'Title',
+        type: 'string',
+        values: null,
+        required: true
+      })
+    }
+    if (!currentHeaders.value.find(h => h.name === 'Description')) {
+      currentHeaders.value.push({
+        name: 'Description',
         type: 'string',
         values: null,
         required: true
@@ -1131,7 +1155,7 @@ const saveHeaders = async () => {
         type: header.type === 'label' ? 'array' : header.type,
         values: header.type === 'array' ? header.values : 
                 header.type === 'label' ? [] : null,
-        required: header.required || false
+        required: header.required || header.name === 'Title' || header.name === 'Description'
       }
     })
 

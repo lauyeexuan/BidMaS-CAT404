@@ -29,12 +29,14 @@ export const createProjectDetailsWindow = (props) => {
   // Process project fields
   const projectFields = {};
   if (Object.keys(headers).length > 0) {
+    // CASE 1: When headers exist
     for (const [key, value] of Object.entries(project)) {
-      if (headers[key] && key !== 'Title') {
+      if (headers[key] && key !== 'Title' && key !== 'Description') {
         projectFields[key] = value;
       }
     }
   } else {
+    // CASE 2: When no headers
     const excludedFields = ['id', 'userId', 'isAssigned', 'createdAt', 'Title', 'major', 'Description', 'majorDocId'];
     for (const [key, value] of Object.entries(project)) {
       if (!excludedFields.includes(key)) {
