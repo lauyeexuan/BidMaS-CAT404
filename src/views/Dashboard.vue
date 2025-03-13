@@ -163,7 +163,10 @@
               </div>
               
               <div class="mt-2">
-                <button class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                <button 
+                  @click="openProjectDetailsWindow"
+                  class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
                   View Project Details
                 </button>
               </div>
@@ -205,6 +208,7 @@ import { getMilestones } from '@/utils/milestones'
 import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
 import { db } from '@/firebase'
 import { collection, getDocs, query, limit, where, doc, getDoc } from 'firebase/firestore'
+import { createProjectDetailsWindow } from '@/utils/windowUtils'
 import '@/assets/styles/dashboard.css'
 
 export default {
@@ -484,13 +488,69 @@ export default {
           }
         }
         
-        // Set the assigned project
-        assignedProject.value = projectData
+        // Set the assigned project with additional metadata needed for the details window
+        assignedProject.value = {
+          ...projectData,
+          id: projectId,
+          majorDocId: majorDocId,
+          major: majorId,
+          year: yearId
+        }
         
       } catch (err) {
         projectError.value = `Failed to load project data: ${err.message}`
       } finally {
         projectLoading.value = false
+      }
+    }
+
+    // Function to open project details window
+    const openProjectDetailsWindow = async () => {
+      if (!assignedProject.value) return
+      
+      try {
+        const { school } = userStore.currentUser
+        
+        // Get lecturer name
+        let creatorName = assignedProject.value.lecturerName || 'Unknown'
+        
+        // Get project headers from the majorDocId document
+        let headers = {}
+        
+        // Fetch the headers map from the majorDocId document
+        if (school && assignedProject.value.year && assignedProject.value.major && assignedProject.value.majorDocId) {
+          try {
+            const majorDocRef = doc(
+              db, 
+              'schools', school, 
+              'projects', assignedProject.value.year, 
+              assignedProject.value.major, assignedProject.value.majorDocId
+            )
+            
+            const majorDoc = await getDoc(majorDocRef)
+            if (majorDoc.exists()) {
+              const majorData = majorDoc.data()
+              if (majorData.headers && typeof majorData.headers === 'object') {
+                headers = majorData.headers
+              }
+            }
+          } catch (error) {
+            // If we can't get the headers, just continue
+          }
+        }
+        
+        // Create color class for major
+        const colorClasses = { bg: 'bg-blue-100', text: 'text-blue-800' }
+        
+        // Open the project details window with the component
+        createProjectDetailsWindow({
+          project: assignedProject.value,
+          creatorName,
+          headers,
+          majorColorClass: colorClasses
+        })
+      } catch (error) {
+        alert('There was an error opening the project details. Please try again.')
       }
     }
 
@@ -546,7 +606,8 @@ export default {
       getDaysRemainingClass,
       assignedProject,
       projectLoading,
-      projectError
+      projectError,
+      openProjectDetailsWindow
     }
   }
 }
