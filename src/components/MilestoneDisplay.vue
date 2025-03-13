@@ -33,11 +33,6 @@
                 After this deadline, final project assignments will be determined based on bid priorities.
               </span>
             </template>
-            <template v-else-if="!milestone.completed">
-              <span class="text-amber-700">
-                Bidding period has ended. Final assignments are being processed.
-              </span>
-            </template>
             <template v-else>
               <span class="text-green-700">
                 Project assignments have been finalized based on bid priorities.
@@ -142,8 +137,6 @@
       
       getStatusClasses() {
         if (!this.isDeadlinePassedComputed) {
-          return 'bg-red-100 text-red-800';
-        } else if (this.isDeadlinePassedComputed && !this.milestone.completed) {
           return 'bg-amber-100 text-amber-800';
         } else {
           return 'bg-green-100 text-green-800';
@@ -153,8 +146,6 @@
       getStatusText() {
         if (!this.isDeadlinePassedComputed) {
           return 'Pending';
-        } else if (this.isDeadlinePassedComputed && !this.milestone.completed) {
-          return 'Processing';
         } else {
           return 'Completed';
         }
