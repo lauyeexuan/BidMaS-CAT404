@@ -5,7 +5,7 @@
     <div class="mt-6 grid grid-cols-12 gap-4">
       <!-- Milestone Card with Expandable Content -->
       <div 
-        class="col-span-6 bg-white p-4 shadow rounded relative transition-all duration-200 overflow-hidden"
+        class="col-span-6 bg-white p-4 shadow rounded relative transition-all duration-200 overflow-hidden flex flex-col"
         :class="{'shadow-lg': showAllMilestones}"
       >
         <!-- Card Header -->
@@ -70,12 +70,12 @@
         <transition
           enter-active-class="transition-all duration-500 ease-out"
           enter-from-class="max-h-0 opacity-0 overflow-hidden"
-          enter-to-class="max-h-[1000px] opacity-100"
+          enter-to-class="max-h-[300px] opacity-100"
           leave-active-class="transition-all duration-300 ease-in"
-          leave-from-class="max-h-[1000px] opacity-100"
+          leave-from-class="max-h-[300px] opacity-100"
           leave-to-class="max-h-0 opacity-0 overflow-hidden"
         >
-          <div v-if="showAllMilestones && allMilestones && allMilestones.length > 0" class="mt-4 pt-4 border-t border-gray-200">
+          <div v-if="showAllMilestones && allMilestones && allMilestones.length > 0" class="mt-4 pt-4 border-t border-gray-200 overflow-auto flex-grow">
             <div class="flex justify-between items-center mb-3">
               <h3 class="font-medium text-gray-800">All Milestones</h3>
               <button 
@@ -134,7 +134,7 @@
       </div>
       
       <!-- Assigned Project Card -->
-      <div class="col-span-6 bg-white p-4 shadow rounded">
+      <div class="col-span-6 bg-white p-4 shadow rounded self-start">
         <h2 class="text-sm font-medium text-gray-500 mb-2">Your Assigned Project</h2>
         
         <div v-if="projectLoading" class="py-4">

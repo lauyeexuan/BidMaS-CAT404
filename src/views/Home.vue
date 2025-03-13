@@ -21,7 +21,7 @@
             <h1 class="text-7xl font-bold mb-6 text-white drop-shadow-lg">
               Welcome to
               <span class="block mt-4 bg-gradient-to-r from-pink-200 via-white to-purple-200 bg-clip-text text-transparent">
-                Our App
+                BidMaS
               </span>
             </h1>
             <p class="text-2xl text-white/90 mb-12 font-light tracking-wide leading-relaxed">

@@ -44,5 +44,26 @@
 /* Max height animation for smooth height transitions */
 .milestone-list-container {
   overflow-y: auto;
-  max-height: 300px;
+  max-height: 250px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+}
+
+/* Custom scrollbar for webkit browsers */
+.milestone-list-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.milestone-list-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.milestone-list-container::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5);
+  border-radius: 3px;
+}
+
+/* Ensure cards maintain their own height */
+.grid.grid-cols-12 {
+  align-items: flex-start;
 } 
