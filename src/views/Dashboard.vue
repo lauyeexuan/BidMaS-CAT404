@@ -5,7 +5,7 @@
     <div class="mt-6 grid grid-cols-12 gap-4">
       <!-- Milestone Card with Expandable Content -->
       <div 
-        class="col-span-6 bg-white p-4 shadow rounded relative transition-all duration-200 overflow-hidden flex flex-col"
+        class="col-span-6 bg-white p-4 shadow rounded relative transition-all duration-200 overflow-hidden flex flex-col min-h-[200px]"
         :class="{'shadow-lg': showAllMilestones}"
       >
         <!-- Card Header -->
@@ -131,7 +131,7 @@
       </div>
       
       <!-- Assigned Project Card -->
-      <div class="col-span-6 bg-white p-4 shadow rounded self-start">
+      <div class="col-span-6 bg-white p-4 shadow rounded self-start min-h-[200px]">
         <h2 class="text-sm font-medium text-gray-500 mb-2">Your Assigned Project</h2>
         
         <div v-if="projectLoading" class="py-4">
