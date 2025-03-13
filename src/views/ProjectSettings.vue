@@ -487,11 +487,15 @@
                               <input 
                                 type="date" 
                                 v-model="milestone.deadline"
+                                @change="(e) => console.log('Date changed for', milestone.description, '- New value:', e.target.value, 'v-model value:', milestone.deadline)"
                                 class="ml-1 px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
                                 :class="{'border-red-500 bg-red-50': !milestone.deadline}"
                               >
                               <span v-if="!milestone.deadline" class="ml-2 text-red-500 text-xs font-medium">
                                 Date required
+                              </span>
+                              <span v-else class="ml-2 text-xs text-gray-500">
+                                {{ formatDate(milestone.deadline) }}
                               </span>
                             </div>
                           </div>
@@ -501,7 +505,7 @@
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
                               <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
                             </svg>
-                            {{ milestone.deadline ? new Date(milestone.deadline).toLocaleDateString() : 'No date set' }}
+                            {{ formatDate(milestone.deadline) }}
                           </p>
                         </div>
                         <button 
@@ -559,10 +563,10 @@
                     Cancel
                   </button>
                   <button 
-                    @click="activeTab === 'headers' ? saveHeaders() : saveMilestones()"
+                    @click="saveMilestones"
                     class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
                   >
-                    {{ activeTab === 'headers' ? 'Save Headers' : 'Save Milestones' }}
+                    Save Milestones
                   </button>
                 </div>
               </DialogPanel>
@@ -712,7 +716,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { db } from '@/firebase'
-import { doc, collection, setDoc, getDocs, query, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { doc, collection, setDoc, getDocs, query, getDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore'
 import { useUserStore } from '@/stores/userStore'
 import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from '@headlessui/vue'
 
@@ -720,6 +724,29 @@ const userStore = useUserStore()
 const loading = ref(true)
 const showNewSettingsForm = ref(false)
 const existingSettings = ref([])
+
+// Helper function to format dates consistently
+const formatDate = (dateString) => {
+  if (!dateString) return 'No date set';
+  
+  try {
+    // Parse the date string (YYYY-MM-DD) into parts
+    const [year, month, day] = dateString.split('-').map(Number);
+    
+    // Create a date object with UTC to avoid timezone issues
+    const date = new Date(Date.UTC(year, month - 1, day));
+    
+    // Format the date using toLocaleDateString with explicit options
+    return date.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'UTC' // Use UTC to avoid timezone shifts
+    });
+  } catch (error) {
+    return dateString || 'No date set';
+  }
+};
 
 // Add these refs after other refs
 const showHeadersModal = ref(false)
@@ -988,6 +1015,8 @@ const openHeadersModal = async (major, academicYear) => {
       
       // Load headers if they exist
       if (data.headers) {
+        console.log('Loading headers from Firestore:', data.headers);
+        
         currentHeaders.value = Object.entries(data.headers).map(([name, config]) => ({
           name,
           type: config.type,
@@ -1014,6 +1043,7 @@ const openHeadersModal = async (major, academicYear) => {
         isEditMode.value = true
       } else {
         // Initialize with mandatory Title and Description headers
+        console.log('Initializing with mandatory headers');
         currentHeaders.value = [
           {
             name: 'Title',
@@ -1033,14 +1063,51 @@ const openHeadersModal = async (major, academicYear) => {
       
       // Load milestones if they exist
       if (data.milestones && Array.isArray(data.milestones)) {
-        currentMilestones.value = data.milestones.map(m => ({
-          description: m.description,
-          deadline: m.deadline instanceof Date 
-            ? m.deadline.toISOString().split('T')[0]
-            : new Date(m.deadline.seconds * 1000).toISOString().split('T')[0],
-          required: m.description === 'Project Bidding Done', // Mark Project Bidding Done as required
-          completed: m.completed || false
-        }))
+        console.log('Loading milestones from Firestore:', data.milestones);
+        
+        currentMilestones.value = data.milestones.map(m => {
+          // Handle different types of date objects that might come from Firestore
+          let dateString = '';
+          
+          if (m.deadline) {
+            console.log(`Processing milestone "${m.description}" deadline:`, m.deadline);
+            
+            if (m.deadline instanceof Date) {
+              // If it's a JavaScript Date object
+              console.log(`  It's a Date object: ${m.deadline}`);
+              const year = m.deadline.getFullYear();
+              const month = String(m.deadline.getMonth() + 1).padStart(2, '0');
+              const day = String(m.deadline.getDate()).padStart(2, '0');
+              dateString = `${year}-${month}-${day}`;
+            } else if (m.deadline.seconds !== undefined) {
+              // If it's a Firestore Timestamp
+              console.log(`  It's a Firestore Timestamp: seconds=${m.deadline.seconds}, nanoseconds=${m.deadline.nanoseconds}`);
+              // Create a date object from the timestamp
+              const date = new Date(0); // Start with epoch
+              date.setUTCSeconds(m.deadline.seconds);
+              console.log(`  Converted to Date: ${date.toISOString()}`);
+              
+              // Format as YYYY-MM-DD using UTC to avoid timezone issues
+              const year = date.getUTCFullYear();
+              const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+              const day = String(date.getUTCDate()).padStart(2, '0');
+              dateString = `${year}-${month}-${day}`;
+            } else if (typeof m.deadline === 'string') {
+              // If it's already a string
+              console.log(`  It's a string: ${m.deadline}`);
+              dateString = m.deadline;
+            }
+            
+            console.log(`  Final date string: ${dateString}`);
+          }
+          
+          return {
+            description: m.description,
+            deadline: dateString,
+            required: m.description === 'Project Bidding Done', // Mark Project Bidding Done as required
+            completed: m.completed || false
+          };
+        });
         
         // Add Project Bidding Done milestone if it doesn't exist
         if (!currentMilestones.value.find(m => m.description === 'Project Bidding Done')) {
@@ -1049,16 +1116,17 @@ const openHeadersModal = async (major, academicYear) => {
             deadline: '',
             required: true,
             completed: false
-          })
+          });
         }
       } else {
         // Initialize with mandatory Project Bidding Done milestone
+        console.log('Initializing with mandatory Project Bidding Done milestone');
         currentMilestones.value = [{
           description: 'Project Bidding Done',
           deadline: '',
           required: true,
           completed: false
-        }]
+        }];
       }
       
       // Set active tab based on configuration state
@@ -1080,6 +1148,7 @@ const openHeadersModal = async (major, academicYear) => {
       }
     } else {
       // For new/unconfigured majors, always start with headers tab
+      console.log('Initializing for new/unconfigured major');
       currentHeaders.value = [{
         name: 'Title',
         type: 'string',
@@ -1119,7 +1188,7 @@ const addHeader = () => {
       name: newHeader.value.name,
       type: newHeader.value.type,
       values: newHeader.value.type === 'array' ? [...newHeader.value.values] : 
-             newHeader.value.type === 'label' ? [] : null
+              newHeader.value.type === 'label' ? [] : null
     })
     newHeader.value = { name: '', type: 'string', values: [] }
     tempValue.value = ''
@@ -1130,40 +1199,38 @@ const removeHeader = (index) => {
   currentHeaders.value.splice(index, 1)
 }
 
-const saveHeaders = async () => {
+const saveMilestones = async () => {
   try {
-    const headers = {}
-    // Ensure Title and Description headers exist
-    if (!currentHeaders.value.find(h => h.name === 'Title')) {
-      currentHeaders.value.unshift({
-        name: 'Title',
-        type: 'string',
-        values: null,
-        required: true
-      })
+    // Check if Project Bidding Done milestone has a date
+    const biddingMilestone = currentMilestones.value.find(m => m.description === 'Project Bidding Done')
+    if (!biddingMilestone || !biddingMilestone.deadline) {
+      showToast('Project Bidding Done milestone must have a deadline', 'error')
+      return
     }
-    if (!currentHeaders.value.find(h => h.name === 'Description')) {
-      currentHeaders.value.push({
-        name: 'Description',
-        type: 'string',
-        values: null,
-        required: true
-      })
-    }
-    currentHeaders.value.forEach(header => {
-      headers[header.name] = {
-        type: header.type === 'label' ? 'array' : header.type,
-        values: header.type === 'array' ? header.values : 
-                header.type === 'label' ? [] : null,
-        required: header.required || header.name === 'Title' || header.name === 'Description'
-      }
-    })
+    
+    // Filter out empty milestones but keep required ones
+    const milestones = currentMilestones.value
+      .filter(m => m.required || (m.description.trim() !== '' && m.deadline))
+      .map(m => {
+        // Parse the date string (YYYY-MM-DD) into parts
+        const [year, month, day] = m.deadline.split('-').map(Number);
+        
+        // Create a JavaScript Date object using UTC to avoid timezone issues
+        const jsDate = new Date(Date.UTC(year, month - 1, day));
+        
+        return {
+          description: m.description.trim(),
+          deadline: Timestamp.fromDate(jsDate),
+          required: m.required || false,
+          completed: m.completed || false
+        };
+      });
 
     // If applying to all majors is checked for this academic year
     if (applyToAllMajorsMap.value[currentMajor.value.academicYear]) {
       const currentSetting = existingSettings.value.find(s => s.academicYear === currentMajor.value.academicYear)
       if (currentSetting) {
-        // Save headers to all majors
+        // Save milestones to all majors
         for (const major of currentSetting.majors) {
           const majorRef = doc(
             db, 
@@ -1175,21 +1242,20 @@ const saveHeaders = async () => {
             major.docId || 'default'
           )
 
-          // Get existing document data to preserve milestones
+          // Get existing document data
           const majorDoc = await getDoc(majorRef)
           const existingData = majorDoc.exists() ? majorDoc.data() : { quota: major.quota || 0 }
 
-          // Update with headers while preserving other data
+          // Update with milestones
           await setDoc(majorRef, { 
             ...existingData,
-            headers,
-            quota: major.quota || 0
+            milestones
           })
         }
-        showToast('Project headers saved to all majors successfully')
+        showToast('Project milestones saved to all majors successfully')
       }
     } else {
-      // Save headers to just the current major
+      // Save milestones to just the current major
       const majorRef = doc(
         db, 
         'schools', 
@@ -1200,24 +1266,22 @@ const saveHeaders = async () => {
         currentMajor.value.docId || 'default'
       )
 
-      // Get existing document data to preserve milestones
+      // Get existing document data
       const majorDoc = await getDoc(majorRef)
       const existingData = majorDoc.exists() ? majorDoc.data() : { quota: currentMajor.value.quota || 0 }
 
-      // Update with headers while preserving other data
+      // Update with milestones
       await setDoc(majorRef, { 
         ...existingData,
-        headers,
-        quota: currentMajor.value.quota || 0
+        milestones
       })
-      showToast('Project headers saved successfully')
+      showToast('Project milestones saved successfully')
     }
     
     showHeadersModal.value = false
     await fetchSettings() // Refresh the data
   } catch (error) {
-    console.error('Error saving headers:', error)
-    showToast('Failed to save project headers', 'error')
+    showToast('Failed to save project milestones', 'error')
   }
 }
 
@@ -1356,92 +1420,6 @@ const addMilestone = () => {
       completed: false
     })
     newMilestone.value = { description: '', deadline: '', completed: false }
-  }
-}
-
-const saveMilestones = async () => {
-  try {
-    // Check if Project Bidding Done milestone has a date
-    const biddingMilestone = currentMilestones.value.find(m => m.description === 'Project Bidding Done')
-    if (!biddingMilestone || !biddingMilestone.deadline) {
-      showToast('Project Bidding Done milestone must have a deadline', 'error')
-      return
-    }
-    
-    // Filter out empty milestones but keep required ones
-    const milestones = currentMilestones.value
-      .filter(m => m.required || (m.description.trim() !== '' && m.deadline))
-      .map(m => {
-        // Create a date object with the date parts explicitly to avoid timezone issues
-        const [year, month, day] = m.deadline.split('-').map(Number);
-        // Note: month is 0-indexed in JavaScript Date
-        const date = new Date(Date.UTC(year, month - 1, day));
-        
-        return {
-          description: m.description.trim(),
-          deadline: date,
-          required: m.required || false,
-          completed: m.completed || false
-        };
-      })
-
-    // If applying to all majors is checked for this academic year
-    if (applyToAllMajorsMap.value[currentMajor.value.academicYear]) {
-      const currentSetting = existingSettings.value.find(s => s.academicYear === currentMajor.value.academicYear)
-      if (currentSetting) {
-        // Save milestones to all majors
-        for (const major of currentSetting.majors) {
-          const majorRef = doc(
-            db, 
-            'schools', 
-            userStore.currentUser.school, 
-            'projects', 
-            currentMajor.value.academicYear, 
-            major.name, 
-            major.docId || 'default'
-          )
-
-          // Get existing document data
-          const majorDoc = await getDoc(majorRef)
-          const existingData = majorDoc.exists() ? majorDoc.data() : { quota: major.quota || 0 }
-
-          // Update with milestones
-          await setDoc(majorRef, { 
-            ...existingData,
-            milestones
-          })
-        }
-        showToast('Project milestones saved to all majors successfully')
-      }
-    } else {
-      // Save milestones to just the current major
-      const majorRef = doc(
-        db, 
-        'schools', 
-        userStore.currentUser.school, 
-        'projects', 
-        currentMajor.value.academicYear, 
-        currentMajor.value.name, 
-        currentMajor.value.docId || 'default'
-      )
-
-      // Get existing document data
-      const majorDoc = await getDoc(majorRef)
-      const existingData = majorDoc.exists() ? majorDoc.data() : { quota: currentMajor.value.quota || 0 }
-
-      // Update with milestones
-      await setDoc(majorRef, { 
-        ...existingData,
-        milestones
-      })
-      showToast('Project milestones saved successfully')
-    }
-    
-    showHeadersModal.value = false
-    await fetchSettings() // Refresh the data
-  } catch (error) {
-    console.error('Error saving milestones:', error)
-    showToast('Failed to save project milestones', 'error')
   }
 }
 

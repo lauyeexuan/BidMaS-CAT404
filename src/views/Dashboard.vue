@@ -5,24 +5,37 @@
     <div class="mt-6 grid grid-cols-12 gap-4">
       <!-- Milestone Card with Expandable Content -->
       <div 
-        class="col-span-6 bg-white p-4 shadow rounded relative transition-all duration-200 overflow-hidden flex flex-col min-h-[200px]"
+        class="col-span-6 bg-white p-4 shadow rounded relative transition-all duration-200 overflow-hidden flex flex-col min-h-[160px]"
         :class="{'shadow-lg': showAllMilestones}"
       >
         <!-- Card Header -->
         <div @click="toggleAllMilestones" class="cursor-pointer">
-          <h2 class="text-sm font-medium text-gray-500 flex items-center mb-2">
-            Current Milestone
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              class="h-4 w-4 ml-2 transition-transform duration-300" 
-              :class="{'rotate-180': showAllMilestones}"
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke="currentColor"
+          <div class="flex justify-between items-center mb-2">
+            <h2 class="text-sm font-medium text-gray-500 flex items-center">
+              Current Milestone
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                class="h-4 w-4 ml-2 transition-transform duration-300" 
+                :class="{'rotate-180': showAllMilestones}"
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </h2>
+            <!-- Milestone Type Badge -->
+            <span v-if="upcomingMilestone && upcomingMilestone.type" 
+              class="px-2 py-1 text-xs rounded-full"
+              :class="{
+                'bg-blue-100 text-blue-800': upcomingMilestone.type === 'Report',
+                'bg-purple-100 text-purple-800': upcomingMilestone.type === 'Presentation',
+                'bg-green-100 text-green-800': upcomingMilestone.type === 'Code'
+              }"
             >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          </h2>
+              {{ upcomingMilestone.type }}
+            </span>
+          </div>
         
           <div v-if="loading" class="py-2">
             <div class="h-5 bg-gray-200 rounded animate-pulse w-3/4 mb-2"></div>
@@ -64,6 +77,26 @@
           <div v-else class="py-2">
             <p class="text-gray-500">No upcoming milestones found.</p>
           </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div v-if="upcomingMilestone" class="flex gap-2 mt-2">
+          <button class="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200">
+            <span class="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Template
+            </span>
+          </button>
+          <button class="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200">
+            <span class="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Guidelines
+            </span>
+          </button>
         </div>
         
         <!-- Expandable Milestone List -->
@@ -131,8 +164,10 @@
       </div>
       
       <!-- Assigned Project Card -->
-      <div class="col-span-6 bg-white p-4 shadow rounded self-start min-h-[200px]">
-        <h2 class="text-sm font-medium text-gray-500 mb-2">Your Assigned Project</h2>
+      <div class="col-span-6 bg-white p-4 shadow rounded self-start min-h-[160px] relative">
+        <div class="flex justify-between items-start">
+          <h2 class="text-sm font-medium text-gray-500 mb-2">Your Assigned Project</h2>
+        </div>
         
         <div v-if="projectLoading" class="py-4">
           <div class="h-6 bg-gray-200 rounded animate-pulse w-3/4 mb-3"></div>
@@ -146,7 +181,6 @@
         
         <div v-else-if="assignedProject" class="py-2">
           <div class="relative">
-            <!-- Decorative element -->
             <div class="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-full"></div>
             
             <div class="pl-4">
@@ -784,34 +818,34 @@ export default {
       try {
         uploading.value = true
         submissionError.value = null
-        submissionSuccess.value = false  // Reset success message
+        submissionSuccess.value = false
 
         const file = selectedFile.value
         const timestamp = Date.now()
         const fileName = `${timestamp}_${file.name}`
         const filePath = `submission/${assignedProject.value.id}/${fileName}`
 
-        console.log('Starting file upload to Storage:', filePath)
-
         // Upload file to Firebase Storage
         const fileRef = storageRef(storage, filePath)
         await uploadBytes(fileRef, file)
         const downloadURL = await getDownloadURL(fileRef)
 
-        console.log('File uploaded successfully to Storage, got download URL:', downloadURL)
+        // Find the index of the upcoming milestone in the original milestones array
+        const milestoneIndex = allMilestones.value.findIndex(m => 
+          m.description === upcomingMilestone.value.description && 
+          m.deadline.isEqual(upcomingMilestone.value.deadline)
+        )
 
-        // Add submission record to Firestore
+        // Add submission record to Firestore with milestone index
         const submissionData = {
           fileName: file.name,
           filePath,
           downloadUrl: downloadURL,
-          milestoneId: upcomingMilestone.value.id || '',
+          milestoneIndex: milestoneIndex,
           milestoneDescription: upcomingMilestone.value.description || '',
           submittedAt: new Date(),
           submittedBy: userStore.currentUser.uid
         }
-
-        console.log('Preparing submission data:', submissionData)
 
         // Create the submissions collection reference
         const projectRef = doc(
@@ -832,19 +866,16 @@ export default {
           throw new Error('Project document not found')
         }
 
-        console.log('Project document exists, creating submission...')
-
         // Create the submissions collection reference
         const submissionsRef = collection(projectRef, 'submissions')
 
         // Add the submission document
         const submissionRef = await addDoc(submissionsRef, submissionData)
-        console.log('Submission document created with ID:', submissionRef.id)
 
         // Reset form and fetch updated submissions
         selectedFile.value = null
         fileInput.value.value = ''
-        submissionSuccess.value = true  // Set success message
+        submissionSuccess.value = true
         await fetchPreviousSubmissions()
 
       } catch (error) {
