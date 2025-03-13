@@ -183,8 +183,8 @@
 
     <!-- Submission Portal -->
     <div v-if="upcomingMilestone && assignedProject" class="mt-6 grid grid-cols-12 gap-4">
-      <div class="col-span-6 bg-white p-4 shadow rounded">
-        <div class="flex justify-between items-center mb-3">
+      <div class="col-span-8 bg-white p-5 shadow rounded">
+        <div class="flex justify-between items-center mb-4">
           <h2 class="text-lg font-semibold">Submit Your Work</h2>
           <div class="text-sm text-gray-500">
             Due: {{ formatDate(upcomingMilestone.deadline) }}
@@ -192,7 +192,7 @@
         </div>
 
         <!-- Submission Form -->
-        <div class="space-y-3">
+        <div class="space-y-4">
           <div class="flex items-center justify-between">
             <div>
               <h3 class="text-sm font-medium text-gray-700">{{ upcomingMilestone.description }}</h3>
@@ -204,7 +204,7 @@
 
           <!-- File Upload Area -->
           <div 
-            class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-500 transition-colors cursor-pointer"
+            class="border-2 border-dashed border-gray-300 rounded-lg p-5 text-center hover:border-blue-500 transition-colors cursor-pointer"
             @click="triggerFileUpload"
             @dragover.prevent
             @drop.prevent="handleFileDrop"
