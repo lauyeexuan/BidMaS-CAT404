@@ -1372,9 +1372,10 @@ const saveMilestones = async () => {
     const milestones = currentMilestones.value
       .filter(m => m.required || (m.description.trim() !== '' && m.deadline))
       .map(m => {
-        // Create a date object and set time to midnight (00:00:00)
-        const date = new Date(m.deadline);
-        date.setHours(0, 0, 0, 0);
+        // Create a date object with the date parts explicitly to avoid timezone issues
+        const [year, month, day] = m.deadline.split('-').map(Number);
+        // Note: month is 0-indexed in JavaScript Date
+        const date = new Date(Date.UTC(year, month - 1, day));
         
         return {
           description: m.description.trim(),
