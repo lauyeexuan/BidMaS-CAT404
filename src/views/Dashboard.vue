@@ -83,9 +83,6 @@
                 class="text-gray-400 hover:text-gray-600"
                 aria-label="Close milestones panel"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                </svg>
               </button>
             </div>
             
@@ -184,6 +181,135 @@
       </div>
     </div>
 
+    <!-- Submission Portal -->
+    <div v-if="upcomingMilestone && assignedProject" class="mt-6 grid grid-cols-12 gap-4">
+      <div class="col-span-6 bg-white p-4 shadow rounded">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-lg font-semibold">Submit Your Work</h2>
+          <div class="text-sm text-gray-500">
+            Due: {{ formatDate(upcomingMilestone.deadline) }}
+          </div>
+        </div>
+
+        <!-- Submission Form -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-medium text-gray-700">{{ upcomingMilestone.description }}</h3>
+            </div>
+            <div class="text-xs" :class="getDaysRemainingClass(upcomingMilestone)">
+              {{ getDaysRemainingText(upcomingMilestone) }}
+            </div>
+          </div>
+
+          <!-- File Upload Area -->
+          <div 
+            class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-500 transition-colors cursor-pointer"
+            @click="triggerFileUpload"
+            @dragover.prevent
+            @drop.prevent="handleFileDrop"
+          >
+            <input
+              type="file"
+              ref="fileInput"
+              class="hidden"
+              @change="handleFileSelect"
+              :accept="acceptedFileTypes"
+            />
+            
+            <div v-if="!selectedFile && !uploading" class="space-y-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <p class="text-xs text-gray-600">Drag and drop your file here, or click to select</p>
+              <div class="text-xs text-gray-500 flex flex-wrap gap-1 justify-center">
+                <span class="px-1.5 py-0.5 bg-gray-100 rounded text-[10px]">PDF</span>
+                <span class="px-1.5 py-0.5 bg-gray-100 rounded text-[10px]">Word</span>
+                <span class="px-1.5 py-0.5 bg-gray-100 rounded text-[10px]">PPT</span>
+                <span class="px-1.5 py-0.5 bg-gray-100 rounded text-[10px]">Excel</span>
+                <span class="px-1.5 py-0.5 bg-gray-100 rounded text-[10px]">Text</span>
+                <span class="px-1.5 py-0.5 bg-gray-100 rounded text-[10px]">ZIP</span>
+                <span class="px-1.5 py-0.5 bg-gray-100 rounded text-[10px]">Images</span>
+              </div>
+              <p class="text-[10px] text-gray-500">Maximum file size: 10MB</p>
+            </div>
+            
+            <div v-else-if="selectedFile && !uploading" class="text-left">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span class="text-xs font-medium text-gray-700">{{ selectedFile.name }}</span>
+                </div>
+                <button 
+                  @click.stop="removeSelectedFile"
+                  class="text-gray-400 hover:text-gray-600"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            
+            <div v-else class="text-center py-2">
+              <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto"></div>
+              <p class="text-xs text-gray-600 mt-1">Uploading...</p>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <div class="flex justify-end space-x-2 items-center">
+            <div>
+              <!-- Error Message -->
+              <div v-if="submissionError" class="text-red-500 text-xs">
+                {{ submissionError }}
+              </div>
+              <!-- Success Message -->
+              <div v-if="submissionSuccess" class="text-green-500 text-xs">
+                File submitted successfully!
+              </div>
+            </div>
+            <button
+              @click="submitFile"
+              :disabled="!selectedFile || uploading"
+              class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {{ uploading ? 'Uploading...' : 'Submit' }}
+            </button>
+          </div>
+
+          <!-- Previous Submissions -->
+          <div v-if="previousSubmissions.length > 0" class="mt-4">
+            <h3 class="text-sm font-medium text-gray-700 mb-2">Previous Submissions</h3>
+            <div class="space-y-1.5">
+              <div 
+                v-for="submission in previousSubmissions" 
+                :key="submission.id"
+                class="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
+              >
+                <div class="flex items-center space-x-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span class="text-xs text-gray-700">{{ submission.fileName }}</span>
+                  <span class="text-[10px] text-gray-500">{{ formatDate(submission.submittedAt) }}</span>
+                </div>
+                <a 
+                  :href="submission.downloadUrl" 
+                  target="_blank"
+                  class="text-blue-600 hover:text-blue-800 text-xs"
+                >
+                  Download
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Submission Rate -->
     <div class="mt-6 grid grid-cols-12 gap-4">
       <div class="col-span-6 bg-white p-4 shadow rounded">
@@ -202,12 +328,13 @@
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onBeforeUnmount, watch } from 'vue'
 import { useUserStore } from '@/stores/userStore'
 import { getMilestones } from '@/utils/milestones'
 import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
-import { db } from '@/firebase'
-import { collection, getDocs, query, limit, where, doc, getDoc } from 'firebase/firestore'
+import { db, storage } from '@/firebase'
+import { collection, getDocs, query, limit, where, doc, getDoc, addDoc, orderBy, onSnapshot } from 'firebase/firestore'
+import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { createProjectDetailsWindow } from '@/utils/windowUtils'
 import '@/assets/styles/dashboard.css'
 
@@ -224,6 +351,16 @@ export default {
     const assignedProject = ref(null)
     const projectLoading = ref(true)
     const projectError = ref(null)
+
+    // File upload related refs
+    const fileInput = ref(null)
+    const selectedFile = ref(null)
+    const uploading = ref(false)
+    const submissionError = ref(null)
+    const submissionSuccess = ref(false)
+    const previousSubmissions = ref([])
+    const acceptedFileTypes = '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.rar,.7z,.png,.jpg,.jpeg'
+    const unsubscribeSubmissions = ref(null)  // Add unsubscribe ref
 
     // Computed property to filter out the upcoming milestone
     const otherMilestones = computed(() => {
@@ -572,13 +709,238 @@ export default {
       }
     }
 
+    // Function to trigger file input
+    const triggerFileUpload = () => {
+      fileInput.value.click()
+    }
+
+    // Function to handle file selection
+    const handleFileSelect = (event) => {
+      const file = event.target.files[0]
+      if (file) {
+        validateAndSetFile(file)
+      }
+    }
+
+    // Function to handle file drop
+    const handleFileDrop = (event) => {
+      const file = event.dataTransfer.files[0]
+      if (file) {
+        validateAndSetFile(file)
+      }
+    }
+
+    // Function to validate and set file
+    const validateAndSetFile = (file) => {
+      // Check file type
+      const allowedTypes = [
+        // Documents
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        // Presentations
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        // Spreadsheets
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        // Text files
+        'text/plain',
+        // Archives
+        'application/zip',
+        'application/x-rar-compressed',
+        'application/x-7z-compressed',
+        // Images
+        'image/png',
+        'image/jpeg',
+        'image/jpg'
+      ]
+
+      if (!allowedTypes.includes(file.type)) {
+        submissionError.value = 'Invalid file type. Please upload one of the following formats: PDF, Word, PowerPoint, Excel, Text, ZIP, RAR, 7Z, or Images (PNG/JPG).'
+        return
+      }
+
+      // Check file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        submissionError.value = 'File size exceeds 10MB limit.'
+        return
+      }
+
+      selectedFile.value = file
+      submissionError.value = null
+    }
+
+    // Function to remove selected file
+    const removeSelectedFile = () => {
+      selectedFile.value = null
+      fileInput.value.value = ''
+    }
+
+    // Function to submit file
+    const submitFile = async () => {
+      if (!selectedFile.value || !upcomingMilestone.value || !assignedProject.value) return
+
+      try {
+        uploading.value = true
+        submissionError.value = null
+        submissionSuccess.value = false  // Reset success message
+
+        const file = selectedFile.value
+        const timestamp = Date.now()
+        const fileName = `${timestamp}_${file.name}`
+        const filePath = `submission/${assignedProject.value.id}/${fileName}`
+
+        console.log('Starting file upload to Storage:', filePath)
+
+        // Upload file to Firebase Storage
+        const fileRef = storageRef(storage, filePath)
+        await uploadBytes(fileRef, file)
+        const downloadURL = await getDownloadURL(fileRef)
+
+        console.log('File uploaded successfully to Storage, got download URL:', downloadURL)
+
+        // Add submission record to Firestore
+        const submissionData = {
+          fileName: file.name,
+          filePath,
+          downloadUrl: downloadURL,
+          milestoneId: upcomingMilestone.value.id || '',
+          milestoneDescription: upcomingMilestone.value.description || '',
+          submittedAt: new Date(),
+          submittedBy: userStore.currentUser.uid
+        }
+
+        console.log('Preparing submission data:', submissionData)
+
+        // Create the submissions collection reference
+        const projectRef = doc(
+          db,
+          'schools',
+          userStore.currentUser.school,
+          'projects',
+          assignedProject.value.year,
+          assignedProject.value.major,
+          assignedProject.value.majorDocId,
+          'projectsPerYear',
+          assignedProject.value.id
+        )
+
+        // First, ensure the project document exists
+        const projectDoc = await getDoc(projectRef)
+        if (!projectDoc.exists()) {
+          throw new Error('Project document not found')
+        }
+
+        console.log('Project document exists, creating submission...')
+
+        // Create the submissions collection reference
+        const submissionsRef = collection(projectRef, 'submissions')
+
+        // Add the submission document
+        const submissionRef = await addDoc(submissionsRef, submissionData)
+        console.log('Submission document created with ID:', submissionRef.id)
+
+        // Reset form and fetch updated submissions
+        selectedFile.value = null
+        fileInput.value.value = ''
+        submissionSuccess.value = true  // Set success message
+        await fetchPreviousSubmissions()
+
+      } catch (error) {
+        console.error('Error in submission process:', error)
+        // More detailed error message based on the error type
+        if (error.code === 'permission-denied') {
+          submissionError.value = 'Permission denied. Please check if you have access to submit files.'
+        } else if (error.message === 'Project document not found') {
+          submissionError.value = 'Could not find the project to submit to. Please refresh and try again.'
+        } else {
+          submissionError.value = `Failed to submit file: ${error.message}`
+        }
+        
+        // If the file was uploaded but Firestore failed, we should clean up the uploaded file
+        if (selectedFile.value) {
+          try {
+            const timestamp = Date.now()
+            const fileName = `${timestamp}_${selectedFile.value.name}`
+            const filePath = `submission/${assignedProject.value.id}/${fileName}`
+            const fileRef = storageRef(storage, filePath)
+            await deleteObject(fileRef)
+            console.log('Cleaned up orphaned file from storage')
+          } catch (cleanupError) {
+            console.error('Failed to clean up orphaned file:', cleanupError)
+          }
+        }
+      } finally {
+        uploading.value = false
+      }
+    }
+
+    // Function to fetch previous submissions
+    const fetchPreviousSubmissions = async () => {
+      if (!assignedProject.value) return
+
+      try {
+        // Clean up existing listener if any
+        if (unsubscribeSubmissions.value) {
+          unsubscribeSubmissions.value()
+        }
+
+        const submissionsRef = collection(
+          db,
+          'schools',
+          userStore.currentUser.school,
+          'projects',
+          assignedProject.value.year,
+          assignedProject.value.major,
+          assignedProject.value.majorDocId,
+          'projectsPerYear',
+          assignedProject.value.id,
+          'submissions'
+        )
+
+        // Set up real-time listener
+        const q = query(
+          submissionsRef,
+          where('submittedBy', '==', userStore.currentUser.uid)
+        )
+
+        unsubscribeSubmissions.value = onSnapshot(q, (snapshot) => {
+          previousSubmissions.value = snapshot.docs
+            .map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }))
+            .sort((a, b) => b.submittedAt.toDate() - a.submittedAt.toDate())
+        }, (error) => {
+          console.error('Error in submissions listener:', error)
+        })
+
+      } catch (error) {
+        console.error('Error setting up submissions listener:', error)
+      }
+    }
+
+    // Add watcher for assignedProject
+    watch(assignedProject, (newProject) => {
+      if (newProject) {
+        fetchPreviousSubmissions()
+      } else {
+        // Clean up listener when project becomes null
+        if (unsubscribeSubmissions.value) {
+          unsubscribeSubmissions.value()
+          unsubscribeSubmissions.value = null
+        }
+        previousSubmissions.value = []
+      }
+    })
+
     // Fetch data when component is mounted
     onMounted(() => {
       if (userStore.initialized) {
         fetchUpcomingMilestone()
         fetchAssignedProject()
       } else {
-        // Wait for user store to initialize
         userStore.initializeAuth().then(() => {
           fetchUpcomingMilestone()
           fetchAssignedProject()
@@ -607,7 +969,19 @@ export default {
       assignedProject,
       projectLoading,
       projectError,
-      openProjectDetailsWindow
+      openProjectDetailsWindow,
+      fileInput,
+      selectedFile,
+      uploading,
+      submissionError,
+      submissionSuccess,
+      previousSubmissions,
+      acceptedFileTypes,
+      triggerFileUpload,
+      handleFileSelect,
+      handleFileDrop,
+      removeSelectedFile,
+      submitFile
     }
   }
 }
@@ -616,4 +990,5 @@ export default {
 <style scoped>
 /* Dashboard styles imported from assets/styles/dashboard.css */
 </style>
+  
   
