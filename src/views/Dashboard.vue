@@ -133,9 +133,51 @@
         </transition>
       </div>
       
-      <div class="col-span-6 bg-blue-600 text-white p-4 shadow rounded text-center">
-        <h2 class="text-lg font-semibold">Manage project in few clicks</h2>
-        <button class="mt-2 px-4 py-2 bg-white text-blue-600 rounded">Go Now</button>
+      <!-- Assigned Project Card -->
+      <div class="col-span-6 bg-white p-4 shadow rounded">
+        <h2 class="text-sm font-medium text-gray-500 mb-2">Your Assigned Project</h2>
+        
+        <div v-if="projectLoading" class="py-4">
+          <div class="h-6 bg-gray-200 rounded animate-pulse w-3/4 mb-3"></div>
+          <div class="h-4 bg-gray-200 rounded animate-pulse w-1/2 mb-2"></div>
+          <div class="h-4 bg-gray-200 rounded animate-pulse w-2/3"></div>
+        </div>
+        
+        <div v-else-if="projectError" class="py-4">
+          <p class="text-red-500">{{ projectError }}</p>
+        </div>
+        
+        <div v-else-if="assignedProject" class="py-2">
+          <div class="relative">
+            <!-- Decorative element -->
+            <div class="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-full"></div>
+            
+            <div class="pl-4">
+              <h3 class="text-lg font-semibold text-gray-800 mb-1">{{ assignedProject.Title }}</h3>
+              
+              <div class="flex items-center text-gray-500 mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span>Supervisor: {{ assignedProject.lecturerName || 'Unknown' }}</span>
+              </div>
+              
+              <div class="mt-2">
+                <button class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                  View Project Details
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div v-else class="py-4 text-center">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <p class="text-gray-500">No project assigned yet.</p>
+          <p class="text-sm text-gray-400 mt-1">Projects will be assigned after the bidding process.</p>
+        </div>
       </div>
     </div>
 
@@ -157,12 +199,13 @@
 </template>
 
 <script>
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '@/stores/userStore'
 import { getMilestones } from '@/utils/milestones'
 import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
 import { db } from '@/firebase'
-import { collection, getDocs, query, limit } from 'firebase/firestore'
+import { collection, getDocs, query, limit, where, doc, getDoc } from 'firebase/firestore'
+import '@/assets/styles/dashboard.css'
 
 export default {
   setup() {
@@ -172,6 +215,11 @@ export default {
     const loading = ref(true)
     const error = ref(null)
     const showAllMilestones = ref(false)
+    
+    // Assigned project data
+    const assignedProject = ref(null)
+    const projectLoading = ref(true)
+    const projectError = ref(null)
 
     // Computed property to filter out the upcoming milestone
     const otherMilestones = computed(() => {
@@ -189,14 +237,6 @@ export default {
         event.stopPropagation()
       }
       showAllMilestones.value = !showAllMilestones.value
-      
-      // Log for debugging
-      console.log('Toggled milestone dropdown:', showAllMilestones.value)
-      console.log('Number of milestones:', allMilestones.value.length)
-      console.log('Number of other milestones:', otherMilestones.value.length)
-      if (allMilestones.value.length > 0) {
-        console.log('First milestone:', allMilestones.value[0].description)
-      }
     }
 
     // Function to check if a milestone is in the past
@@ -272,22 +312,17 @@ export default {
     // Function to get the majorDocId for a specific major
     const getMajorDocId = async (schoolId, yearId, majorId) => {
       try {
-        console.log(`Getting majorDocId for school: ${schoolId}, year: ${yearId}, major: ${majorId}`)
         const majorCollectionRef = collection(db, 'schools', schoolId, 'projects', yearId, majorId)
         const majorDocsQuery = query(majorCollectionRef, limit(1))
         const majorDocsSnapshot = await getDocs(majorDocsQuery)
         
         if (majorDocsSnapshot.empty) {
-          console.error('No major documents found')
           return null
         }
         
         // Get the first (and likely only) document ID
-        const majorDocId = majorDocsSnapshot.docs[0].id
-        console.log(`Found majorDocId: ${majorDocId}`)
-        return majorDocId
+        return majorDocsSnapshot.docs[0].id
       } catch (err) {
-        console.error('Error getting majorDocId:', err)
         throw err
       }
     }
@@ -298,60 +333,42 @@ export default {
       error.value = null
 
       try {
-        console.log('Starting milestone fetch process')
-        
         // Check if user is authenticated and has necessary data
         if (!userStore.isAuthenticated || !userStore.currentUser) {
-          console.error('User not authenticated or user data missing', {
-            isAuthenticated: userStore.isAuthenticated,
-            currentUser: userStore.currentUser
-          })
           error.value = 'User not authenticated'
           return
         }
 
         // Get user data
         const { school, major } = userStore.currentUser
-        console.log('User data retrieved:', { school, major })
         
         if (!school || !major) {
-          console.error('Missing required user data', { school, major })
           error.value = 'Missing school or major information'
           return
         }
         
         // Get latest academic year using the utility function
         const academicYearData = await getLatestAcademicYear(school)
-        console.log('Academic year data:', academicYearData)
         
         if (!academicYearData || !academicYearData.yearId) {
-          console.error('Failed to get latest academic year')
           error.value = 'Failed to determine academic year'
           return
         }
         
         const yearId = academicYearData.yearId
-        console.log('Using academic year ID:', yearId)
         
         // Get the majorDocId by querying the collection
         const majorDocId = await getMajorDocId(school, yearId, major)
         
         if (!majorDocId) {
-          console.error('Could not find majorDocId')
           error.value = 'Major information not found'
           return
         }
         
-        console.log('Using majorDocId:', majorDocId)
-        
         // Fetch milestones for the user's major
-        console.log('Fetching milestones with params:', { school, yearId, major, majorDocId })
         const milestones = await getMilestones(school, yearId, major, majorDocId)
-        console.log('Milestones fetched:', milestones)
         
         if (milestones && milestones.length > 0) {
-          console.log(`Found ${milestones.length} milestones`)
-          
           // Store all milestones
           allMilestones.value = [...milestones]
           
@@ -361,7 +378,6 @@ export default {
             const dateB = b.deadline instanceof Date ? b.deadline : b.deadline.toDate()
             return dateA - dateB
           })
-          console.log('Sorted milestones:', sortedMilestones)
           
           // Find the first upcoming milestone (deadline is in the future)
           const now = new Date()
@@ -372,27 +388,109 @@ export default {
             return deadlineDate > now
           })
           
-          console.log('Found upcoming milestone:', upcomingMilestone.value)
-          
           // If no upcoming milestone, use the most recent one
           if (!upcomingMilestone.value && sortedMilestones.length > 0) {
             upcomingMilestone.value = sortedMilestones[sortedMilestones.length - 1]
-            console.log('No upcoming milestone found, using most recent:', upcomingMilestone.value)
           }
-        } else {
-          console.log('No milestones found or empty array returned')
         }
       } catch (err) {
-        console.error('Error fetching milestone:', err)
-        console.error('Error details:', { 
-          message: err.message, 
-          stack: err.stack,
-          name: err.name
-        })
         error.value = `Failed to load milestone data: ${err.message}`
       } finally {
         loading.value = false
-        console.log('Milestone fetch process completed')
+      }
+    }
+
+    // Function to fetch the student's assigned project
+    const fetchAssignedProject = async () => {
+      projectLoading.value = true
+      projectError.value = null
+
+      try {
+        // Check if user is authenticated and has necessary data
+        if (!userStore.isAuthenticated || !userStore.currentUser) {
+          projectError.value = 'User not authenticated'
+          return
+        }
+
+        const { school, uid: studentId } = userStore.currentUser
+        
+        if (!school || !studentId) {
+          projectError.value = 'Missing user information'
+          return
+        }
+        
+        // Get latest academic year
+        const academicYearData = await getLatestAcademicYear(school)
+        if (!academicYearData || !academicYearData.yearId) {
+          projectError.value = 'Failed to determine academic year'
+          return
+        }
+        
+        const yearId = academicYearData.yearId
+        
+        // Query the student's bids to find an accepted bid
+        const studentBidsRef = collection(db, 'schools', school, 'studentBids', studentId, 'bids')
+        const acceptedBidQuery = query(studentBidsRef, where('status', '==', 'accepted'))
+        const acceptedBidSnapshot = await getDocs(acceptedBidQuery)
+        
+        if (acceptedBidSnapshot.empty) {
+          // No accepted bids found
+          return
+        }
+        
+        // Get the first accepted bid
+        const acceptedBid = acceptedBidSnapshot.docs[0].data()
+        const { projectId, majorId, majorDocId } = acceptedBid
+        
+        if (!projectId || !majorId || !majorDocId) {
+          projectError.value = 'Invalid bid data'
+          return
+        }
+        
+        // Get the project document
+        const projectRef = doc(
+          db, 
+          'schools', 
+          school, 
+          'projects', 
+          yearId, 
+          majorId, 
+          majorDocId, 
+          'projectsPerYear', 
+          projectId
+        )
+        
+        const projectDoc = await getDoc(projectRef)
+        
+        if (!projectDoc.exists()) {
+          projectError.value = 'Project not found'
+          return
+        }
+        
+        // Get project data
+        const projectData = projectDoc.data()
+        
+        // If there's a lecturer ID, get their name
+        if (projectData.userId) {
+          try {
+            const lecturerRef = doc(db, 'schools', school, 'users', projectData.userId)
+            const lecturerDoc = await getDoc(lecturerRef)
+            
+            if (lecturerDoc.exists()) {
+              projectData.lecturerName = lecturerDoc.data().name
+            }
+          } catch (err) {
+            // If we can't get the lecturer name, just continue
+          }
+        }
+        
+        // Set the assigned project
+        assignedProject.value = projectData
+        
+      } catch (err) {
+        projectError.value = `Failed to load project data: ${err.message}`
+      } finally {
+        projectLoading.value = false
       }
     }
 
@@ -410,34 +508,24 @@ export default {
           day: 'numeric'
         })
       } catch (err) {
-        console.error('Error formatting date:', err, { date })
         return 'Invalid date'
       }
     }
 
-    // Watch for changes to showAllMilestones for debugging
-    watch(showAllMilestones, (newValue) => {
-      console.log('showAllMilestones changed to:', newValue)
-    })
-
-    // Fetch milestone when component is mounted
+    // Fetch data when component is mounted
     onMounted(() => {
-      console.log('Dashboard component mounted')
-      console.log('User store initialized:', userStore.initialized)
-      
       if (userStore.initialized) {
-        console.log('User store already initialized, fetching milestones')
         fetchUpcomingMilestone()
+        fetchAssignedProject()
       } else {
-        console.log('Waiting for user store to initialize')
         // Wait for user store to initialize
         userStore.initializeAuth().then(() => {
-          console.log('User store initialized, now fetching milestones')
           fetchUpcomingMilestone()
+          fetchAssignedProject()
         }).catch(err => {
-          console.error('Error initializing user store:', err)
           error.value = 'Failed to initialize user data'
           loading.value = false
+          projectLoading.value = false
         })
       }
     })
@@ -455,59 +543,16 @@ export default {
       getDaysRemaining,
       getDaysRemainingPercentage,
       getDaysRemainingText,
-      getDaysRemainingClass
+      getDaysRemainingClass,
+      assignedProject,
+      projectLoading,
+      projectError
     }
   }
 }
 </script>
 
 <style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-/* Milestone list transition */
-.milestone-list-enter-active,
-.milestone-list-leave-active {
-  transition: all 0.3s;
-}
-.milestone-list-enter-from {
-  opacity: 0;
-  transform: translateY(-15px);
-}
-.milestone-list-leave-to {
-  opacity: 0;
-  transform: translateY(15px);
-}
-
-/* Staggered list effect */
-.milestone-list-move {
-  transition: transform 0.5s;
-}
-
-/* Loading animation */
-@keyframes pulse {
-  0%, 100% {
-    opacity: 0.5;
-  }
-  50% {
-    opacity: 0.8;
-  }
-}
-.animate-pulse {
-  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* Max height animation for smooth height transitions */
-.milestone-list-container {
-  overflow-y: auto;
-  max-height: 300px;
-}
+/* Dashboard styles imported from assets/styles/dashboard.css */
 </style>
   

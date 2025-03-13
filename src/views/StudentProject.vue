@@ -85,7 +85,7 @@
                     Major
                   </th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Created By
+                    Supervisor
                   </th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Action
@@ -329,7 +329,7 @@
                       </div>
                       <div>
                         <h3 class="text-lg font-medium text-gray-700">{{ bid.project?.Title || 'Unknown Project' }}</h3>
-                        <p class="text-sm text-gray-500 mt-1">Created by: {{ getUserName(bid.project?.userId) }}</p>
+                        <p class="text-sm text-gray-500 mt-1">Supervisor: {{ getUserName(bid.project?.userId) }}</p>
                         <div class="mt-2 flex items-center gap-2">
                           <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                             Rejected
@@ -362,7 +362,7 @@
                     </div>
                     <div>
                       <h3 class="text-lg font-medium text-gray-900">{{ bid.project.Title }}</h3>
-                      <p class="text-sm text-gray-500 mt-1">Created by: {{ getUserName(bid.project.userId) }}</p>
+                      <p class="text-sm text-gray-500 mt-1">Supervisor: {{ getUserName(bid.project.userId) }}</p>
                       <div class="mt-2 flex items-center gap-2">
                         <span 
                           class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
