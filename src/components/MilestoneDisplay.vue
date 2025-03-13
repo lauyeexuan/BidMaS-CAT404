@@ -1,5 +1,25 @@
 <template>
     <div v-if="milestone" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+      <!-- Development testing date picker -->
+      <div class="flex items-center gap-4 mb-3 text-sm">
+        <div class="text-gray-600">Current Time:</div>
+        <div class="flex items-center gap-2">
+          <span class="text-gray-500">(Dev Testing)</span>
+          <input 
+            type="datetime-local" 
+            v-model="testDate"
+            class="border rounded px-2 py-1"
+            @change="updateTestDate"
+          >
+          <button 
+            @click="resetTestDate" 
+            class="text-blue-500 hover:text-blue-700"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
       <div class="flex items-center justify-between">
         <div>
           <h3 class="font-medium text-blue-800">{{ milestone.description }}</h3>
@@ -59,7 +79,8 @@
     data() {
       return {
         timeRemaining: null,
-        countdownInterval: null
+        countdownInterval: null,
+        testDate: localStorage.getItem('bidmas_test_date') || null
       };
     },
     
@@ -72,7 +93,9 @@
           this.milestone.deadline : 
           this.milestone.deadline.toDate();
           
-        return new Date() > deadlineDate;
+        // Use test date if set, otherwise use current date
+        const compareDate = this.testDate ? new Date(this.testDate) : new Date();
+        return compareDate > deadlineDate;
       }
     },
     
@@ -93,29 +116,43 @@
       },
       
       getStatusClasses() {
-        if (this.milestone.completed) {
-          return 'bg-green-100 text-green-800';
-        } else if (this.isDeadlinePassed) {
+        if (!this.isDeadlinePassed) {
+          return 'bg-red-100 text-red-800';
+        } else if (this.isDeadlinePassed && !this.milestone.completed) {
           return 'bg-amber-100 text-amber-800';
         } else {
-          return 'bg-blue-100 text-blue-800';
+          return 'bg-green-100 text-green-800';
         }
       },
       
       getStatusText() {
-        if (this.milestone.completed) {
-          return 'Completed';
-        } else if (this.isDeadlinePassed) {
+        if (!this.isDeadlinePassed) {
+          return 'Pending';
+        } else if (this.isDeadlinePassed && !this.milestone.completed) {
           return 'Processing';
         } else {
-          return 'Pending';
+          return 'Completed';
         }
       },
       
+      updateTestDate() {
+        // Store in localStorage when date is updated
+        if (this.testDate) {
+          localStorage.setItem('bidmas_test_date', this.testDate);
+        }
+        this.updateCountdown();
+      },
+      
+      resetTestDate() {
+        this.testDate = null;
+        localStorage.removeItem('bidmas_test_date');
+        this.updateCountdown();
+      },
+
       calculateTimeRemaining() {
         if (!this.milestone || !this.milestone.deadline) return null;
         
-        const now = new Date();
+        const now = this.testDate ? new Date(this.testDate) : new Date();
         const deadline = this.milestone.deadline instanceof Date ? 
           this.milestone.deadline : 
           this.milestone.deadline.toDate();
@@ -158,6 +195,13 @@
     beforeUnmount() {
       if (this.countdownInterval) {
         clearInterval(this.countdownInterval);
+      }
+    },
+
+    // Add watcher for testDate to emit changes
+    watch: {
+      testDate(newValue) {
+        this.$emit('test-date-change', newValue);
       }
     }
   };

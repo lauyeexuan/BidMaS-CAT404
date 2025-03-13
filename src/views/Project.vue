@@ -252,6 +252,7 @@
                     :milestone="projectBiddingMilestone"
                     :show-lecturer-info="true"
                     :show-countdown="true"
+                    @test-date-change="handleTestDateChange"
                   />
                 </div>
                 
@@ -2651,6 +2652,9 @@ const updateBidStatus = async (bid, newStatus) => {
     // Commit all the updates
     await batch.commit()
     
+    // Use test date if available for the updatedAt field
+    const currentDate = testDate.value ? new Date(testDate.value) : new Date();
+    
     // If bid is rejected, update in studentBids collection
     if (newStatus === 'rejected') {
       const studentBidRef = doc(
@@ -2664,7 +2668,7 @@ const updateBidStatus = async (bid, newStatus) => {
       )
       await updateDoc(studentBidRef, {
         status: 'rejected',
-        updatedAt: new Date()
+        updatedAt: currentDate
       })
     }
     
@@ -3272,6 +3276,23 @@ const openStudentDetails = (studentId) => {
   selectedStudentId.value = studentId
   showStudentModal.value = true
 }
+
+// Add test date ref
+const testDate = ref(localStorage.getItem('bidmas_test_date') || null);
+
+// Add handler for test date changes
+const handleTestDateChange = (newDate) => {
+  testDate.value = newDate;
+};
+
+// Add watcher for testDate to handle persistence
+watch(testDate, (newValue) => {
+  if (newValue) {
+    localStorage.setItem('bidmas_test_date', newValue);
+  } else {
+    localStorage.removeItem('bidmas_test_date');
+  }
+});
 </script>
 
 <style scoped>
