@@ -22,14 +22,6 @@
               </span>
             </template>
           </p>
-          
-          <!-- Additional explanation for lecturers -->
-          <div v-if="showLecturerInfo && !isDeadlinePassed" class="mt-2 p-2 bg-red-50 rounded border border-red-200">
-            <p class="text-sm text-red-800">
-              <strong class="text-base">Important Notice for Lecturers:</strong><br>
-              Your bid acceptance order will affect final project assignments. Please accept bids carefully.
-            </p>
-          </div>
         </div>
         <div class="text-sm px-3 py-1 rounded-full" 
              :class="getStatusClasses()">

@@ -2651,6 +2651,23 @@ const updateBidStatus = async (bid, newStatus) => {
     // Commit all the updates
     await batch.commit()
     
+    // If bid is rejected, update in studentBids collection
+    if (newStatus === 'rejected') {
+      const studentBidRef = doc(
+        db,
+        'schools',
+        schoolId,
+        'studentBids',
+        bid.studentId,
+        'bids',
+        bid.id
+      )
+      await updateDoc(studentBidRef, {
+        status: 'rejected',
+        updatedAt: new Date()
+      })
+    }
+    
     // Update local state
     const bidIndex = projectBids.value.findIndex(b => b.id === bid.id)
     if (bidIndex !== -1) {
@@ -3215,10 +3232,11 @@ async function checkAndProcessDeadlines() {
 // This is the only onMounted hook we need to keep
 onMounted(async () => {
   await fetchAvailableYears()
-  if (selectedAcademicYear.value && selectedMajor.value) {
+  console.log("mounted", selectedAcademicYear.value)
+  if (selectedAcademicYear.value ) {
     console.log(" selected major on mount", selectedMajor.value)
-    //await loadTabData(activeTab.value)
-    //await fetchBiddingMilestone()
+    await loadTabData(activeTab.value)
+    await fetchBiddingMilestone()
     // Add this line to trigger deadline processing on page load
     await checkAndProcessDeadlines();
   } else {
