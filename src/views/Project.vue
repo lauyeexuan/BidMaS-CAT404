@@ -2599,6 +2599,9 @@ const updateBidStatus = async (bid, newStatus) => {
     
     const majorDocId = majorDocs.docs[0].id
 
+   // Use test date if available for the updatedAt field
+    const currentDate = testDate.value ? new Date(testDate.value) : new Date();
+
     // Start a batch write
     const batch = writeBatch(db)
     
@@ -2619,7 +2622,7 @@ const updateBidStatus = async (bid, newStatus) => {
 
     const updateData = {
       status: newStatus,
-      updatedAt: new Date()
+      updatedAt: currentDate
     }
 
     // If accepting the bid, add lecturerAccepted flag
@@ -2645,15 +2648,12 @@ const updateBidStatus = async (bid, newStatus) => {
       
       batch.update(projectRef, {
         tentativeStudentIds: arrayUnion(bid.studentId),
-        updatedAt: new Date()
+        updatedAt: currentDate
       })
     }
 
     // Commit all the updates
     await batch.commit()
-    
-    // Use test date if available for the updatedAt field
-    const currentDate = testDate.value ? new Date(testDate.value) : new Date();
     
     // If bid is rejected, update in studentBids collection
     if (newStatus === 'rejected') {
