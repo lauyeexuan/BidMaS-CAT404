@@ -6,6 +6,7 @@ import {
 } from 'firebase/firestore';
 import { resolveProjectAssignments } from './assignmentResolver';
 import { compileScript } from 'vue/compiler-sfc';
+import { testDateManager } from './testDateManager';
 
 // Milestone states
 const MILESTONE_STATES = {
@@ -22,7 +23,7 @@ const MILESTONE_STATES = {
  */
 const hasDeadlinePassed = (deadline) => {
   if (!deadline) return false;
-  const now = Timestamp.now();
+  const now = testDateManager.getCurrentTime();
   return now.toMillis() > deadline.toMillis();
 };
 

@@ -2,12 +2,14 @@
     <div v-if="milestone" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
       <!-- Development testing date picker -->
       <div class="flex items-center gap-4 mb-3 text-sm">
-        <div class="text-gray-600">Current Time:</div>
+        <div class="text-gray-600">Current Time: 
+          <span class="font-medium">{{ testDate ? formatDate(new Date(testDate)) : formatDate(new Date()) }}</span>
+        </div>
         <div class="flex items-center gap-2">
           <span class="text-gray-500">(Dev Testing)</span>
           <input 
             type="datetime-local" 
-            v-model="testDate"
+            v-model="formattedTestDate"
             class="border rounded px-2 py-1"
             @change="updateTestDate"
           >
@@ -24,7 +26,7 @@
         <div>
           <h3 class="font-medium text-blue-800">{{ milestone.description }}</h3>
           <p class="text-sm text-blue-600 mt-1">
-            <template v-if="!isDeadlinePassed">
+            <template v-if="!isDeadlinePassedComputed">
               Bidding period ends on <strong>{{ formatDate(milestone.deadline) }}</strong>.
               <br>
               <span class="text-xs italic">
@@ -50,7 +52,7 @@
       </div>
       
       <!-- Countdown timer if deadline is approaching -->
-      <div v-if="!isDeadlinePassed && timeRemaining && showCountdown" class="mt-3 text-center">
+      <div v-if="!isDeadlinePassedComputed && timeRemaining && showCountdown" class="mt-3 text-center">
         <p class="text-sm font-medium text-blue-800">Time Remaining:</p>
         <p class="text-lg font-bold text-blue-900">
           {{ timeRemaining.days }}d {{ timeRemaining.hours }}h {{ timeRemaining.minutes }}m {{ timeRemaining.seconds }}s
@@ -60,6 +62,8 @@
   </template>
   
   <script>
+  import { testDateManager } from '@/utils/testDateManager';
+
   export default {
     props: {
       milestone: {
@@ -77,29 +81,50 @@
     },
     
     data() {
+      const savedDate = localStorage.getItem('bidmas_test_date');
       return {
         timeRemaining: null,
         countdownInterval: null,
-        testDate: localStorage.getItem('bidmas_test_date') || null
+        testDate: savedDate || null,
+        formattedTestDate: null,
+        // Add a reactive property to force updates
+        testDateVersion: 0
       };
     },
     
     computed: {
-      isDeadlinePassed() {
-        if (!this.milestone || !this.milestone.deadline) return false;
-        
-        // Handle both Date objects and Firestore Timestamps
-        const deadlineDate = this.milestone.deadline instanceof Date ? 
-          this.milestone.deadline : 
-          this.milestone.deadline.toDate();
-          
-        // Use test date if set, otherwise use current date
-        const compareDate = this.testDate ? new Date(this.testDate) : new Date();
-        return compareDate > deadlineDate;
+      // Create a computed property that depends on testDateVersion to force reactivity
+      isDeadlinePassedComputed() {
+        // Using testDateVersion to ensure this is recalculated when testDate changes
+        this.testDateVersion; // Just reference it to create dependency
+        return this.isDeadlinePassed();
       }
     },
     
     methods: {
+      isDeadlinePassed() {
+        if (!this.milestone || !this.milestone.deadline) return false;
+        
+        const deadlineDate = this.milestone.deadline instanceof Date ? 
+          this.milestone.deadline : 
+          this.milestone.deadline.toDate();
+          
+        const compareDate = this.testDate ? new Date(this.testDate) : new Date();
+        return compareDate > deadlineDate;
+      },
+      
+      // Format date for datetime-local input
+      formatDateForInput(date) {
+        if (!date) return '';
+        const d = new Date(date);
+        // Format as YYYY-MM-DDThh:mm
+        return d.getFullYear() + '-' + 
+               String(d.getMonth() + 1).padStart(2, '0') + '-' + 
+               String(d.getDate()).padStart(2, '0') + 'T' + 
+               String(d.getHours()).padStart(2, '0') + ':' + 
+               String(d.getMinutes()).padStart(2, '0');
+      },
+      
       formatDate(date) {
         if (!date) return '';
         
@@ -116,9 +141,9 @@
       },
       
       getStatusClasses() {
-        if (!this.isDeadlinePassed) {
+        if (!this.isDeadlinePassedComputed) {
           return 'bg-red-100 text-red-800';
-        } else if (this.isDeadlinePassed && !this.milestone.completed) {
+        } else if (this.isDeadlinePassedComputed && !this.milestone.completed) {
           return 'bg-amber-100 text-amber-800';
         } else {
           return 'bg-green-100 text-green-800';
@@ -126,9 +151,9 @@
       },
       
       getStatusText() {
-        if (!this.isDeadlinePassed) {
+        if (!this.isDeadlinePassedComputed) {
           return 'Pending';
-        } else if (this.isDeadlinePassed && !this.milestone.completed) {
+        } else if (this.isDeadlinePassedComputed && !this.milestone.completed) {
           return 'Processing';
         } else {
           return 'Completed';
@@ -136,16 +161,41 @@
       },
       
       updateTestDate() {
-        // Store in localStorage when date is updated
-        if (this.testDate) {
+        if (this.formattedTestDate) {
+          // Convert from formatted string to date
+          const newDate = new Date(this.formattedTestDate);
+          this.testDate = newDate.toISOString();
           localStorage.setItem('bidmas_test_date', this.testDate);
+          
+          // Force update the test date manager
+          testDateManager.setTestDate(newDate);
+          
+          // Increment version to trigger reactivity
+          this.testDateVersion++;
+          
+          // Emit the change
+          this.$emit('test-date-change', newDate);
+          
+          // Update countdown
+          this.updateCountdown();
         }
-        this.updateCountdown();
       },
       
       resetTestDate() {
         this.testDate = null;
+        this.formattedTestDate = null;
         localStorage.removeItem('bidmas_test_date');
+        
+        // Reset test date manager
+        testDateManager.setTestDate(null);
+        
+        // Increment version to trigger reactivity
+        this.testDateVersion++;
+        
+        // Emit the change
+        this.$emit('test-date-change', null);
+        
+        // Update countdown
         this.updateCountdown();
       },
 
@@ -174,7 +224,7 @@
       },
       
       startCountdown() {
-        if (this.showCountdown && !this.isDeadlinePassed) {
+        if (this.showCountdown && !this.isDeadlinePassedComputed) {
           this.updateCountdown();
           this.countdownInterval = setInterval(this.updateCountdown, 1000);
         }
@@ -189,6 +239,11 @@
     },
     
     mounted() {
+      // Initialize with the saved date if available
+      if (this.testDate) {
+        this.formattedTestDate = this.formatDateForInput(new Date(this.testDate));
+      }
+      
       this.startCountdown();
     },
     
@@ -198,10 +253,27 @@
       }
     },
 
-    // Add watcher for testDate to emit changes
     watch: {
-      testDate(newValue) {
-        this.$emit('test-date-change', newValue);
+      // Watch for milestone changes and update countdown
+      milestone: {
+        handler() {
+          this.updateCountdown();
+        },
+        deep: true
+      },
+      
+      // Watch for testDate changes coming from other components
+      testDate: {
+        handler(newVal) {
+          if (newVal) {
+            this.formattedTestDate = this.formatDateForInput(new Date(newVal));
+          } else {
+            this.formattedTestDate = null;
+          }
+          // Increment version to trigger reactivity
+          this.testDateVersion++;
+          this.updateCountdown();
+        }
       }
     }
   };
