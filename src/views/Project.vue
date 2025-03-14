@@ -252,10 +252,10 @@
                     :milestone="projectBiddingMilestone"
                     :show-lecturer-info="true"
                     :show-countdown="true"
-                    :available-majors="userMajors"
+                    :available-majors="availableMajors"
                     :selected-major="selectedMilestoneViewMajor"
-                    @test-date-change="handleTestDateChange"
                     @major-change="handleMilestoneViewMajorChange"
+                    @test-date-change="handleTestDateChange"
                   />
                 </div>
                 
@@ -3037,7 +3037,7 @@ watch(activeTab, async (newTab, oldTab) => {
 
 // Add tab-specific loading states
 const myProjectsLoading = ref(false)
-const allProjectsLoading = ref(false) 
+const allProjectsLoading = ref(false)
 const bidsLoading = ref(false)
 
 // Add tracking for which tabs have been loaded
@@ -3128,60 +3128,112 @@ const fetchBasicSettings = async () => {
     const projectsDoc = await getDoc(projectsRef)
     
     if (projectsDoc.exists() && projectsDoc.data().majors && projectsDoc.data().majors.length > 0) {
-      availableMajors.value = projectsDoc.data().majors
+      const availableMajorsInYear = projectsDoc.data().majors;
+      availableMajors.value = availableMajorsInYear;
       
+      // Update userMajors to match the available majors for this academic year
+      // This ensures the milestone display shows the correct majors
+      userMajors.value = [...availableMajorsInYear];
+      
+      // Reset selectedMajor and selectedMilestoneViewMajor to ensure they exist in this academic year
+      let majorFound = false;
+      
+      // First try to use the user's major if it exists in this academic year
       if (userStore.currentUser.role === 'lecturer' && userStore.currentUser.major) {
-        selectedMajor.value = userStore.currentUser.major
-      } else {
-        selectedMajor.value = projectsDoc.data().majors[0]
+        const userMajors = Array.isArray(userStore.currentUser.major) 
+          ? userStore.currentUser.major 
+          : [userStore.currentUser.major];
+          
+        // Find the first user major that exists in this academic year
+        const validUserMajor = userMajors.find(major => availableMajorsInYear.includes(major));
+        
+        if (validUserMajor) {
+          selectedMajor.value = validUserMajor;
+          selectedMilestoneViewMajor.value = validUserMajor;
+          majorFound = true;
+          console.log(`Found user major ${validUserMajor} in academic year ${yearData.yearId}`);
+        }
       }
+      
+      // If no valid user major was found, use the first available major
+      if (!majorFound) {
+        selectedMajor.value = availableMajorsInYear[0];
+        selectedMilestoneViewMajor.value = availableMajorsInYear[0];
+        console.log(`Using first available major ${availableMajorsInYear[0]} for academic year ${yearData.yearId}`);
+      }
+    } else {
+      console.warn(`No majors found for academic year ${yearData.yearId}`);
+      availableMajors.value = [];
+      selectedMajor.value = null;
+      selectedMilestoneViewMajor.value = null;
+      userMajors.value = [];
+      return;
     }
-    console.log("selected major", selectedMajor.value)
+    
+    console.log("selected major", selectedMajor.value);
+    console.log("selected milestone view major", selectedMilestoneViewMajor.value);
+    console.log("available majors for milestone display", userMajors.value);
+    
     if (!selectedMajor.value) {
-      return
+      return;
     }
+    
+    // Ensure selectedMajor is a string before using it in collection path
+    const majorToUse = Array.isArray(selectedMajor.value) ? selectedMajor.value[0] : selectedMajor.value;
     
     // Get project settings for the selected major
-    const majorRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, selectedMajor.value)
-    const majorDocs = await getDocs(majorRef)
+    const majorRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, majorToUse);
+    const majorDocs = await getDocs(majorRef);
     
     if (!majorDocs.empty) {
-      const majorDoc = majorDocs.docs[0]
-      const majorData = majorDoc.data()
+      const majorDoc = majorDocs.docs[0];
+      const majorData = majorDoc.data();
       
       projectSettings.value = {
         headers: majorData.headers || {},
         milestones: majorData.milestones || []
-      }
+      };
       
       if (majorData.headers) {
         Object.keys(majorData.headers).forEach(headerName => {
-          newProject.value[headerName] = ''
-        })
+          newProject.value[headerName] = '';
+        });
       }
+    } else {
+      console.warn(`No settings found for major ${majorToUse} in academic year ${yearData.yearId}`);
     }
     
     // Try to load settings from first project major if needed
     if (!projectSettings.value && projects.value.length > 0) {
-      const firstProjectMajor = projects.value[0].major
-      const majorRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, firstProjectMajor)
-      const majorDocs = await getDocs(majorRef)
+      const firstProjectMajor = projects.value[0].major;
       
-      if (!majorDocs.empty) {
-        const majorDoc = majorDocs.docs[0]
-        const majorData = majorDoc.data()
+      // Check if this major exists in the current academic year
+      if (availableMajors.value.includes(firstProjectMajor)) {
+        const majorRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, firstProjectMajor);
+        const majorDocs = await getDocs(majorRef);
         
-        projectSettings.value = {
-          headers: majorData.headers || {},
-          milestones: majorData.milestones || []
+        if (!majorDocs.empty) {
+          const majorDoc = majorDocs.docs[0];
+          const majorData = majorDoc.data();
+          
+          projectSettings.value = {
+            headers: majorData.headers || {},
+            milestones: majorData.milestones || []
+          };
+          
+          selectedMajor.value = firstProjectMajor;
+          selectedMilestoneViewMajor.value = firstProjectMajor;
         }
-        
-        selectedMajor.value = firstProjectMajor
       }
     }
+    
+    // After settings are loaded, fetch the milestone for the selected major
+    if (selectedMilestoneViewMajor.value) {
+      await fetchMilestoneForMajor();
+    }
   } catch (error) {
-    console.error('Error fetching basic settings:', error)
-    showToast('Failed to load settings', 'error')
+    console.error('Error fetching basic settings:', error);
+    showToast('Failed to load settings', 'error');
   }
 }
 
@@ -3190,58 +3242,6 @@ const projectBiddingMilestone = ref(null)
 const milestoneLoading = ref(false)
 const currentMajorId = ref(null)
 const currentMajorDocId = ref(null)
-
-// Add new method to fetch bidding milestone
-const fetchBiddingMilestone = async () => {
-  try {
-    milestoneLoading.value = true
-    const schoolId = userStore.currentUser.school
-    
-    // Check for required values
-    if (!selectedAcademicYear.value) {
-      console.log('No academic year selected yet')
-      return
-    }
-    
-    // For lecturers, use selectedMajor instead of user's major
-    currentMajorId.value = selectedMajor.value
-    if (!currentMajorId.value) {
-      console.log('No major selected')
-      return
-    }
-    
-    // Find the major document
-    const majorRef = collection(db, 'schools', schoolId, 'projects', selectedAcademicYear.value, currentMajorId.value)
-    const majorDocs = await getDocs(majorRef)
-    
-    if (!majorDocs.empty) {
-      currentMajorDocId.value = majorDocs.docs[0].id
-      
-      // Ensure the milestone has completed field
-      await ensureBiddingMilestoneHasCompletedField(
-        schoolId,
-        selectedAcademicYear.value,
-        currentMajorId.value,
-        currentMajorDocId.value
-      )
-      
-      // Get the milestone
-      const milestone = await getMilestone(
-        schoolId,
-        selectedAcademicYear.value,
-        currentMajorId.value,
-        currentMajorDocId.value,
-        "Project Bidding Done"
-      )
-      
-      projectBiddingMilestone.value = milestone
-    }
-  } catch (error) {
-    console.error('Error fetching bidding milestone:', error)
-  } finally {
-    milestoneLoading.value = false
-  }
-}
 
 // Add this method to your component
 async function checkAndProcessDeadlines() {
@@ -3297,26 +3297,6 @@ onMounted(async () => {
   }
 })
 
-// Add watcher for both selectedAcademicYear and selectedMajor
-watch([selectedAcademicYear, selectedMajor], async ([newYear, newMajor]) => {
-  if (newYear) {
-    latestAcademicYear.value = formatAcademicYear(newYear)
-    latestAcademicYearId.value = newYear
-    
-    // Reset the loaded flags
-    myProjectsLoaded.value = false
-    allProjectsLoaded.value = false
-    bidsLoaded.value = false
-    
-    // Reload data
-    await loadTabData(activeTab.value)
-    if (newMajor) {
-      await fetchBiddingMilestone()
-    }
-    await checkAndProcessDeadlines();
-  }
-})
-
 // Add new function to open student details
 const openStudentDetails = (studentId) => {
   selectedStudentId.value = studentId
@@ -3368,7 +3348,12 @@ const fetchUserMajors = async () => {
       
       // If no majors found or empty array, use the selected major
       if (!userMajors.value.length && selectedMajor.value) {
-        userMajors.value = [selectedMajor.value]
+        // Handle the case where selectedMajor might be an array
+        if (Array.isArray(selectedMajor.value)) {
+          userMajors.value = [...selectedMajor.value]
+        } else {
+          userMajors.value = [selectedMajor.value]
+        }
       }
       
       // Set the initial milestone view major
@@ -3385,56 +3370,121 @@ const fetchUserMajors = async () => {
 
 // Add this method to fetch milestone for a specific major
 const fetchMilestoneForMajor = async () => {
-  if (!selectedMilestoneViewMajor.value) return
+  if (!selectedMilestoneViewMajor.value) {
+    console.log('No milestone view major selected, skipping milestone fetch');
+    return;
+  }
   
   try {
-    milestoneLoading.value = true
-    const schoolId = userStore.currentUser.school
+    console.log('Fetching milestone for major:', selectedMilestoneViewMajor.value);
+    milestoneLoading.value = true;
+    const schoolId = userStore.currentUser.school;
     
     if (!selectedAcademicYear.value) {
-      await fetchLatestAcademicYear()
+      console.log('No academic year selected, fetching latest');
+      await fetchLatestAcademicYear();
+    }
+    
+    console.log('Using academic year:', selectedAcademicYear.value);
+    
+    // Ensure we have a string major, not an array
+    const majorToUse = Array.isArray(selectedMilestoneViewMajor.value) 
+      ? selectedMilestoneViewMajor.value[0] 
+      : selectedMilestoneViewMajor.value;
+    
+    console.log('Using major for milestone fetch:', majorToUse);
+    
+    // First check if this major exists in the current academic year
+    const yearRef = doc(db, 'schools', schoolId, 'projects', selectedAcademicYear.value);
+    const yearDoc = await getDoc(yearRef);
+    
+    if (!yearDoc.exists()) {
+      console.error(`Academic year ${selectedAcademicYear.value} does not exist`);
+      showToast(`Academic year ${formatAcademicYear(selectedAcademicYear.value)} does not exist`, 'error');
+      return;
+    }
+    
+    const yearData = yearDoc.data();
+    if (!yearData.majors || !yearData.majors.includes(majorToUse)) {
+      console.error(`Major ${majorToUse} does not exist in academic year ${selectedAcademicYear.value}`);
+      showToast(`Major ${majorToUse} does not exist in this academic year`, 'error');
+      
+      // Reset to a valid major if available
+      if (yearData.majors && yearData.majors.length > 0) {
+        selectedMilestoneViewMajor.value = yearData.majors[0];
+        console.log(`Reset to valid major: ${selectedMilestoneViewMajor.value}`);
+        
+        // Retry with the valid major
+        setTimeout(() => fetchMilestoneForMajor(), 100);
+      }
+      return;
     }
     
     // Get the major document ID for the selected milestone view major
-    const majorRef = collection(db, 'schools', schoolId, 'projects', selectedAcademicYear.value, selectedMilestoneViewMajor.value)
-    const majorDocs = await getDocs(majorRef)
+    const majorRef = collection(db, 'schools', schoolId, 'projects', selectedAcademicYear.value, majorToUse);
+    const majorDocs = await getDocs(majorRef);
     
     if (majorDocs.empty) {
-      console.error('No major document found for milestone view')
-      return
+      console.error(`No major document found for milestone view (major: ${majorToUse}, year: ${selectedAcademicYear.value})`);
+      showToast(`No settings found for ${majorToUse} in this academic year`, 'error');
+      return;
     }
     
-    const majorDocId = majorDocs.docs[0].id
+    const majorDocId = majorDocs.docs[0].id;
+    console.log('Found major document ID:', majorDocId);
     
     // Ensure the milestone has completed field
     await ensureBiddingMilestoneHasCompletedField(
       schoolId,
       selectedAcademicYear.value,
-      selectedMilestoneViewMajor.value,
+      majorToUse,
       majorDocId
-    )
+    );
     
     // Get the milestone
     const milestone = await getMilestone(
       schoolId,
       selectedAcademicYear.value,
-      selectedMilestoneViewMajor.value,
+      majorToUse,
       majorDocId,
       "Project Bidding Done"
-    )
+    );
     
-    projectBiddingMilestone.value = milestone
+    console.log('Fetched milestone:', milestone);
+    projectBiddingMilestone.value = milestone;
   } catch (error) {
-    console.error('Error fetching milestone for major:', error)
+    console.error('Error fetching milestone for major:', error);
+    showToast('Failed to load milestone information', 'error');
   } finally {
-    milestoneLoading.value = false
+    milestoneLoading.value = false;
   }
 }
 
 // Add this method to handle major change from MilestoneDisplay
 const handleMilestoneViewMajorChange = (major) => {
-  selectedMilestoneViewMajor.value = major
-  fetchMilestoneForMajor()
+  console.log('Milestone view major changed to:', major);
+  
+  // Ensure the major exists in the current academic year
+  if (!availableMajors.value.includes(major)) {
+    console.warn(`Major ${major} does not exist in the current academic year`);
+    
+    // If the major doesn't exist in the current year, use the first available major
+    if (availableMajors.value.length > 0) {
+      selectedMilestoneViewMajor.value = availableMajors.value[0];
+      console.log(`Using first available major instead: ${selectedMilestoneViewMajor.value}`);
+    }
+    return;
+  }
+  
+  // Ensure we're setting a string value, not an array
+  if (Array.isArray(major)) {
+    selectedMilestoneViewMajor.value = major[0];
+    console.log('Major was an array, using first element:', selectedMilestoneViewMajor.value);
+  } else {
+    selectedMilestoneViewMajor.value = major;
+  }
+  
+  fetchMilestoneForMajor();
 }
 
 // Add a watch for userMajors
@@ -3442,6 +3492,114 @@ watch(userMajors, (newMajors) => {
   if (newMajors.length > 0 && !newMajors.includes(selectedMilestoneViewMajor.value)) {
     selectedMilestoneViewMajor.value = newMajors[0]
     fetchMilestoneForMajor()
+  }
+})
+
+watch(selectedAcademicYear, async (newYear) => {
+  if (newYear) {
+    latestAcademicYear.value = formatAcademicYear(newYear)
+    latestAcademicYearId.value = newYear
+    
+    // Reset the loaded flags
+    myProjectsLoaded.value = false
+    allProjectsLoaded.value = false
+    bidsLoaded.value = false
+
+    // Add debug logging
+    console.log('Academic year changed to:', newYear)
+    console.log('Current project settings:', projectSettings.value)
+    
+    // Explicitly fetch project settings for the new year
+    try {
+      const schoolId = userStore.currentUser.school
+      if (schoolId) {
+        loading.value = true
+        
+        // Fetch project settings for the new academic year
+        const settingsRef = doc(db, 'schools', schoolId, 'projects', newYear)
+        const settingsDoc = await getDoc(settingsRef)
+        
+        if (settingsDoc.exists()) {
+          const settingsData = settingsDoc.data()
+          projectSettings.value = settingsData
+          console.log('Loaded project settings:', projectSettings.value)
+          
+          // Update available majors
+          if (settingsData.majors && settingsData.majors.length > 0) {
+            availableMajors.value = settingsData.majors
+            
+            // Reset selectedMajor and selectedMilestoneViewMajor to ensure they exist in the new year
+            let majorFound = false
+            
+            // First try to use the user's major if it exists in this academic year
+            if (userStore.currentUser.role === 'lecturer' && userStore.currentUser.major) {
+              const userMajors = Array.isArray(userStore.currentUser.major) 
+                ? userStore.currentUser.major 
+                : [userStore.currentUser.major];
+                
+              // Find the first user major that exists in this academic year
+              const validUserMajor = userMajors.find(major => settingsData.majors.includes(major));
+              
+              if (validUserMajor) {
+                selectedMajor.value = validUserMajor;
+                selectedMilestoneViewMajor.value = validUserMajor;
+                majorFound = true;
+                console.log(`Found user major ${validUserMajor} in academic year ${newYear}`);
+              }
+            }
+            
+            // If no valid user major was found, use the first available major
+            if (!majorFound) {
+              selectedMajor.value = settingsData.majors[0];
+              selectedMilestoneViewMajor.value = settingsData.majors[0];
+              console.log(`Using first available major ${settingsData.majors[0]} for academic year ${newYear}`);
+            }
+            
+            // Update userMajors to match the available majors for this academic year
+            // This ensures the milestone display shows the correct majors
+            userMajors.value = [...settingsData.majors];
+            
+            console.log('Updated majors for new academic year:', {
+              availableMajors: availableMajors.value,
+              selectedMajor: selectedMajor.value,
+              selectedMilestoneViewMajor: selectedMilestoneViewMajor.value,
+              userMajors: userMajors.value
+            });
+          } else {
+            console.warn(`No majors found for academic year ${newYear}`);
+            availableMajors.value = [];
+            selectedMajor.value = null;
+            selectedMilestoneViewMajor.value = null;
+            userMajors.value = [];
+          }
+        } else {
+          console.warn(`No project settings found for academic year ${newYear}`)
+          projectSettings.value = null
+          availableMajors.value = [];
+          selectedMajor.value = null;
+          selectedMilestoneViewMajor.value = null;
+          userMajors.value = [];
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching project settings:', error)
+      projectSettings.value = null
+      availableMajors.value = [];
+      selectedMajor.value = null;
+      selectedMilestoneViewMajor.value = null;
+      userMajors.value = [];
+    } finally {
+      loading.value = false
+    }
+    
+    // Reload data
+    await loadTabData(activeTab.value)
+    await checkAndProcessDeadlines();
+    
+    // Also refresh the milestone for the current selected major view
+    if (selectedMilestoneViewMajor.value) {
+      await fetchMilestoneForMajor();
+    }
   }
 })
 </script>
