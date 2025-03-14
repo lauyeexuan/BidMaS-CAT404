@@ -3258,8 +3258,6 @@ async function checkAndProcessDeadlines() {
     // Call the deadline processor
     const result = await processPassedDeadlines(schoolId, year);
     
-    console.log("Deadline processing result:", result);
-    
     // Show success message if anything was processed
     if (result.processedMajors > 0) {
       console.log(`Processed ${result.processedMajors} majors with passed deadlines.`);
@@ -3307,8 +3305,10 @@ const openStudentDetails = (studentId) => {
 const testDate = ref(localStorage.getItem('bidmas_test_date') || null);
 
 // Add handler for test date changes
-const handleTestDateChange = (newDate) => {
+const handleTestDateChange = async (newDate) => {
   testDate.value = newDate;
+  // Call checkAndProcessDeadlines immediately after updating the test date
+  await checkAndProcessDeadlines();
 };
 
 // Add watcher for testDate to handle persistence

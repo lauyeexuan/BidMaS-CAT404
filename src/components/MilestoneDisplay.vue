@@ -3,7 +3,7 @@
       <!-- Major Selector (if multiple majors available) -->
       <div v-if="availableMajors && availableMajors.length > 1" class="mb-3">
         <div class="flex items-center gap-2">
-          <span class="text-sm text-gray-600">Viewing milestone for:</span>
+          <span class="text-sm text-gray-600">Viewing for:</span>
           <div class="flex flex-wrap gap-2">
             <button 
               v-for="major in availableMajors" 
