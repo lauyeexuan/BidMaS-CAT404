@@ -2,8 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 //import HomeView from '../views/HomeView.vue'
 import Login from '@/views/Login.vue' // Assuming this exists
 import Home from '@/views/Home.vue'
-import Dashboard from '@/views/Dashboard.vue'
-import LecturerDashboard from '@/views/LecturerDashboard.vue'
 import DashboardWrapper from '@/views/DashboardWrapper.vue'
 import { useUserStore } from '@/stores/userStore'
 import ProjectSettings from '@/views/ProjectSettings.vue'
