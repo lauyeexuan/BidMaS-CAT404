@@ -3,6 +3,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Login from '@/views/Login.vue' // Assuming this exists
 import Home from '@/views/Home.vue'
 import Dashboard from '@/views/Dashboard.vue'
+import LecturerDashboard from '@/views/LecturerDashboard.vue'
+import DashboardWrapper from '@/views/DashboardWrapper.vue'
 import { useUserStore } from '@/stores/userStore'
 import ProjectSettings from '@/views/ProjectSettings.vue'
 import ProjectWrapper from '@/views/ProjectWrapper.vue'
@@ -33,7 +35,7 @@ const router = createRouter({
     {
       path: '/dashboard',
       name: 'dashboard',
-      component: Dashboard, // You'll need to create this
+      component: DashboardWrapper,
       meta: { requiresAuth: true }, // Protected route
     },
     {
