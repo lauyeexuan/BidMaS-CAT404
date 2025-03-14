@@ -1278,7 +1278,7 @@ import {
 import { useUserStore } from '@/stores/userStore'
 import { getLatestAcademicYear, formatAcademicYear } from '@/utils/latestAcademicYear'
 import MilestoneDisplay from '@/components/MilestoneDisplay.vue';
-import { getMilestone, ensureBiddingMilestoneHasCompletedField, hasBiddingDeadlinePassed } from '@/utils/milestones';
+import { getMilestone, ensureBiddingMilestoneHasCompletedField, hasBiddingDeadlinePassed, hasMilestoneDeadlinePassed } from '@/utils/milestones';
 import { processPassedDeadlines } from '@/utils/deadlineProcessor';
 
 
@@ -2613,18 +2613,6 @@ const fetchProjectBids = async () => {
   }
 }
 
-// Add helper function to check if student has accepted bid
-const checkStudentHasAcceptedBid = async (schoolId, studentId) => {
-  try {
-    const studentBidsRef = collection(db, 'schools', schoolId, 'studentBids', studentId, 'bids')
-    const bidsSnapshot = await getDocs(studentBidsRef)
-    return bidsSnapshot.docs.some(doc => doc.data().status === 'accepted')
-  } catch (error) {
-    console.error('Error checking student accepted bids:', error)
-    throw error
-  }
-}
-
 // Function to update bid status
 const updateBidStatus = async (bid, newStatus) => {
   try {
@@ -2640,9 +2628,20 @@ const updateBidStatus = async (bid, newStatus) => {
     
     const majorDocId = majorDocs.docs[0].id
 
-   // Use test date if available for the updatedAt field
     const currentDate = testDate.value ? new Date(testDate.value) : new Date();
 
+    // If accepting a bid, check if bidding deadline has passed
+    let isBiddingDone = false
+    if (newStatus === 'accepted') {
+      // Check if bidding deadline has passed using the imported function
+      isBiddingDone = await hasBiddingDeadlinePassed(
+        schoolId, 
+        selectedAcademicYear.value, 
+        bid.major, 
+        majorDocId,
+        currentDate
+      )
+    }
     // Start a batch write
     const batch = writeBatch(db)
     
@@ -2673,20 +2672,19 @@ const updateBidStatus = async (bid, newStatus) => {
 
     batch.update(projectBidRef, updateData)
 
+    const projectRef = doc(
+      db,
+      'schools',
+      schoolId,
+      'projects',
+      selectedAcademicYear.value,
+      bid.major,
+      majorDocId,
+      'projectsPerYear',
+      bid.projectId
+    )
     // If accepting the bid, update project document to add student to tentativeStudentIds
     if (newStatus === 'accepted') {
-      const projectRef = doc(
-        db,
-        'schools',
-        schoolId,
-        'projects',
-        selectedAcademicYear.value,
-        bid.major,
-        majorDocId,
-        'projectsPerYear',
-        bid.projectId
-      )
-      
       batch.update(projectRef, {
         tentativeStudentIds: arrayUnion(bid.studentId),
         updatedAt: currentDate
@@ -2709,8 +2707,56 @@ const updateBidStatus = async (bid, newStatus) => {
       )
       await updateDoc(studentBidRef, {
         status: 'rejected',
-        updatedAt: currentDate
       })
+    }
+    
+    // If bid is accepted and deadline has passed, update student collection and reject other bids
+    if (newStatus === 'accepted') {
+      if (isBiddingDone) {
+        console.log('Bidding deadline has passed and bid accepted')
+
+        await updateDoc(projectRef, {
+          isAssigned: true,
+          assignedTo: bid.studentId,
+          assignmentDate: currentDate,
+          tentativeStudentIds: [], // Clear tentative assignments
+          status: 'assigned'
+        })
+
+        //Update bid in project collection
+        await updateDoc(projectBidRef, {
+          finalStatus: 'accepted',
+          status: 'accepted',
+          updatedAt: currentDate
+        })
+
+        // Update in student collection
+        const studentBidRef = doc(
+          db,
+          'schools',
+          schoolId,
+          'studentBids',
+          bid.studentId,
+          'bids',
+          bid.id
+        )
+        
+        await updateDoc(studentBidRef, {
+          status: 'accepted',
+        })
+        
+        // Reject all other bids from this student
+        await rejectOtherBidsForStudent(schoolId, bid.studentId, bid.id, bid.major, majorDocId, currentDate)
+        
+        // Refresh data
+        //await loadTabData(activeTab.value)
+        
+        showToast('Bid accepted and other bids from this student were rejected', 'success')
+      } else {
+        showToast(`Bid ${newStatus} successfully`)
+      }
+    } else {
+      showToast(`Bid ${newStatus} successfully`)
     }
     
     // Update local state
@@ -2722,8 +2768,6 @@ const updateBidStatus = async (bid, newStatus) => {
         lecturerAccepted: newStatus === 'accepted'
       }
     }
-    
-    showToast(`Bid ${newStatus} successfully`)
   } catch (error) {
     console.error('Error updating bid status:', error)
     showToast('Failed to update bid status', 'error')
@@ -3602,6 +3646,58 @@ watch(selectedAcademicYear, async (newYear) => {
     }
   }
 })
+
+// Helper function to reject all other bids for a student
+const rejectOtherBidsForStudent = async (schoolId, studentId, acceptedBidId, majorId, majorDocId, currentDate) => {
+  try {
+    // Get all bids for this student
+    const studentBidsRef = collection(db, 'schools', schoolId, 'studentBids', studentId, 'bids')
+    const bidsSnap = await getDocs(studentBidsRef)
+    
+    // Batch update to reject all other bids
+    const batch = writeBatch(db)
+    
+    for (const bidDoc of bidsSnap.docs) {
+      const bidData = bidDoc.data()
+      if (bidDoc.id !== acceptedBidId && bidData.status !== 'rejected') {
+        // Update in student's collection
+        batch.update(bidDoc.ref, { 
+          status: 'rejected',
+          updatedAt: currentDate
+        })
+        
+        // Also update in project's collection if we have the project ID
+        if (bidData.projectId) {
+          const projectBidRef = doc(
+            db, 
+            'schools', schoolId,
+            'projects', selectedAcademicYear.value,
+            majorId, majorDocId,
+            'projectsPerYear', bidData.projectId,
+            'bids', bidDoc.id
+          )
+          
+          try {
+            const projectBidDoc = await getDoc(projectBidRef)
+            if (projectBidDoc.exists()) {
+              batch.update(projectBidRef, { 
+                status: 'rejected',
+                updatedAt: currentDate
+              })
+            }
+          } catch (error) {
+            console.error('Error checking project bid document:', error)
+          }
+        }
+      }
+    }
+    
+    await batch.commit()
+    console.log(`Rejected all other bids for student ${studentId}`)
+  } catch (error) {
+    console.error('Error rejecting other bids:', error)
+  }
+}
 </script>
 
 <style scoped>

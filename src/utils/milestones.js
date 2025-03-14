@@ -54,7 +54,7 @@ export const getMilestones = async (schoolId, year, majorId, majorDocId) => {
  * @param {string} description - The description of the milestone to check
  * @returns {Promise<boolean>} True if the deadline has passed, false otherwise
  */
-export const hasMilestoneDeadlinePassed = async (schoolId, year, majorId, majorDocId, description) => {
+export const hasMilestoneDeadlinePassed = async (schoolId, year, majorId, majorDocId, description, currentDate) => {
   try {
     const milestones = await getMilestones(schoolId, year, majorId, majorDocId)
     const milestone = milestones.find(m => m.description === description)
@@ -68,7 +68,7 @@ export const hasMilestoneDeadlinePassed = async (schoolId, year, majorId, majorD
       return false
     }
 
-    return new Date() > deadline
+    return currentDate > deadline
   } catch (error) {
     console.error('Error checking milestone deadline:', error)
     throw error
@@ -124,8 +124,8 @@ export const updateMilestone = async (schoolId, year, majorId, majorDocId, descr
  * @param {string} majorDocId - The major document ID
  * @returns {Promise<boolean>} True if the deadline has passed, false otherwise
  */
-export const hasBiddingDeadlinePassed = async (schoolId, year, majorId, majorDocId) => {
-    return hasMilestoneDeadlinePassed(schoolId, year, majorId, majorDocId, "Project Bidding Done")
+export const hasBiddingDeadlinePassed = async (schoolId, year, majorId, majorDocId, currentDate) => {
+    return hasMilestoneDeadlinePassed(schoolId, year, majorId, majorDocId, "Project Bidding Done", currentDate)
   }
   
   /**
