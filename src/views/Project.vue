@@ -252,7 +252,10 @@
                     :milestone="projectBiddingMilestone"
                     :show-lecturer-info="true"
                     :show-countdown="true"
+                    :available-majors="userMajors"
+                    :selected-major="selectedMilestoneViewMajor"
                     @test-date-change="handleTestDateChange"
+                    @major-change="handleMilestoneViewMajorChange"
                   />
                 </div>
                 
@@ -1873,6 +1876,9 @@ const saveProject = async () => {
       showToast('Project saved successfully')
     }
     
+    // Refresh the user's majors
+    await fetchUserMajors()
+    
     // Reset the form
     formStep.value = 1
     tempSelectedMajor.value = ''
@@ -3271,11 +3277,16 @@ async function checkAndProcessDeadlines() {
 // This is the only onMounted hook we need to keep
 onMounted(async () => {
   await fetchAvailableYears()
+  // Fetch user majors
+  await fetchUserMajors()
+  
   console.log("mounted", selectedAcademicYear.value)
-  if (selectedAcademicYear.value ) {
+  if (selectedAcademicYear.value) {
     console.log(" selected major on mount", selectedMajor.value)
     await loadTabData(activeTab.value)
-    await fetchBiddingMilestone()
+    // We don't need to call fetchBiddingMilestone here anymore since fetchUserMajors
+    // will call fetchMilestoneForMajor which fetches the milestone
+    // await fetchBiddingMilestone()
     // Add this line to trigger deadline processing on page load
     await checkAndProcessDeadlines();
   } else {
@@ -3328,6 +3339,111 @@ watch(testDate, (newValue) => {
     localStorage.removeItem('bidmas_test_date');
   }
 });
+
+// Add these to your data/refs section near the top of the script
+const userMajors = ref([])
+const selectedMilestoneViewMajor = ref('')
+
+// Add this method to fetch the user's majors
+const fetchUserMajors = async () => {
+  try {
+    const schoolId = userStore.currentUser.school
+    const userId = userStore.currentUser.uid
+    
+    if (!schoolId || !userId) return
+    
+    const userDocRef = doc(db, 'schools', schoolId, 'users', userId)
+    const userDoc = await getDoc(userDocRef)
+    
+    if (userDoc.exists()) {
+      const userData = userDoc.data()
+      
+      if (userData.major) {
+        if (Array.isArray(userData.major)) {
+          userMajors.value = userData.major
+        } else if (typeof userData.major === 'string') {
+          userMajors.value = [userData.major]
+        }
+      }
+      
+      // If no majors found or empty array, use the selected major
+      if (!userMajors.value.length && selectedMajor.value) {
+        userMajors.value = [selectedMajor.value]
+      }
+      
+      // Set the initial milestone view major
+      if (userMajors.value.length > 0) {
+        selectedMilestoneViewMajor.value = userMajors.value[0]
+        // Fetch milestone for the first major
+        await fetchMilestoneForMajor()
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching user majors:', error)
+  }
+}
+
+// Add this method to fetch milestone for a specific major
+const fetchMilestoneForMajor = async () => {
+  if (!selectedMilestoneViewMajor.value) return
+  
+  try {
+    milestoneLoading.value = true
+    const schoolId = userStore.currentUser.school
+    
+    if (!selectedAcademicYear.value) {
+      await fetchLatestAcademicYear()
+    }
+    
+    // Get the major document ID for the selected milestone view major
+    const majorRef = collection(db, 'schools', schoolId, 'projects', selectedAcademicYear.value, selectedMilestoneViewMajor.value)
+    const majorDocs = await getDocs(majorRef)
+    
+    if (majorDocs.empty) {
+      console.error('No major document found for milestone view')
+      return
+    }
+    
+    const majorDocId = majorDocs.docs[0].id
+    
+    // Ensure the milestone has completed field
+    await ensureBiddingMilestoneHasCompletedField(
+      schoolId,
+      selectedAcademicYear.value,
+      selectedMilestoneViewMajor.value,
+      majorDocId
+    )
+    
+    // Get the milestone
+    const milestone = await getMilestone(
+      schoolId,
+      selectedAcademicYear.value,
+      selectedMilestoneViewMajor.value,
+      majorDocId,
+      "Project Bidding Done"
+    )
+    
+    projectBiddingMilestone.value = milestone
+  } catch (error) {
+    console.error('Error fetching milestone for major:', error)
+  } finally {
+    milestoneLoading.value = false
+  }
+}
+
+// Add this method to handle major change from MilestoneDisplay
+const handleMilestoneViewMajorChange = (major) => {
+  selectedMilestoneViewMajor.value = major
+  fetchMilestoneForMajor()
+}
+
+// Add a watch for userMajors
+watch(userMajors, (newMajors) => {
+  if (newMajors.length > 0 && !newMajors.includes(selectedMilestoneViewMajor.value)) {
+    selectedMilestoneViewMajor.value = newMajors[0]
+    fetchMilestoneForMajor()
+  }
+})
 </script>
 
 <style scoped>

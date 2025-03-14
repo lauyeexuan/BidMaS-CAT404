@@ -1,5 +1,23 @@
 <template>
     <div v-if="milestone" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+      <!-- Major Selector (if multiple majors available) -->
+      <div v-if="availableMajors && availableMajors.length > 1" class="mb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-gray-600">Viewing milestone for:</span>
+          <div class="flex flex-wrap gap-2">
+            <button 
+              v-for="major in availableMajors" 
+              :key="major"
+              @click="changeMajor(major)"
+              class="px-3 py-1 text-xs rounded-full transition-colors"
+              :class="major === selectedMajor ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'"
+            >
+              {{ major }}
+            </button>
+          </div>
+        </div>
+      </div>
+      
       <!-- Development testing date picker -->
       <div class="flex items-center gap-4 mb-3 text-sm">
         <div class="text-gray-600">Current Time: 
@@ -72,6 +90,15 @@
       showCountdown: {
         type: Boolean,
         default: false
+      },
+      // Add new props for major selection
+      availableMajors: {
+        type: Array,
+        default: () => []
+      },
+      selectedMajor: {
+        type: String,
+        default: ''
       }
     },
     
@@ -97,6 +124,13 @@
     },
     
     methods: {
+      // Add new method to handle major change
+      changeMajor(major) {
+        if (major !== this.selectedMajor) {
+          this.$emit('major-change', major);
+        }
+      },
+      
       isDeadlinePassed() {
         if (!this.milestone || !this.milestone.deadline) return false;
         
