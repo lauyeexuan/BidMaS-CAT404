@@ -342,10 +342,6 @@
                     </div>
                   </div>
                 </div>
-                <!-- Debug info -->
-                <div class="text-xs text-gray-400 mt-2">
-                  {{ rejectedBidsReference.length }} reference bid(s), {{ myBids.filter(b => b.status === 'rejected').length }} current rejected bid(s)
-                </div>
               </div>
             </template>
 
@@ -501,11 +497,7 @@ const hasAnyRejectedBids = computed(() => {
   // Check both current bids and reference bids
   const hasRejectedCurrentBids = myBids.value.some(bid => bid.status === 'rejected')
   const hasReferenceRejectedBids = rejectedBidsReference.value.length > 0
-  console.log('Rejected bids check:', { 
-    current: hasRejectedCurrentBids, 
-    reference: hasReferenceRejectedBids, 
-    referenceCount: rejectedBidsReference.value.length 
-  })
+  
   return hasRejectedCurrentBids || hasReferenceRejectedBids
 })
 
@@ -553,12 +545,9 @@ const totalPages = computed(() => Math.ceil(filteredProjects.value.length / item
 // Add new ref for storing reference bids
 const rejectedBidsReference = ref([])
 
-// Add new computed property to determine which rejected bids to show
+// Fix the visibleRejectedBids computed property
 const visibleRejectedBids = computed(() => {
-  // If finalized, don't show any rejected bids
-  if (bidsFinalized.value) {
-    return []
-  }
+  // Don't filter based on finalized status
   
   // Show both current rejected bids and reference bids
   const currentRejected = myBids.value.filter(b => b.status === 'rejected')
