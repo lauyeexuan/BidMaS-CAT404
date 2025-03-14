@@ -1745,14 +1745,6 @@ const saveProject = async () => {
     // Use uid directly since that's what's used in the userStore
     const userId = userStore.currentUser.uid
     
-    if (!userId) {
-      console.warn('Debug - User ID (uid) is missing, using fallback')
-      // If we can't find the ID, use a fallback value
-      userId = "unknown-user-" + Date.now() // Generate a unique fallback ID
-    }
-    
-    console.log('Debug - Using userId:', userId)
-    
     if (isEditMode.value) {
       // Update existing project
       if (!editingProjectId.value || !editingProjectMajorDocId.value) {
@@ -1834,6 +1826,49 @@ const saveProject = async () => {
         id: docRef.id,
         ...projectData
       })
+      
+      // Update the lecturer's user document to add the major if not already present
+      try {
+        // Get the lecturer's user document
+        const userDocRef = doc(db, 'schools', schoolId, 'users', userId)
+        const userDoc = await getDoc(userDocRef)
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data()
+          
+          // Check if the user has a major array field
+          if (!userData.major) {
+            // If major field doesn't exist, create it as an array with the selected major
+            await updateDoc(userDocRef, {
+              major: [tempSelectedMajor.value]
+            })
+            console.log(`Added new major array with ${tempSelectedMajor.value} to user document`)
+          } 
+          // If major exists but is a string, convert to array and add new major if different
+          else if (typeof userData.major === 'string') {
+            if (userData.major !== tempSelectedMajor.value) {
+              await updateDoc(userDocRef, {
+                major: [userData.major, tempSelectedMajor.value]
+              })
+              console.log(`Converted major string to array and added ${tempSelectedMajor.value}`)
+            }
+          } 
+          // If major is already an array, add the new major if not already present
+          else if (Array.isArray(userData.major)) {
+            if (!userData.major.includes(tempSelectedMajor.value)) {
+              await updateDoc(userDocRef, {
+                major: arrayUnion(tempSelectedMajor.value)
+              })
+              console.log(`Added ${tempSelectedMajor.value} to existing major array`)
+            } else {
+              console.log(`Major ${tempSelectedMajor.value} already exists in user's major array`)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error updating user major:', error)
+        // Don't throw here to avoid preventing project creation if user update fails
+      }
       
       showToast('Project saved successfully')
     }
