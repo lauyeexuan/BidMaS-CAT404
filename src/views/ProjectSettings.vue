@@ -563,10 +563,10 @@
                     Cancel
                   </button>
                   <button 
-                    @click="saveMilestones"
+                    @click="activeTab === 'headers' ? saveHeaders() : saveMilestones()"
                     class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
                   >
-                    Save Milestones
+                    {{ activeTab === 'headers' ? 'Save Headers' : 'Save Milestones' }}
                   </button>
                 </div>
               </DialogPanel>
@@ -1282,6 +1282,85 @@ const saveMilestones = async () => {
     await fetchSettings() // Refresh the data
   } catch (error) {
     showToast('Failed to save project milestones', 'error')
+  }
+}
+
+const saveHeaders = async () => {
+  try {
+    // Convert headers array to object format for Firestore
+    const headers = {}
+    currentHeaders.value.forEach(header => {
+      headers[header.name] = {
+        // If type is 'label', save it as 'array' in Firestore
+        type: header.type === 'label' ? 'array' : header.type,
+        values: header.type === 'array' || header.type === 'label' ? header.values || [] : null
+      }
+    })
+
+    // If applying to all majors is checked for this academic year
+    if (applyToAllMajorsMap.value[currentMajor.value.academicYear]) {
+      const currentSetting = existingSettings.value.find(s => s.academicYear === currentMajor.value.academicYear)
+      if (currentSetting) {
+        // Save headers to all majors
+        for (const major of currentSetting.majors) {
+          const majorRef = doc(
+            db, 
+            'schools', 
+            userStore.currentUser.school, 
+            'projects', 
+            currentMajor.value.academicYear, 
+            major.name, 
+            major.docId || 'default'
+          )
+
+          // Get existing document data
+          const majorDoc = await getDoc(majorRef)
+          const existingData = majorDoc.exists() ? majorDoc.data() : { quota: major.quota || 0 }
+
+          // Update with headers
+          await setDoc(majorRef, { 
+            ...existingData,
+            headers
+          })
+        }
+        showToast('Project headers saved to all majors successfully')
+      }
+    } else {
+      // Save headers to just the current major
+      const majorRef = doc(
+        db, 
+        'schools', 
+        userStore.currentUser.school, 
+        'projects', 
+        currentMajor.value.academicYear, 
+        currentMajor.value.name, 
+        currentMajor.value.docId || 'default'
+      )
+
+      // Get existing document data
+      const majorDoc = await getDoc(majorRef)
+      const existingData = majorDoc.exists() ? majorDoc.data() : { quota: currentMajor.value.quota || 0 }
+
+      // Update with headers
+      await setDoc(majorRef, { 
+        ...existingData,
+        headers
+      })
+      showToast('Project headers saved successfully')
+    }
+    
+    // Don't close modal, just switch to milestones tab if headers are saved successfully
+    // This allows users to configure both headers and milestones in one session
+    if (currentMilestones.value.length <= 1 || !currentMilestones.value.find(m => m.description === 'Project Bidding Done')?.deadline) {
+      activeTab.value = 'milestones'
+      showToast('Please configure project milestones next', 'success')
+    } else {
+      showHeadersModal.value = false
+      await fetchSettings() // Refresh the data
+    }
+  } catch (error) {
+    console.error('Error saving headers:', error)
+    showToast('Failed to save project headers', 'error')
   }
 }
 
