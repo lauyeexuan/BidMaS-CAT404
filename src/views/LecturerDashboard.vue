@@ -240,24 +240,9 @@
         </div>
         
         <!-- Submission Info Card -->
-        <div class="col-span-12 bg-white p-4 shadow rounded mt-4 relative">
+        <div class="col-span-6 bg-white p-4 shadow rounded mt-4 relative">
           <div class="flex justify-between items-center mb-3">
             <h2 class="text-sm font-medium text-gray-500">Milestone Submissions</h2>
-            
-            <!-- Major Selector Tabs -->
-            <div class="flex space-x-2">
-              <button
-                v-for="major in lecturerMajors"
-                :key="major"
-                @click="selectedSubmissionMajor = major"
-                class="px-3 py-1 text-xs rounded-full transition-colors"
-                :class="selectedSubmissionMajor === major ? 
-                  'bg-blue-100 text-blue-800 font-medium' : 
-                  'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-              >
-                {{ major }}
-              </button>
-            </div>
           </div>
           
           <div v-if="submissionLoading" class="py-4">
@@ -276,43 +261,48 @@
               
               <div class="pl-4">
                 <h3 class="text-lg font-semibold text-gray-800 mb-3">
-                  {{ currentMilestoneSubmissionStats.milestoneName }} Submissions
+                  {{ currentMilestoneSubmissionStats.milestoneName }}
                 </h3>
                 
-                <div class="grid grid-cols-3 gap-4 mb-4">
-                  <!-- Total Assigned Projects -->
-                  <div class="bg-blue-50 p-3 rounded-lg text-center">
-                    <p class="text-2xl font-bold text-blue-700">{{ currentMilestoneSubmissionStats.totalAssigned }}</p>
-                    <p class="text-sm text-blue-600">Assigned Projects</p>
+                <!-- Circular Progress Display -->
+                <div class="flex flex-col items-center justify-center py-6">
+                  <div class="relative w-32 h-32">
+                    <!-- Background Circle -->
+                    <svg class="w-full h-full" viewBox="0 0 100 100">
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="45"
+                        fill="none"
+                        stroke="#E2E8F0"
+                        stroke-width="8"
+                      />
+                      <!-- Progress Circle -->
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="45"
+                        fill="none"
+                        stroke="#7C3AED"
+                        stroke-width="8"
+                        stroke-linecap="round"
+                        :stroke-dasharray="`${currentMilestoneSubmissionStats.submissionRate * 2.83} 283`"
+                        transform="rotate(-90 50 50)"
+                      />
+                    </svg>
+                    <!-- Fraction Display -->
+                    <div class="absolute inset-0 flex items-center justify-center">
+                      <span class="text-2xl font-bold text-gray-800">
+                        {{ currentMilestoneSubmissionStats.projectsWithSubmissions }}/{{ currentMilestoneSubmissionStats.totalAssigned }}
+                      </span>
+                    </div>
                   </div>
-                  
-                  <!-- Projects with Submissions -->
-                  <div class="bg-green-50 p-3 rounded-lg text-center">
-                    <p class="text-2xl font-bold text-green-700">{{ currentMilestoneSubmissionStats.projectsWithSubmissions }}</p>
-                    <p class="text-sm text-green-600">With Submissions</p>
-                  </div>
-                  
-                  <!-- Projects without Submissions -->
-                  <div class="bg-amber-50 p-3 rounded-lg text-center">
-                    <p class="text-2xl font-bold text-amber-700">{{ currentMilestoneSubmissionStats.projectsWithoutSubmissions }}</p>
-                    <p class="text-sm text-amber-600">Without Submissions</p>
-                  </div>
-                </div>
-                
-                <!-- Submission Rate -->
-                <div class="mt-2">
-                  <div class="flex justify-between items-center mb-1">
-                    <span class="text-sm font-medium text-gray-700">Submission Rate</span>
-                    <span class="text-sm font-medium text-gray-700">
-                      {{ currentMilestoneSubmissionStats.projectsWithSubmissions }}/{{ currentMilestoneSubmissionStats.totalAssigned }}
-                    </span>
-                  </div>
-                  <div class="w-full bg-gray-200 rounded-full h-2.5">
-                    <div 
-                      class="bg-purple-600 h-2.5 rounded-full" 
-                      :style="`width: ${currentMilestoneSubmissionStats.submissionRate}%`"
-                    ></div>
-                  </div>
+                  <!-- Submission Status Text -->
+                  <p class="mt-4 text-center text-gray-600">
+                    {{ currentMilestoneSubmissionStats.projectsWithSubmissions }} out of {{ currentMilestoneSubmissionStats.totalAssigned }} 
+                    {{ currentMilestoneSubmissionStats.totalAssigned === 1 ? 'student' : 'students' }}
+                    {{ currentMilestoneSubmissionStats.projectsWithSubmissions < 2 ? 'has' : 'have' }} submitted thier work.
+                  </p>
                 </div>
               </div>
             </div>
@@ -369,6 +359,8 @@
       const submissionError = ref(null)
       const selectedSubmissionMajor = ref(null)
       const currentMilestoneSubmissionStats = ref(null)
+      // Add a cache object to store submission stats by major
+      const submissionStatsCache = ref({})
   
       // Computed property to filter milestones based on selected major
       const filteredMilestones = computed(() => {
@@ -383,6 +375,10 @@
       // Watch for selectedMajor changes
       watch(selectedMajor, (newMajor) => {
         console.log('Selected major changed to:', newMajor)
+        // Update selectedSubmissionMajor to match selectedMajor to keep them in sync
+        if (newMajor && newMajor !== selectedSubmissionMajor.value) {
+          selectedSubmissionMajor.value = newMajor
+        }
       })
 
       // Watch for selectedSubmissionMajor changes
@@ -756,35 +752,38 @@
       // Function to fetch submission statistics for the current milestone
       const fetchSubmissionStats = async (majorId) => {
         console.log('Starting fetchSubmissionStats for major:', majorId)
+        
+        // Check if we already have cached data for this major
+        if (submissionStatsCache.value[majorId]) {
+          console.log('Using cached submission stats for major:', majorId)
+          currentMilestoneSubmissionStats.value = submissionStatsCache.value[majorId]
+          return
+        }
+        
         submissionLoading.value = true
         submissionError.value = null
-        // Reset current stats when changing majors
+        // Reset current stats when changing majors to a non-cached major
         currentMilestoneSubmissionStats.value = null
         
         try {
           // Check if user is authenticated and has necessary data
           if (!userStore.isAuthenticated || !userStore.currentUser) {
-            console.log('User not authenticated in fetchSubmissionStats')
             submissionError.value = 'User not authenticated'
             return
           }
           
           // Get user data
           const { school, uid } = userStore.currentUser
-          console.log('User data in fetchSubmissionStats:', { school, uid })
           
           if (!school) {
-            console.log('Missing school information in fetchSubmissionStats')
             submissionError.value = 'Missing school information'
             return
           }
           
           // Get latest academic year
           const academicYearData = await getLatestAcademicYear(school)
-          console.log('Academic year data in fetchSubmissionStats:', academicYearData)
           
           if (!academicYearData?.yearId) {
-            console.log('Failed to determine academic year in fetchSubmissionStats')
             submissionError.value = 'Failed to determine academic year'
             return
           }
@@ -793,25 +792,21 @@
           
           // Get the majorDocId
           const majorDocId = await getMajorDocId(school, yearId, majorId)
-          console.log(`Major ${majorId} docId in fetchSubmissionStats:`, majorDocId)
           
           if (!majorDocId) {
-            console.log('Major document not found')
             submissionError.value = 'Major document not found'
             return
           }
           
           // Get the current milestone for this major
           const majorMilestones = await getMilestones(school, yearId, majorId, majorDocId)
-          console.log(`Found ${majorMilestones.length} milestones for major ${majorId}`)
           
           if (!majorMilestones || majorMilestones.length === 0) {
-            console.log('No milestones found for this major')
             submissionError.value = 'No milestones found for this major'
             return
           }
           
-          // Find the current milestone (same logic as currentUpcomingMilestone computed property)
+          // Find the current milestone
           const now = new Date()
           const sortedMilestones = [...majorMilestones].sort((a, b) => {
             const dateA = a.deadline instanceof Date ? a.deadline : a.deadline.toDate()
@@ -833,21 +828,14 @@
           }
           
           if (!currentMilestone) {
-            console.log('No current milestone found')
             submissionError.value = 'No current milestone found'
             return
           }
           
-          console.log('Current milestone:', currentMilestone)
-          
-          // Find the index of the current milestone in the array
+          // Find the index of the current milestone in the array - simplified
           const milestoneIndex = majorMilestones.findIndex(m => 
-            m.deadline instanceof Date ? 
-              m.deadline.getTime() === currentMilestone.deadline.getTime() : 
-              m.deadline.toDate().getTime() === currentMilestone.deadline.toDate().getTime()
+            m.description === currentMilestone.description
           )
-          
-          console.log('Current milestone index:', milestoneIndex)
           
           // Query projects created by this lecturer
           const projectsRef = collection(
@@ -864,22 +852,20 @@
           )
           
           const projectsSnapshot = await getDocs(projectsQuery)
-          console.log(`Found ${projectsSnapshot.size} projects for major ${majorId}`)
           
           // Count assigned projects and projects with submissions
           let totalAssigned = 0
           let projectsWithSubmissions = 0
           
-          // Process each project
+          // Process each project - simplified
           const projectPromises = projectsSnapshot.docs.map(async (projectDoc) => {
             const projectData = projectDoc.data()
             
             // Check if project is assigned
             if (projectData.assignedTo) {
               totalAssigned++
-              console.log(`Checking submissions for project ${projectDoc.id}, assigned to ${projectData.assignedTo}`)
               
-              // Check for submissions for this milestone by index only
+              // Check for submissions by milestone index only
               const submissionsRef = collection(projectDoc.ref, 'submissions')
               const submissionsQuery = query(
                 submissionsRef,
@@ -887,7 +873,6 @@
               )
               
               const submissionsSnapshot = await getDocs(submissionsQuery)
-              console.log(`Found ${submissionsSnapshot.size} submissions for project ${projectDoc.id} at milestone index ${milestoneIndex}`)
               
               if (!submissionsSnapshot.empty) {
                 projectsWithSubmissions++
@@ -902,24 +887,54 @@
           const submissionRate = totalAssigned > 0 ? 
             Math.round((projectsWithSubmissions / totalAssigned) * 100) : 0
           
-          // Store the results
-          currentMilestoneSubmissionStats.value = {
+          // Create the stats object
+          const statsObject = {
             milestoneName: currentMilestone.description,
             milestoneIndex: milestoneIndex,
             totalAssigned: totalAssigned,
             projectsWithSubmissions: projectsWithSubmissions,
             projectsWithoutSubmissions: totalAssigned - projectsWithSubmissions,
-            submissionRate: submissionRate
+            submissionRate: submissionRate,
+            timestamp: Date.now() // Add timestamp for potential cache invalidation
           }
           
-          console.log('Submission stats:', currentMilestoneSubmissionStats.value)
+          // Store the results in the cache
+          submissionStatsCache.value[majorId] = statsObject
+          
+          // Set the current stats
+          currentMilestoneSubmissionStats.value = statsObject
           
         } catch (err) {
-          console.error('Error in fetchSubmissionStats:', err)
           submissionError.value = `Failed to load submission data: ${err.message}`
         } finally {
           submissionLoading.value = false
         }
+      }
+  
+      // Function to pre-load submission statistics for all majors
+      const preloadAllSubmissionStats = async () => {
+        if (!lecturerMajors.value || lecturerMajors.value.length === 0) return;
+        
+        console.log('Pre-loading submission statistics for all majors');
+        
+        // Create an array of promises to fetch stats for all majors
+        const fetchPromises = lecturerMajors.value.map(majorId => {
+          // Only fetch if not already in cache
+          if (!submissionStatsCache.value[majorId]) {
+            return fetchSubmissionStats(majorId);
+          }
+          return Promise.resolve();
+        });
+        
+        // Wait for all fetches to complete
+        await Promise.all(fetchPromises);
+        
+        console.log('Finished pre-loading submission statistics');
+      }
+  
+      // Add a function to clear the cache if needed
+      const clearSubmissionStatsCache = () => {
+        submissionStatsCache.value = {}
       }
   
       // Fetch data when component is mounted
@@ -927,12 +942,18 @@
         console.log('LecturerDashboard mounted')
         if (userStore.initialized) {
           console.log('UserStore already initialized')
-          fetchUpcomingMilestone()
+          fetchUpcomingMilestone().then(() => {
+            // After fetching milestones and projects, pre-load submission stats
+            preloadAllSubmissionStats();
+          });
         } else {
           console.log('Initializing UserStore')
           userStore.initializeAuth().then(() => {
             console.log('UserStore initialized, fetching milestone')
-            fetchUpcomingMilestone()
+            fetchUpcomingMilestone().then(() => {
+              // After fetching milestones and projects, pre-load submission stats
+              preloadAllSubmissionStats();
+            });
           }).catch(err => {
             console.error('Failed to initialize user data:', err)
             error.value = 'Failed to initialize user data'
@@ -945,9 +966,19 @@
   
       // Watch for changes in lecturerMajors to set default selectedSubmissionMajor
       watch(lecturerMajors, (newMajors) => {
-        if (newMajors && newMajors.length > 0 && !selectedSubmissionMajor.value) {
-          selectedSubmissionMajor.value = newMajors[0]
-          fetchSubmissionStats(selectedSubmissionMajor.value)
+        if (newMajors && newMajors.length > 0) {
+          // Only set if not already set
+          if (!selectedMajor.value) {
+            selectedMajor.value = newMajors[0]
+            console.log('Setting initial selectedMajor:', selectedMajor.value)
+          }
+          
+          // Make sure selectedSubmissionMajor matches selectedMajor
+          if (!selectedSubmissionMajor.value || selectedSubmissionMajor.value !== selectedMajor.value) {
+            selectedSubmissionMajor.value = selectedMajor.value
+            console.log('Syncing selectedSubmissionMajor with selectedMajor:', selectedSubmissionMajor.value)
+            fetchSubmissionStats(selectedSubmissionMajor.value)
+          }
         }
       }, { immediate: true })
   
@@ -975,7 +1006,9 @@
         submissionLoading,
         submissionError,
         selectedSubmissionMajor,
-        currentMilestoneSubmissionStats
+        currentMilestoneSubmissionStats,
+        preloadAllSubmissionStats,
+        clearSubmissionStatsCache
       }
     }
   }
