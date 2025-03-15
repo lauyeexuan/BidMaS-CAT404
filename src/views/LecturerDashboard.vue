@@ -173,7 +173,7 @@
         <!-- Assigned Project Card -->
         <div class="col-span-6 bg-white p-4 shadow rounded self-start min-h-[160px] relative">
           <div class="flex justify-between items-start">
-            <h2 class="text-sm font-medium text-gray-500 mb-2">Your Assigned Project</h2>
+            <h2 class="text-sm font-medium text-gray-500 mb-2">Your Projects Overview</h2>
           </div>
           
           <div v-if="projectLoading" class="py-4">
@@ -186,27 +186,45 @@
             <p class="text-red-500">{{ projectError }}</p>
           </div>
           
-          <div v-else-if="assignedProject" class="py-2">
+          <div v-else-if="lecturerProjectStats.total > 0" class="py-2">
             <div class="relative">
               <div class="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-full"></div>
               
               <div class="pl-4">
-                <h3 class="text-lg font-semibold text-gray-800 mb-1">{{ assignedProject.Title }}</h3>
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">Project Statistics</h3>
                 
-                <div class="flex items-center text-gray-500 mb-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  <span>Supervisor: {{ assignedProject.lecturerName || 'Unknown' }}</span>
+                <div class="grid grid-cols-3 gap-4 mb-4">
+                  <!-- Total Projects -->
+                  <div class="bg-blue-50 p-3 rounded-lg text-center">
+                    <p class="text-2xl font-bold text-blue-700">{{ lecturerProjectStats.total }}</p>
+                    <p class="text-sm text-blue-600">Total Projects</p>
+                  </div>
+                  
+                  <!-- Assigned Projects -->
+                  <div class="bg-green-50 p-3 rounded-lg text-center">
+                    <p class="text-2xl font-bold text-green-700">{{ lecturerProjectStats.assigned }}</p>
+                    <p class="text-sm text-green-600">Assigned</p>
+                  </div>
+                  
+                  <!-- Unassigned Projects -->
+                  <div class="bg-amber-50 p-3 rounded-lg text-center">
+                    <p class="text-2xl font-bold text-amber-700">{{ lecturerProjectStats.unassigned }}</p>
+                    <p class="text-sm text-amber-600">Unassigned</p>
+                  </div>
                 </div>
                 
+                <!-- Assignment Rate Progress Bar -->
                 <div class="mt-2">
-                  <button 
-                    @click="openProjectDetailsWindow"
-                    class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                  >
-                    View Project Details
-                  </button>
+                  <div class="flex justify-between items-center mb-1">
+                    <span class="text-sm font-medium text-gray-700">Assignment Rate</span>
+                    <span class="text-sm font-medium text-gray-700">{{ lecturerProjectStats.assignmentRate }}%</span>
+                  </div>
+                  <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div 
+                      class="bg-blue-600 h-2.5 rounded-full" 
+                      :style="`width: ${lecturerProjectStats.assignmentRate}%`"
+                    ></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -216,152 +234,8 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <p class="text-gray-500">No project assigned yet.</p>
-            <p class="text-sm text-gray-400 mt-1">Projects will be assigned after the bidding process.</p>
-          </div>
-        </div>
-      </div>
-  
-      <!-- Submission Portal -->
-      <div v-if="currentUpcomingMilestone && assignedProject" class="mt-6 grid grid-cols-12 gap-4">
-        <div class="col-span-8 bg-white p-5 shadow rounded">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="text-lg font-semibold">Submit Your Work</h2>
-            <div class="text-sm text-gray-500">
-              Due: {{ formatDate(currentUpcomingMilestone.deadline) }}
-            </div>
-          </div>
-  
-          <!-- Submission Form -->
-          <div class="space-y-4">
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="text-sm font-medium text-gray-700">{{ currentUpcomingMilestone.description }}</h3>
-              </div>
-              <div class="text-xs" :class="getDaysRemainingClass(currentUpcomingMilestone)">
-                {{ getDaysRemainingText(currentUpcomingMilestone) }}
-              </div>
-            </div>
-  
-            <!-- File Upload Area -->
-            <div 
-              class="border-2 border-dashed border-gray-300 rounded-lg p-5 text-center hover:border-blue-500 transition-colors cursor-pointer"
-              @click="triggerFileUpload"
-              @dragover.prevent
-              @drop.prevent="handleFileDrop"
-            >
-              <input
-                type="file"
-                ref="fileInput"
-                class="hidden"
-                @change="handleFileSelect"
-                :accept="acceptedFileTypes"
-              />
-              
-              <div v-if="!selectedFile && !uploading" class="space-y-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                <p class="text-xs text-gray-600">Drag and drop your file here, or click to select</p>
-                <div class="text-xs text-gray-500 flex flex-wrap gap-1 justify-center">
-                  <span class="px-1.5 py-0.5 bg-gray-100 rounded text-[10px]">PDF</span>
-                  <span class="px-1.5 py-0.5 bg-gray-100 rounded text-[10px]">Word</span>
-                  <span class="px-1.5 py-0.5 bg-gray-100 rounded text-[10px]">PPT</span>
-                  <span class="px-1.5 py-0.5 bg-gray-100 rounded text-[10px]">Excel</span>
-                  <span class="px-1.5 py-0.5 bg-gray-100 rounded text-[10px]">Text</span>
-                  <span class="px-1.5 py-0.5 bg-gray-100 rounded text-[10px]">ZIP</span>
-                  <span class="px-1.5 py-0.5 bg-gray-100 rounded text-[10px]">Images</span>
-                </div>
-                <p class="text-[10px] text-gray-500">Maximum file size: 10MB</p>
-              </div>
-              
-              <div v-else-if="selectedFile && !uploading" class="text-left">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center space-x-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span class="text-xs font-medium text-gray-700">{{ selectedFile.name }}</span>
-                  </div>
-                  <button 
-                    @click.stop="removeSelectedFile"
-                    class="text-gray-400 hover:text-gray-600"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-              
-              <div v-else class="text-center py-2">
-                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto"></div>
-                <p class="text-xs text-gray-600 mt-1">Uploading...</p>
-              </div>
-            </div>
-  
-            <!-- Submit Button -->
-            <div class="flex justify-end space-x-2 items-center">
-              <div>
-                <!-- Error Message -->
-                <div v-if="submissionError" class="text-red-500 text-xs">
-                  {{ submissionError }}
-                </div>
-                <!-- Success Message -->
-                <div v-if="submissionSuccess" class="text-green-500 text-xs">
-                  File submitted successfully!
-                </div>
-              </div>
-              <button
-                @click="submitFile"
-                :disabled="!selectedFile || uploading"
-                class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {{ uploading ? 'Uploading...' : 'Submit' }}
-              </button>
-            </div>
-  
-            <!-- Previous Submissions -->
-            <div v-if="previousSubmissions.length > 0" class="mt-4">
-              <h3 class="text-sm font-medium text-gray-700 mb-2">Previous Submissions</h3>
-              <div class="space-y-1.5">
-                <div 
-                  v-for="submission in previousSubmissions" 
-                  :key="submission.id"
-                  class="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
-                >
-                  <div class="flex items-center space-x-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span class="text-xs text-gray-700">{{ submission.fileName }}</span>
-                    <span class="text-[10px] text-gray-500">{{ formatDate(submission.submittedAt) }}</span>
-                  </div>
-                  <a 
-                    :href="submission.downloadUrl" 
-                    target="_blank"
-                    class="text-blue-600 hover:text-blue-800 text-xs"
-                  >
-                    Download
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-  
-      <!-- Submission Rate -->
-      <div class="mt-6 grid grid-cols-12 gap-4">
-        <div class="col-span-6 bg-white p-4 shadow rounded">
-          <h2 class="text-lg font-semibold">Submission Rate</h2>
-          <p>Software Design Report</p>
-          <div class="w-32 h-32 mx-auto mt-4">
-            <svg class="w-full h-full" viewBox="0 0 36 36">
-              <path class="text-gray-200" d="M18 2a16 16 0 1 1 0 32 16 16 0 1 1 0-32" fill="none" stroke="currentColor" stroke-width="4" />
-              <path class="text-blue-600" d="M18 2a16 16 0 0 1 13 8" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="80, 100" />
-            </svg>
-            <p class="text-center text-xl font-bold mt-2">84%</p>
+            <p class="text-gray-500">No projects created yet.</p>
+            <p class="text-sm text-gray-400 mt-1">Create projects for students to bid on.</p>
           </div>
         </div>
       </div>
@@ -369,14 +243,12 @@
   </template>
   
   <script>
-  import { ref, onMounted, computed, onBeforeUnmount, watch } from 'vue'
+  import { ref, onMounted, computed, watch } from 'vue'
   import { useUserStore } from '@/stores/userStore'
   import { getMilestones } from '@/utils/milestones'
   import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
-  import { db, storage } from '@/firebase'
-  import { collection, getDocs, query, limit, where, doc, getDoc, addDoc, orderBy, onSnapshot } from 'firebase/firestore'
-  import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
-  import { createProjectDetailsWindow } from '@/utils/windowUtils'
+  import { db } from '@/firebase'
+  import { collection, getDocs, query, limit, where, doc, getDoc } from 'firebase/firestore'
   import '@/assets/styles/dashboard.css'
   
   export default {
@@ -391,19 +263,16 @@
       const selectedMajor = ref(null)  // Will be set to first major after fetching
       
       // Assigned project data
-      const assignedProject = ref(null)
       const projectLoading = ref(true)
       const projectError = ref(null)
-  
-      // File upload related refs
-      const fileInput = ref(null)
-      const selectedFile = ref(null)
-      const uploading = ref(false)
-      const submissionError = ref(null)
-      const submissionSuccess = ref(false)
-      const previousSubmissions = ref([])
-      const acceptedFileTypes = '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.rar,.7z,.png,.jpg,.jpeg'
-      const unsubscribeSubmissions = ref(null)
+      
+      // Lecturer project stats
+      const lecturerProjectStats = ref({
+        total: 0,
+        assigned: 0,
+        unassigned: 0,
+        assignmentRate: 0
+      })
   
       // Computed property to filter milestones based on selected major
       const filteredMilestones = computed(() => {
@@ -550,70 +419,183 @@
         }
       }
   
-      // Function to fetch the upcoming milestone
-      const fetchUpcomingMilestone = async () => {
-        loading.value = true
-        error.value = null
-  
+      // Function to fetch lecturer projects and count assigned/unassigned
+      const fetchLecturerProjects = async () => {
+        console.log('Starting fetchLecturerProjects')
+        projectLoading.value = true;
+        projectError.value = null;
+        
         try {
           // Check if user is authenticated and has necessary data
           if (!userStore.isAuthenticated || !userStore.currentUser) {
+            console.log('User not authenticated in fetchLecturerProjects')
+            projectError.value = 'User not authenticated';
+            return;
+          }
+
+          // Get user data
+          const { school, uid } = userStore.currentUser;
+          console.log('User data:', { school, uid })
+          
+          if (!school) {
+            console.log('Missing school information')
+            projectError.value = 'Missing school information';
+            return;
+          }
+          
+          // Get latest academic year
+          const academicYearData = await getLatestAcademicYear(school);
+          console.log('Academic year data:', academicYearData)
+          
+          if (!academicYearData?.yearId) {
+            console.log('Failed to determine academic year')
+            projectError.value = 'Failed to determine academic year';
+            return;
+          }
+          
+          const yearId = academicYearData.yearId;
+          
+          // Get all projects created by this lecturer across all their majors
+          let totalProjects = 0;
+          let assignedProjects = 0;
+          
+          console.log('Lecturer majors:', lecturerMajors.value)
+          
+          // For each major the lecturer is responsible for
+          for (const majorId of lecturerMajors.value) {
+            try {
+              // Get the majorDocId
+              const majorDocId = await getMajorDocId(school, yearId, majorId);
+              console.log(`Major ${majorId} docId:`, majorDocId)
+              if (!majorDocId) continue;
+              
+              // Query projects created by this lecturer
+              const projectsRef = collection(
+                db,
+                'schools', school,
+                'projects', yearId,
+                majorId, majorDocId,
+                'projectsPerYear'
+              );
+              
+              const projectsQuery = query(
+                projectsRef,
+                where('userId', '==', uid)
+              );
+              
+              const projectsSnapshot = await getDocs(projectsQuery);
+              console.log(`Found ${projectsSnapshot.size} projects for major ${majorId}`)
+              
+              // Count total and assigned projects
+              projectsSnapshot.forEach(doc => {
+                totalProjects++;
+                const projectData = doc.data();
+                // Check if project is assigned (has an assignedTo field)
+                if (projectData.assignedTo) {
+                  assignedProjects++;
+                }
+              });
+            } catch (err) {
+              console.error(`Error fetching projects for major ${majorId}:`, err);
+            }
+          }
+          
+          // Store the results
+          lecturerProjectStats.value = {
+            total: totalProjects,
+            assigned: assignedProjects,
+            unassigned: totalProjects - assignedProjects,
+            assignmentRate: totalProjects > 0 ? Math.round((assignedProjects / totalProjects) * 100) : 0
+          };
+          
+          console.log('Lecturer project stats:', lecturerProjectStats.value)
+          
+        } catch (err) {
+          console.error('Error in fetchLecturerProjects:', err)
+          projectError.value = `Failed to load project data: ${err.message}`;
+          console.error('Error loading lecturer projects:', err);
+        } finally {
+          projectLoading.value = false;
+        }
+      };
+  
+      // Function to fetch the upcoming milestone
+      const fetchUpcomingMilestone = async () => {
+        console.log('Starting fetchUpcomingMilestone')
+        loading.value = true
+        error.value = null
+
+        try {
+          // Check if user is authenticated and has necessary data
+          if (!userStore.isAuthenticated || !userStore.currentUser) {
+            console.log('User not authenticated in fetchUpcomingMilestone')
             error.value = 'User not authenticated'
             return
           }
-  
+
           // Get user data
           const { school, uid } = userStore.currentUser
+          console.log('User data in fetchUpcomingMilestone:', { school, uid })
           
           if (!school) {
+            console.log('Missing school information in fetchUpcomingMilestone')
             error.value = 'Missing school information'
             return
           }
           
           // Get latest academic year
           const academicYearData = await getLatestAcademicYear(school)
+          console.log('Academic year data in fetchUpcomingMilestone:', academicYearData)
           
           if (!academicYearData?.yearId) {
+            console.log('Failed to determine academic year in fetchUpcomingMilestone')
             error.value = 'Failed to determine academic year'
             return
           }
           
           const yearId = academicYearData.yearId
-  
+
           // Get lecturer's majors from their user document
           const lecturerRef = doc(db, 'schools', school, 'users', uid)
           const lecturerDoc = await getDoc(lecturerRef)
           
           if (!lecturerDoc.exists()) {
+            console.log('Lecturer information not found')
             error.value = 'Lecturer information not found'
             return
           }
-  
+
           const lecturerData = lecturerDoc.data()
+          console.log('Lecturer data:', lecturerData)
           const majorIds = lecturerData.major || [] // Array of majorIds
           
           // Store the lecturer's majors
           lecturerMajors.value = majorIds
+          console.log('Set lecturer majors:', lecturerMajors.value)
           
           // Set the default selected major if not already set
           if (!selectedMajor.value && majorIds.length > 0) {
             selectedMajor.value = majorIds[0]
+            console.log('Set default selected major:', selectedMajor.value)
           }
-  
+
           if (!majorIds.length) {
+            console.log('No majors assigned to lecturer')
             error.value = 'No majors assigned to lecturer'
             return
           }
-  
+
           // Fetch milestones for all majors the lecturer is responsible for
           const allMilestonesPromises = majorIds.map(async majorId => {
             try {
               // Get the majorDocId
               const majorDocId = await getMajorDocId(school, yearId, majorId)
+              console.log(`Major ${majorId} docId in fetchUpcomingMilestone:`, majorDocId)
               if (!majorDocId) return []
               
               // Get milestones for this major
               const majorMilestones = await getMilestones(school, yearId, majorId, majorDocId)
+              console.log(`Found ${majorMilestones.length} milestones for major ${majorId}`)
               return majorMilestones.map(milestone => ({
                 ...milestone,
                 major: majorId // Add major information to each milestone
@@ -623,170 +605,29 @@
               return []
             }
           })
-  
+
           const milestonesArrays = await Promise.all(allMilestonesPromises)
           const combinedMilestones = milestonesArrays.flat()
-  
+
           if (combinedMilestones.length > 0) {
             // Store all milestones
             allMilestones.value = combinedMilestones
             console.log('Milestones loaded:', combinedMilestones.length, 'Selected major:', selectedMajor.value)
+          } else {
+            console.log('No milestones found')
           }
+          
+          // After fetching milestones, fetch lecturer projects
+          console.log('Calling fetchLecturerProjects from fetchUpcomingMilestone')
+          await fetchLecturerProjects()
+          
         } catch (err) {
+          console.error('Error in fetchUpcomingMilestone:', err)
           error.value = `Failed to load milestone data: ${err.message}`
           console.error('Error loading milestones:', err)
         } finally {
           loading.value = false
-        }
-      }
-  
-      // Function to fetch the student's assigned project
-      const fetchAssignedProject = async () => {
-        projectLoading.value = true
-        projectError.value = null
-  
-        try {
-          // Check if user is authenticated and has necessary data
-          if (!userStore.isAuthenticated || !userStore.currentUser) {
-            projectError.value = 'User not authenticated'
-            return
-          }
-  
-          const { school, uid: studentId } = userStore.currentUser
-          
-          if (!school || !studentId) {
-            projectError.value = 'Missing user information'
-            return
-          }
-          
-          // Get latest academic year
-          const academicYearData = await getLatestAcademicYear(school)
-          if (!academicYearData || !academicYearData.yearId) {
-            projectError.value = 'Failed to determine academic year'
-            return
-          }
-          
-          const yearId = academicYearData.yearId
-          
-          // Query the student's bids to find an accepted bid
-          const studentBidsRef = collection(db, 'schools', school, 'studentBids', studentId, 'bids')
-          const acceptedBidQuery = query(studentBidsRef, where('status', '==', 'accepted'))
-          const acceptedBidSnapshot = await getDocs(acceptedBidQuery)
-          
-          if (acceptedBidSnapshot.empty) {
-            // No accepted bids found
-            return
-          }
-          
-          // Get the first accepted bid
-          const acceptedBid = acceptedBidSnapshot.docs[0].data()
-          const { projectId, majorId, majorDocId } = acceptedBid
-          
-          if (!projectId || !majorId || !majorDocId) {
-            projectError.value = 'Invalid bid data'
-            return
-          }
-          
-          // Get the project document
-          const projectRef = doc(
-            db, 
-            'schools', 
-            school, 
-            'projects', 
-            yearId, 
-            majorId, 
-            majorDocId, 
-            'projectsPerYear', 
-            projectId
-          )
-          
-          const projectDoc = await getDoc(projectRef)
-          
-          if (!projectDoc.exists()) {
-            projectError.value = 'Project not found'
-            return
-          }
-          
-          // Get project data
-          const projectData = projectDoc.data()
-          
-          // If there's a lecturer ID, get their name
-          if (projectData.userId) {
-            try {
-              const lecturerRef = doc(db, 'schools', school, 'users', projectData.userId)
-              const lecturerDoc = await getDoc(lecturerRef)
-              
-              if (lecturerDoc.exists()) {
-                projectData.lecturerName = lecturerDoc.data().name
-              }
-            } catch (err) {
-              // If we can't get the lecturer name, just continue
-            }
-          }
-          
-          // Set the assigned project with additional metadata needed for the details window
-          assignedProject.value = {
-            ...projectData,
-            id: projectId,
-            majorDocId: majorDocId,
-            major: majorId,
-            year: yearId
-          }
-          
-        } catch (err) {
-          projectError.value = `Failed to load project data: ${err.message}`
-        } finally {
-          projectLoading.value = false
-        }
-      }
-  
-      // Function to open project details window
-      const openProjectDetailsWindow = async () => {
-        if (!assignedProject.value) return
-        
-        try {
-          const { school } = userStore.currentUser
-          
-          // Get lecturer name
-          let creatorName = assignedProject.value.lecturerName || 'Unknown'
-          
-          // Get project headers from the majorDocId document
-          let headers = {}
-          
-          // Fetch the headers map from the majorDocId document
-          if (school && assignedProject.value.year && assignedProject.value.major && assignedProject.value.majorDocId) {
-            try {
-              const majorDocRef = doc(
-                db, 
-                'schools', school, 
-                'projects', assignedProject.value.year, 
-                assignedProject.value.major, assignedProject.value.majorDocId
-              )
-              
-              const majorDoc = await getDoc(majorDocRef)
-              if (majorDoc.exists()) {
-                const majorData = majorDoc.data()
-                if (majorData.headers && typeof majorData.headers === 'object') {
-                  headers = majorData.headers
-                }
-              }
-            } catch (error) {
-              // If we can't get the headers, just continue
-            }
-          }
-          
-          // Create color class for major
-          const colorClasses = { bg: 'bg-blue-100', text: 'text-blue-800' }
-          
-          // Open the project details window with the component
-          createProjectDetailsWindow({
-            project: assignedProject.value,
-            creatorName,
-            headers,
-            majorColorClass: colorClasses
-          })
-        } catch (error) {
-          alert('There was an error opening the project details. Please try again.')
+          console.log('fetchUpcomingMilestone completed')
         }
       }
   
@@ -808,239 +649,19 @@
         }
       }
   
-      // Function to trigger file input
-      const triggerFileUpload = () => {
-        fileInput.value.click()
-      }
-  
-      // Function to handle file selection
-      const handleFileSelect = (event) => {
-        const file = event.target.files[0]
-        if (file) {
-          validateAndSetFile(file)
-        }
-      }
-  
-      // Function to handle file drop
-      const handleFileDrop = (event) => {
-        const file = event.dataTransfer.files[0]
-        if (file) {
-          validateAndSetFile(file)
-        }
-      }
-  
-      // Function to validate and set file
-      const validateAndSetFile = (file) => {
-        // Check file type
-        const allowedTypes = [
-          // Documents
-          'application/pdf',
-          'application/msword',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          // Presentations
-          'application/vnd.ms-powerpoint',
-          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-          // Spreadsheets
-          'application/vnd.ms-excel',
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          // Text files
-          'text/plain',
-          // Archives
-          'application/zip',
-          'application/x-rar-compressed',
-          'application/x-7z-compressed',
-          // Images
-          'image/png',
-          'image/jpeg',
-          'image/jpg'
-        ]
-  
-        if (!allowedTypes.includes(file.type)) {
-          submissionError.value = 'Invalid file type. Please upload one of the following formats: PDF, Word, PowerPoint, Excel, Text, ZIP, RAR, 7Z, or Images (PNG/JPG).'
-          return
-        }
-  
-        // Check file size (10MB limit)
-        if (file.size > 10 * 1024 * 1024) {
-          submissionError.value = 'File size exceeds 10MB limit.'
-          return
-        }
-  
-        selectedFile.value = file
-        submissionError.value = null
-      }
-  
-      // Function to remove selected file
-      const removeSelectedFile = () => {
-        selectedFile.value = null
-        fileInput.value.value = ''
-      }
-  
-      // Function to submit file
-      const submitFile = async () => {
-        if (!selectedFile.value || !currentUpcomingMilestone.value || !assignedProject.value) return
-  
-        try {
-          uploading.value = true
-          submissionError.value = null
-          submissionSuccess.value = false
-  
-          const file = selectedFile.value
-          const timestamp = Date.now()
-          const fileName = `${timestamp}_${file.name}`
-          const filePath = `submission/${assignedProject.value.id}/${fileName}`
-  
-          // Upload file to Firebase Storage
-          const fileRef = storageRef(storage, filePath)
-          await uploadBytes(fileRef, file)
-          const downloadURL = await getDownloadURL(fileRef)
-  
-          // Find the index of the upcoming milestone in the original milestones array
-          const milestoneIndex = allMilestones.value.findIndex(m => 
-            m.description === currentUpcomingMilestone.value.description && 
-            m.deadline.isEqual(currentUpcomingMilestone.value.deadline)
-          )
-  
-          // Add submission record to Firestore with milestone index
-          const submissionData = {
-            fileName: file.name,
-            filePath,
-            downloadUrl: downloadURL,
-            milestoneIndex: milestoneIndex,
-            milestoneDescription: currentUpcomingMilestone.value.description || '',
-            submittedAt: new Date(),
-            submittedBy: userStore.currentUser.uid
-          }
-  
-          // Create the submissions collection reference
-          const projectRef = doc(
-            db,
-            'schools',
-            userStore.currentUser.school,
-            'projects',
-            assignedProject.value.year,
-            assignedProject.value.major,
-            assignedProject.value.majorDocId,
-            'projectsPerYear',
-            assignedProject.value.id
-          )
-  
-          // First, ensure the project document exists
-          const projectDoc = await getDoc(projectRef)
-          if (!projectDoc.exists()) {
-            throw new Error('Project document not found')
-          }
-  
-          // Create the submissions collection reference
-          const submissionsRef = collection(projectRef, 'submissions')
-  
-          // Add the submission document
-          const submissionRef = await addDoc(submissionsRef, submissionData)
-  
-          // Reset form and fetch updated submissions
-          selectedFile.value = null
-          fileInput.value.value = ''
-          submissionSuccess.value = true
-          await fetchPreviousSubmissions()
-  
-        } catch (error) {
-          console.error('Error in submission process:', error)
-          // More detailed error message based on the error type
-          if (error.code === 'permission-denied') {
-            submissionError.value = 'Permission denied. Please check if you have access to submit files.'
-          } else if (error.message === 'Project document not found') {
-            submissionError.value = 'Could not find the project to submit to. Please refresh and try again.'
-          } else {
-            submissionError.value = `Failed to submit file: ${error.message}`
-          }
-          
-          // If the file was uploaded but Firestore failed, we should clean up the uploaded file
-          if (selectedFile.value) {
-            try {
-              const timestamp = Date.now()
-              const fileName = `${timestamp}_${selectedFile.value.name}`
-              const filePath = `submission/${assignedProject.value.id}/${fileName}`
-              const fileRef = storageRef(storage, filePath)
-              await deleteObject(fileRef)
-              console.log('Cleaned up orphaned file from storage')
-            } catch (cleanupError) {
-              console.error('Failed to clean up orphaned file:', cleanupError)
-            }
-          }
-        } finally {
-          uploading.value = false
-        }
-      }
-  
-      // Function to fetch previous submissions
-      const fetchPreviousSubmissions = async () => {
-        if (!assignedProject.value) return
-  
-        try {
-          // Clean up existing listener if any
-          if (unsubscribeSubmissions.value) {
-            unsubscribeSubmissions.value()
-          }
-  
-          const submissionsRef = collection(
-            db,
-            'schools',
-            userStore.currentUser.school,
-            'projects',
-            assignedProject.value.year,
-            assignedProject.value.major,
-            assignedProject.value.majorDocId,
-            'projectsPerYear',
-            assignedProject.value.id,
-            'submissions'
-          )
-  
-          // Set up real-time listener
-          const q = query(
-            submissionsRef,
-            where('submittedBy', '==', userStore.currentUser.uid)
-          )
-  
-          unsubscribeSubmissions.value = onSnapshot(q, (snapshot) => {
-            previousSubmissions.value = snapshot.docs
-              .map(doc => ({
-                id: doc.id,
-                ...doc.data()
-              }))
-              .sort((a, b) => b.submittedAt.toDate() - a.submittedAt.toDate())
-          }, (error) => {
-            console.error('Error in submissions listener:', error)
-          })
-  
-        } catch (error) {
-          console.error('Error setting up submissions listener:', error)
-        }
-      }
-  
-      // Add watcher for assignedProject
-      watch(assignedProject, (newProject) => {
-        if (newProject) {
-          fetchPreviousSubmissions()
-        } else {
-          // Clean up listener when project becomes null
-          if (unsubscribeSubmissions.value) {
-            unsubscribeSubmissions.value()
-            unsubscribeSubmissions.value = null
-          }
-          previousSubmissions.value = []
-        }
-      })
-  
       // Fetch data when component is mounted
       onMounted(() => {
+        console.log('LecturerDashboard mounted')
         if (userStore.initialized) {
+          console.log('UserStore already initialized')
           fetchUpcomingMilestone()
-          fetchAssignedProject()
         } else {
+          console.log('Initializing UserStore')
           userStore.initializeAuth().then(() => {
+            console.log('UserStore initialized, fetching milestone')
             fetchUpcomingMilestone()
-            fetchAssignedProject()
           }).catch(err => {
+            console.error('Failed to initialize user data:', err)
             error.value = 'Failed to initialize user data'
             loading.value = false
             projectLoading.value = false
@@ -1062,26 +683,13 @@
         getDaysRemainingPercentage,
         getDaysRemainingText,
         getDaysRemainingClass,
-        assignedProject,
         projectLoading,
         projectError,
-        openProjectDetailsWindow,
-        fileInput,
-        selectedFile,
-        uploading,
-        submissionError,
-        submissionSuccess,
-        previousSubmissions,
-        acceptedFileTypes,
-        triggerFileUpload,
-        handleFileSelect,
-        handleFileDrop,
-        removeSelectedFile,
-        submitFile,
         lecturerMajors,
         selectedMajor,
         currentUpcomingMilestone,
-        filteredMilestones
+        filteredMilestones,
+        lecturerProjectStats
       }
     }
   }
