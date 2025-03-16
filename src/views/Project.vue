@@ -611,7 +611,7 @@
                 <tbody class="bg-white divide-y divide-gray-200">
                   <tr v-for="(project, index) in paginatedAllProjects" :key="index">
                     <td class="w-16 px-3 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                      {{ (allProjectsCurrentPage.value - 1) * itemsPerPage + index + 1 }}
+                      {{ (allProjectsCurrentPage - 1) * itemsPerPage + index + 1 }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {{ project.Title }}
@@ -638,21 +638,21 @@
               <div class="flex items-center justify-between mt-4 px-4">
                 <div class="flex items-center gap-2">
                   <button 
-                    @click="allProjectsCurrentPage.value--"
-                    :disabled="allProjectsCurrentPage.value === 1"
+                    @click="allProjectsCurrentPage--"
+                    :disabled="allProjectsCurrentPage === 1"
                     class="px-3 py-1 rounded border"
-                    :class="allProjectsCurrentPage.value === 1 ? 'bg-gray-100 text-gray-400' : 'hover:bg-gray-50'"
+                    :class="allProjectsCurrentPage === 1 ? 'bg-gray-100 text-gray-400' : 'hover:bg-gray-50'"
                   >
                     Previous
                   </button>
                   <span class="text-sm text-gray-600">
-                    Page {{ allProjectsCurrentPage.value }} of {{ allProjectsTotalPages.value }}
+                    Page {{ allProjectsCurrentPage }} of {{ allProjectsTotalPages }}
                   </span>
                   <button 
-                    @click="allProjectsCurrentPage.value++"
-                    :disabled="allProjectsCurrentPage.value === allProjectsTotalPages.value"
+                    @click="allProjectsCurrentPage++"
+                    :disabled="allProjectsCurrentPage === allProjectsTotalPages"
                     class="px-3 py-1 rounded border"
-                    :class="allProjectsCurrentPage.value === allProjectsTotalPages.value ? 'bg-gray-100 text-gray-400' : 'hover:bg-gray-50'"
+                    :class="allProjectsCurrentPage === allProjectsTotalPages ? 'bg-gray-100 text-gray-400' : 'hover:bg-gray-50'"
                   >
                     Next
                   </button>
