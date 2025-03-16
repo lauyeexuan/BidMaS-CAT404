@@ -3156,6 +3156,27 @@ const loadTabData = async (tab) => {
         await fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
         myProjectsLoaded.value = true
         myProjectsLoading.value = false
+
+        // Prefetch bids data after loading my projects
+        if (!bidsLoaded.value) {
+          projectBids.value = []
+          fetchProjectBids().then(async () => {
+            await setupAllBidsListeners()
+            bidsLoaded.value = true
+          }).catch(error => {
+            console.error('Error prefetching bids:', error)
+          })
+        }
+
+        // Prefetch all projects data
+        if (!allProjectsLoaded.value) {
+          allProjects.value = []
+          fetchAllProjects().then(() => {
+            allProjectsLoaded.value = true
+          }).catch(error => {
+            console.error('Error prefetching all projects:', error)
+          })
+        }
       }
     } else if (tab === 'allProjects') {
       // Only load if not already loaded
@@ -3166,6 +3187,17 @@ const loadTabData = async (tab) => {
         await fetchAllProjects()
         allProjectsLoaded.value = true
         allProjectsLoading.value = false
+
+        // Prefetch bids data
+        if (!bidsLoaded.value) {
+          projectBids.value = []
+          fetchProjectBids().then(async () => {
+            await setupAllBidsListeners()
+            bidsLoaded.value = true
+          }).catch(error => {
+            console.error('Error prefetching bids:', error)
+          })
+        }
       }
     } else if (tab === 'bids') {
       // Only load if not already loaded
