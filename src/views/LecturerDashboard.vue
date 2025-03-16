@@ -361,6 +361,8 @@
       const currentMilestoneSubmissionStats = ref(null)
       // Add a cache object to store submission stats by major
       const submissionStatsCache = ref({})
+      // Add a flag to track initial load
+      const initialLoadDone = ref(false)
   
       // Computed property to filter milestones based on selected major
       const filteredMilestones = computed(() => {
@@ -372,22 +374,18 @@
         )
       })
 
-      // Watch for selectedMajor changes
-      watch(selectedMajor, (newMajor) => {
-        console.log('Selected major changed to:', newMajor)
-        // Update selectedSubmissionMajor to match selectedMajor to keep them in sync
-        if (newMajor && newMajor !== selectedSubmissionMajor.value) {
-          selectedSubmissionMajor.value = newMajor
+      // Single watcher for selectedMajor that handles both initial load and subsequent changes
+      watch(selectedMajor, async (newMajor, oldMajor) => {
+        if (!newMajor) return;
+        
+        // Skip if this is triggered during the initial load
+        if (!initialLoadDone.value) {
+          return;
         }
-      })
 
-      // Watch for selectedSubmissionMajor changes
-      watch(selectedSubmissionMajor, (newMajor) => {
-        console.log('Selected submission major changed to:', newMajor)
-        if (newMajor) {
-          fetchSubmissionStats(newMajor)
-        }
-      })
+        console.log('Selected major changed to:', newMajor);
+        await fetchSubmissionStats(newMajor);
+      });
 
       // Computed property for the upcoming milestone, filtered by selected major
       const currentUpcomingMilestone = computed(() => {
@@ -749,21 +747,59 @@
         }
       }
   
+      // Function to pre-load submission statistics for all majors
+      const preloadAllSubmissionStats = async () => {
+        if (!lecturerMajors.value || lecturerMajors.value.length === 0) return;
+        
+        console.log('Pre-loading submission statistics for all majors, skipping current major:', selectedMajor.value);
+        
+        // Create an array of promises to fetch stats for all majors EXCEPT the currently selected one
+        const fetchPromises = lecturerMajors.value
+          .filter(majorId => majorId !== selectedMajor.value) // Skip the currently displayed major
+          .map(majorId => {
+            // Only fetch if not already in cache
+            if (!submissionStatsCache.value[majorId]) {
+              console.log('Preloading stats for major:', majorId);
+              return fetchSubmissionStats(majorId, true); // Pass true to indicate this is background loading
+            }
+            return Promise.resolve();
+          });
+        
+        // Wait for all fetches to complete
+        await Promise.all(fetchPromises);
+        
+        console.log('Finished pre-loading submission statistics');
+      };
+  
       // Function to fetch submission statistics for the current milestone
-      const fetchSubmissionStats = async (majorId) => {
-        console.log('Starting fetchSubmissionStats for major:', majorId)
+      const fetchSubmissionStats = async (majorId, isBackgroundLoad = false) => {
+        if (!majorId) return;
+        
+        console.log('Starting fetchSubmissionStats for major:', majorId, 'background:', isBackgroundLoad);
+        
+        // Only update the selectedSubmissionMajor if this is not a background load
+        if (!isBackgroundLoad) {
+          selectedSubmissionMajor.value = majorId;
+        }
         
         // Check if we already have cached data for this major
         if (submissionStatsCache.value[majorId]) {
-          console.log('Using cached submission stats for major:', majorId)
-          currentMilestoneSubmissionStats.value = submissionStatsCache.value[majorId]
-          return
+          console.log('Using cached submission stats for major:', majorId);
+          
+          // Only update the displayed stats if this is not a background load
+          if (!isBackgroundLoad) {
+            currentMilestoneSubmissionStats.value = submissionStatsCache.value[majorId];
+          }
+          return;
         }
         
-        submissionLoading.value = true
-        submissionError.value = null
-        // Reset current stats when changing majors to a non-cached major
-        currentMilestoneSubmissionStats.value = null
+        // Only show loading state for non-background loads
+        if (!isBackgroundLoad) {
+          submissionLoading.value = true;
+          submissionError.value = null;
+          // Reset current stats when changing majors to a non-cached major
+          currentMilestoneSubmissionStats.value = null;
+        }
         
         try {
           // Check if user is authenticated and has necessary data
@@ -901,86 +937,83 @@
           // Store the results in the cache
           submissionStatsCache.value[majorId] = statsObject
           
-          // Set the current stats
-          currentMilestoneSubmissionStats.value = statsObject
+          // When setting the results, only update currentMilestoneSubmissionStats if not a background load
+          if (!isBackgroundLoad) {
+            currentMilestoneSubmissionStats.value = statsObject
+          }
           
         } catch (err) {
-          submissionError.value = `Failed to load submission data: ${err.message}`
+          if (!isBackgroundLoad) {
+            submissionError.value = `Failed to load submission data: ${err.message}`;
+          } else {
+            console.error(`Background load failed for major ${majorId}:`, err);
+          }
         } finally {
-          submissionLoading.value = false
+          if (!isBackgroundLoad) {
+            submissionLoading.value = false;
+          }
         }
       }
   
-      // Function to pre-load submission statistics for all majors
-      const preloadAllSubmissionStats = async () => {
-        if (!lecturerMajors.value || lecturerMajors.value.length === 0) return;
-        
-        console.log('Pre-loading submission statistics for all majors');
-        
-        // Create an array of promises to fetch stats for all majors
-        const fetchPromises = lecturerMajors.value.map(majorId => {
-          // Only fetch if not already in cache
-          if (!submissionStatsCache.value[majorId]) {
-            return fetchSubmissionStats(majorId);
+      // Watch for changes in lecturerMajors to set default selectedSubmissionMajor
+      watch(lecturerMajors, async (newMajors) => {
+        if (newMajors && newMajors.length > 0 && !initialLoadDone.value) {
+          console.log('Lecturer majors changed, setting initial major');
+          // Only set if not already set
+          if (!selectedMajor.value) {
+            // Explicitly set to first major
+            const firstMajor = newMajors[0];
+            selectedMajor.value = firstMajor;
+            selectedSubmissionMajor.value = firstMajor;
+            console.log('Setting initial selectedMajor and selectedSubmissionMajor:', firstMajor);
           }
-          return Promise.resolve();
-        });
-        
-        // Wait for all fetches to complete
-        await Promise.all(fetchPromises);
-        
-        console.log('Finished pre-loading submission statistics');
-      }
+        }
+      }, { immediate: true });
+  
+      // Modify the onMounted hook to ensure proper initialization order
+      onMounted(async () => {
+        console.log('LecturerDashboard mounted');
+        try {
+          if (!userStore.initialized) {
+            console.log('Initializing UserStore');
+            await userStore.initializeAuth();
+          }
+          
+          console.log('Fetching milestone data');
+          await fetchUpcomingMilestone();
+          
+          // IMPORTANT: Ensure selectedMajor is set and immediately load its submission stats
+          // This is the key fix to ensure the first major's data is shown
+          if (selectedMajor.value && !initialLoadDone.value) {
+            const firstMajor = selectedMajor.value;
+            console.log('Loading submission stats for first major:', firstMajor);
+            
+            // Force refresh of UI state before loading stats
+            await new Promise(resolve => setTimeout(resolve, 0));
+            
+            // Load stats for first major with priority
+            await fetchSubmissionStats(firstMajor, false);
+            
+            // Mark initial load as complete AFTER first major is loaded
+            initialLoadDone.value = true;
+            
+            // Only preload other majors after first major is fully loaded
+            console.log('First major loaded, now preloading others');
+            await preloadAllSubmissionStats();
+          }
+        } catch (err) {
+          console.error('Failed to initialize dashboard:', err);
+          error.value = 'Failed to initialize dashboard data';
+          loading.value = false;
+          projectLoading.value = false;
+          submissionLoading.value = false;
+        }
+      });
   
       // Add a function to clear the cache if needed
       const clearSubmissionStatsCache = () => {
-        submissionStatsCache.value = {}
-      }
-  
-      // Fetch data when component is mounted
-      onMounted(() => {
-        console.log('LecturerDashboard mounted')
-        if (userStore.initialized) {
-          console.log('UserStore already initialized')
-          fetchUpcomingMilestone().then(() => {
-            // After fetching milestones and projects, pre-load submission stats
-            preloadAllSubmissionStats();
-          });
-        } else {
-          console.log('Initializing UserStore')
-          userStore.initializeAuth().then(() => {
-            console.log('UserStore initialized, fetching milestone')
-            fetchUpcomingMilestone().then(() => {
-              // After fetching milestones and projects, pre-load submission stats
-              preloadAllSubmissionStats();
-            });
-          }).catch(err => {
-            console.error('Failed to initialize user data:', err)
-            error.value = 'Failed to initialize user data'
-            loading.value = false
-            projectLoading.value = false
-            submissionLoading.value = false
-          })
-        }
-      })
-  
-      // Watch for changes in lecturerMajors to set default selectedSubmissionMajor
-      watch(lecturerMajors, (newMajors) => {
-        if (newMajors && newMajors.length > 0) {
-          // Only set if not already set
-          if (!selectedMajor.value) {
-            selectedMajor.value = newMajors[0]
-            console.log('Setting initial selectedMajor:', selectedMajor.value)
-          }
-          
-          // Make sure selectedSubmissionMajor matches selectedMajor
-          if (!selectedSubmissionMajor.value || selectedSubmissionMajor.value !== selectedMajor.value) {
-            selectedSubmissionMajor.value = selectedMajor.value
-            console.log('Syncing selectedSubmissionMajor with selectedMajor:', selectedSubmissionMajor.value)
-            fetchSubmissionStats(selectedSubmissionMajor.value)
-          }
-        }
-      }, { immediate: true })
+        submissionStatsCache.value = {};
+      };
   
       return {
         upcomingMilestone,
