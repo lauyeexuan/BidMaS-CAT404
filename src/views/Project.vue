@@ -23,61 +23,44 @@
         </div>
       </div>
 
-      <!-- Loading State -->
-      <div v-if="loading" class="bg-white rounded-lg shadow-lg p-8 flex justify-center items-center">
-        <p class="text-gray-600">Loading project settings...</p>
-      </div>
-
-      <!-- No Settings Found -->
-      <div v-else-if="!projectSettings" class="bg-white rounded-lg shadow-lg p-8">
-        <div class="text-center">
-          <p class="text-gray-600 mb-4">No project settings found for the current academic year. Please contact an administrator to configure project settings.</p>
-        </div>
-      </div>
-
-      <!-- Main Content with Tabs -->
-      <div v-else class="bg-white rounded-lg shadow-lg">
-        <!-- Tab Headers -->
+      <!-- Tab Container -->
+      <div class="bg-white rounded-lg shadow">
+        <!-- Tab Headers - This section should always be visible -->
         <div class="border-b border-gray-200">
-          <div class="flex">
-            <button 
-              @click="activeTab = 'myProjects'"
-              class="px-6 py-4 text-sm font-medium border-b-2 focus:outline-none"
+          <nav class="flex space-x-4 px-6 py-4" aria-label="Tabs">
+            <button
+              v-for="tab in ['myProjects', 'bids', 'allProjects']"
+              :key="tab"
+              @click="activeTab = tab"
+              class="px-3 py-2 text-sm font-medium rounded-md transition-colors"
               :class="[
-                activeTab === 'myProjects' 
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                activeTab === tab
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               ]"
             >
-              My Projects
+              {{ tab === 'myProjects' ? 'My Projects' : tab === 'allProjects' ? 'All Projects' : 'Bids' }}
             </button>
-            <button 
-              @click="activeTab = 'bids'"
-              class="px-6 py-4 text-sm font-medium border-b-2 focus:outline-none"
-              :class="[
-                activeTab === 'bids' 
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              ]"
-            >
-              Bids
-            </button>
-            <button 
-              @click="activeTab = 'allProjects'"
-              class="px-6 py-4 text-sm font-medium border-b-2 focus:outline-none"
-              :class="[
-                activeTab === 'allProjects' 
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              ]"
-            >
-              All Projects
-            </button>
+          </nav>
+        </div>
+
+        <!-- Loading State - Only show for content area -->
+        <div v-if="loading" class="p-6">
+          <div class="flex justify-center items-center">
+            <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+            <span class="ml-3 text-gray-600">Projects on thier way...</span>
           </div>
         </div>
 
-        <!-- Tab Content -->
-        <div class="p-6">
+        <!-- No Settings Found -->
+        <div v-else-if="!projectSettings" class="p-6">
+          <div class="text-center">
+            <p class="text-gray-600 mb-4">No project settings found for the current academic year. Please contact an administrator to configure project settings.</p>
+          </div>
+        </div>
+
+        <!-- Tab Content - Only show when not loading and settings exist -->
+        <div v-else class="p-6">
           <!-- My Projects Tab -->
           <div v-if="activeTab === 'myProjects'">
             <div class="flex justify-between items-center mb-6">
