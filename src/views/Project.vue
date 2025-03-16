@@ -1173,66 +1173,88 @@
     <div id="toast-container" class="fixed top-5 right-5 z-50"></div>
 
     <!-- Student Details Modal -->
-    <div v-if="showStudentModal" class="fixed inset-0 z-50 overflow-y-auto">
-      <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <!-- Background overlay -->
-        <div class="fixed inset-0 transition-opacity" aria-hidden="true">
-          <div class="absolute inset-0 bg-gray-500 opacity-75" @click="showStudentModal = false"></div>
-        </div>
+    <div v-if="showStudentModal" 
+         class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity duration-300 ease-out z-50 cursor-pointer"
+         @click="showStudentModal = false">
+      
+      <!-- Modal panel with slide and fade effect -->
+      <div class="fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+          <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all duration-300 ease-out sm:my-8 sm:w-full sm:max-w-lg cursor-default"
+               :class="{ 'opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95': !showStudentModal, 'opacity-100 translate-y-0 sm:scale-100': showStudentModal }"
+               @click.stop>
+            
+            <!-- Close button -->
+            <button 
+              @click="showStudentModal = false"
+              class="absolute right-4 top-4 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-full p-1 transition-colors duration-200 hover:bg-gray-100"
+              aria-label="Close modal"
+            >
+              <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
 
-        <!-- Modal panel -->
-        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-          <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            <div class="sm:flex sm:items-start">
-              <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                <h3 class="text-lg leading-6 font-medium text-gray-900">
-                  Student Details: {{ selectedStudentId ? getUserName(selectedStudentId) : 'Loading...' }}
-                </h3>
-                
-                <div class="mt-4 space-y-4">
-                  <!-- CGPA -->
-                  <div>
-                    <h4 class="text-sm font-semibold text-gray-500">CGPA</h4>
-                    <p class="text-base">{{ selectedStudentId ? getUserDetails(selectedStudentId).cgpa : '...' }}</p>
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-100">
+              <h3 class="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                <svg class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                {{ selectedStudentId ? getUserName(selectedStudentId) : 'Loading...' }}
+              </h3>
+            </div>
+
+            <!-- Content -->
+            <div class="px-6 py-4">
+              <div class="space-y-6">
+                <!-- CGPA -->
+                <div class="bg-white rounded-lg p-4 border border-gray-100 shadow-sm hover:border-gray-200 hover:shadow-md transition-all duration-200">
+                  <h4 class="text-sm font-medium text-gray-500 mb-2 flex items-center gap-2">
+                    <svg class="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    CGPA
+                  </h4>
+                  <p class="text-lg font-semibold text-gray-900">{{ selectedStudentId ? getUserDetails(selectedStudentId).cgpa : '...' }}</p>
+                </div>
+
+                <!-- Skills -->
+                <div class="bg-white rounded-lg p-4 border border-gray-100 shadow-sm hover:border-gray-200 hover:shadow-md transition-all duration-200">
+                  <h4 class="text-sm font-medium text-gray-500 mb-2 flex items-center gap-2">
+                    <svg class="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Skills
+                  </h4>
+                  <div v-if="selectedStudentId && getUserDetails(selectedStudentId).skills.length > 0" class="flex flex-wrap gap-2">
+                    <span 
+                      v-for="skill in getUserDetails(selectedStudentId).skills" 
+                      :key="skill" 
+                      class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors duration-200"
+                    >
+                      {{ skill }}
+                    </span>
                   </div>
-                  
-                  <!-- Skills -->
-                  <div>
-                    <h4 class="text-sm font-semibold text-gray-500">Skills</h4>
-                    <div v-if="selectedStudentId && getUserDetails(selectedStudentId).skills.length > 0" class="mt-1">
-                      <span 
-                        v-for="skill in getUserDetails(selectedStudentId).skills" 
-                        :key="skill" 
-                        class="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full mr-1 mb-1"
-                      >
-                        {{ skill }}
-                      </span>
-                    </div>
-                    <p v-else class="text-gray-500 italic">No skills specified</p>
-                  </div>
-                  
-                  <!-- Introduction - Larger space -->
-                  <div>
-                    <h4 class="text-sm font-semibold text-gray-500">Introduction</h4>
-                    <div class="mt-1 bg-gray-50 p-3 rounded-md max-h-40 overflow-y-auto">
-                      <p class="text-sm text-gray-700 whitespace-pre-line">
-                        {{ selectedStudentId ? getUserDetails(selectedStudentId).introduction : '...' }}
-                      </p>
-                    </div>
+                  <p v-else class="text-gray-500 italic text-sm">No skills specified</p>
+                </div>
+
+                <!-- Introduction -->
+                <div class="bg-white rounded-lg p-4 border border-gray-100 shadow-sm hover:border-gray-200 hover:shadow-md transition-all duration-200">
+                  <h4 class="text-sm font-medium text-gray-500 mb-2 flex items-center gap-2">
+                    <svg class="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    Introduction
+                  </h4>
+                  <div class="mt-2 bg-gray-50 rounded-lg p-4 max-h-48 overflow-y-auto custom-scrollbar">
+                    <p class="text-gray-700 whitespace-pre-line leading-relaxed">
+                      {{ selectedStudentId ? getUserDetails(selectedStudentId).introduction : '...' }}
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-          
-          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-            <button 
-              type="button" 
-              class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
-              @click="showStudentModal = false"
-            >
-              Close
-            </button>
           </div>
         </div>
       </div>
@@ -3774,4 +3796,26 @@ const rejectOtherBidsForStudent = async (schoolId, studentId, acceptedBidId, maj
 
 <style scoped>
 /* No custom styles needed as we're using Tailwind classes */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) rgba(229, 231, 235, 0.5);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(229, 231, 235, 0.5);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.7);
+}
 </style> 
