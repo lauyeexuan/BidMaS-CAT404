@@ -1507,17 +1507,22 @@ const fetchSettings = async () => {
   }
 }
 
-// Separate function to fetch user projects
+// Replace the existing fetchUserProjects function with this optimized version
 const fetchUserProjects = async (schoolId, userId, academicYearId) => {
   try {
+    // Start loading state
+    myProjectsLoading.value = true
+    
     // Clear existing projects
     projects.value = []
     
     // Create a map to track projects by ID to avoid duplicates
     const projectsMap = new Map()
     
-    // Fetch projects from all majors
-    for (const major of availableMajors.value) {
+    console.log(`Fetching projects for ${availableMajors.value.length} majors in parallel`)
+    
+    // Step 1: Create an array of promises for fetching major documents in parallel
+    const majorPromises = availableMajors.value.map(async (major) => {
       try {
         const majorRef = collection(db, 'schools', schoolId, 'projects', academicYearId, major)
         const majorDocs = await getDocs(majorRef)
@@ -1526,6 +1531,23 @@ const fetchUserProjects = async (schoolId, userId, academicYearId) => {
           const majorDoc = majorDocs.docs[0]
           const majorDocId = majorDoc.id
           
+          return { major, majorDocId }
+        }
+        return null
+      } catch (error) {
+        console.error(`Error fetching major document for ${major}:`, error)
+        return null
+      }
+    })
+    
+    // Step 2: Wait for all major document queries to complete
+    const majorResults = await Promise.all(majorPromises)
+    
+    // Step 3: Create an array of promises for fetching projects in parallel
+    const projectPromises = majorResults
+      .filter(result => result !== null)
+      .map(async ({ major, majorDocId }) => {
+        try {
           const projectsRef = collection(
             db, 
             'schools', 
@@ -1541,52 +1563,87 @@ const fetchUserProjects = async (schoolId, userId, academicYearId) => {
           const projectsQuery = query(projectsRef, where('userId', '==', userId))
           const projectsDocs = await getDocs(projectsQuery)
           
-          for (const doc of projectsDocs.docs) {
-            const projectId = doc.id
-            const projectData = doc.data()
-            
-            // Check if this project has any bids
-            const bidsRef = collection(
-              db, 
-              'schools', 
-              schoolId, 
-              'projects', 
-              academicYearId, 
-              major, 
-              majorDocId,
-              'projectsPerYear',
-              projectId,
-              'bids'
-            )
-            
-            const bidsSnapshot = await getDocs(bidsRef)
-            const hasBids = !bidsSnapshot.empty
-            
-            // Use Map to ensure uniqueness by project ID
-            if (!projectsMap.has(projectId)) {
-              projectsMap.set(projectId, {
-                id: projectId,
-                hasBids, // Add the hasBids flag
-                ...projectData
-              })
-            }
-          }
+          return { major, majorDocId, projectsDocs }
+        } catch (error) {
+          console.error(`Error fetching projects for major ${major}:`, error)
+          return null
         }
-      } catch (majorError) {
-        console.error(`Error fetching projects for major ${major}:`, majorError)
+      })
+    
+    // Step 4: Wait for all project queries to complete
+    const projectResults = await Promise.all(projectPromises)
+    
+    // Step 5: Process project documents and check for bids in parallel
+    const bidCheckPromises = []
+    
+    for (const result of projectResults) {
+      if (!result) continue
+      
+      const { major, majorDocId, projectsDocs } = result
+      
+      for (const doc of projectsDocs.docs) {
+        const projectId = doc.id
+        const projectData = doc.data()
+        
+        // Add to map first without bid information
+        if (!projectsMap.has(projectId)) {
+          projectsMap.set(projectId, {
+            id: projectId,
+            hasBids: false, // Default value, will update later
+            ...projectData
+          })
+          
+          // Create a promise to check for bids
+          const bidCheckPromise = (async () => {
+            try {
+              const bidsRef = collection(
+                db, 
+                'schools', 
+                schoolId, 
+                'projects', 
+                academicYearId, 
+                major, 
+                majorDocId,
+                'projectsPerYear',
+                projectId,
+                'bids'
+              )
+              
+              const bidsSnapshot = await getDocs(bidsRef)
+              const hasBids = !bidsSnapshot.empty
+              
+              // Update the hasBids property in the map
+              if (projectsMap.has(projectId)) {
+                const project = projectsMap.get(projectId)
+                project.hasBids = hasBids
+                projectsMap.set(projectId, project)
+              }
+            } catch (error) {
+              console.error(`Error checking bids for project ${projectId}:`, error)
+            }
+          })()
+          
+          bidCheckPromises.push(bidCheckPromise)
+        }
       }
     }
     
-    // Convert map values to array
+    // Step 6: Wait for all bid checks to complete
+    await Promise.all(bidCheckPromises)
+    
+    // Step 7: Convert map values to array
     projects.value = Array.from(projectsMap.values())
     
-    console.log('Debug - Total unique loaded projects:', projects.value.length)
-    console.log('Debug - Projects by major:', projects.value.reduce((acc, project) => {
+    console.log('Parallel fetching complete - Total unique loaded projects:', projects.value.length)
+    console.log('Projects by major:', projects.value.reduce((acc, project) => {
       acc[project.major] = (acc[project.major] || 0) + 1;
       return acc;
     }, {}))
   } catch (error) {
     console.error('Error fetching user projects:', error)
+    showToast('Failed to load projects', 'error')
+  } finally {
+    myProjectsLoading.value = false
   }
 }
 
