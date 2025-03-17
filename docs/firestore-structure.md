@@ -23,6 +23,12 @@ schools (collection)
      │       │
      │       └─ {majorId} (subcollection)
      │           └─ {majorDocId} (document)
+                   ├─ milestones: array [
+                   │    {
+                   │        deadline: timestamp,
+                   │        description: string
+                   │    }
+                   │ ]
      │               └─ projectsPerYear (subcollection)
      │                   └─ {projectId} (document)
      │                       ├─ Title: string
