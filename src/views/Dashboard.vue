@@ -24,17 +24,6 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
               </svg>
             </h2>
-            <!-- Milestone Type Badge -->
-            <span v-if="upcomingMilestone && upcomingMilestone.type" 
-              class="px-2 py-1 text-xs rounded-full"
-              :class="{
-                'bg-blue-100 text-blue-800': upcomingMilestone.type === 'Report',
-                'bg-purple-100 text-purple-800': upcomingMilestone.type === 'Presentation',
-                'bg-green-100 text-green-800': upcomingMilestone.type === 'Code'
-              }"
-            >
-              {{ upcomingMilestone.type }}
-            </span>
           </div>
         
           <div v-if="loading" class="py-2">
@@ -364,6 +353,7 @@
 <script>
 import { ref, onMounted, computed, onBeforeUnmount, watch } from 'vue'
 import { useUserStore } from '@/stores/userStore'
+import { useMilestoneStore } from '@/stores/milestoneStore'
 import { getMilestones } from '@/utils/milestones'
 import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
 import { db, storage } from '@/firebase'
@@ -375,6 +365,7 @@ import '@/assets/styles/dashboard.css'
 export default {
   setup() {
     const userStore = useUserStore()
+    const milestoneStore = useMilestoneStore()
     const upcomingMilestone = ref(null)
     const allMilestones = ref([])
     const loading = ref(true)
@@ -567,6 +558,9 @@ export default {
           if (!upcomingMilestone.value && sortedMilestones.length > 0) {
             upcomingMilestone.value = sortedMilestones[sortedMilestones.length - 1]
           }
+          
+          // Store milestone data in the milestone store
+          milestoneStore.setMilestoneData(upcomingMilestone.value, allMilestones.value)
         }
       } catch (err) {
         error.value = `Failed to load milestone data: ${err.message}`

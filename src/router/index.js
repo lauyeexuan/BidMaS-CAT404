@@ -7,6 +7,9 @@ import { useUserStore } from '@/stores/userStore'
 import ProjectSettings from '@/views/ProjectSettings.vue'
 import ProjectWrapper from '@/views/ProjectWrapper.vue'
 import Profile from '@/views/Profile.vue'
+import FeedbackWrapper from '@/views/FeedbackWrapper.vue'
+import StudentFeedback from '@/views/StudentFeedback.vue'
+import LecturerFeedback from '@/views/LecturerFeedback.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -62,6 +65,33 @@ const router = createRouter({
       name: 'profile',
       component: Profile,
       meta: { requiresAuth: true } // Protected route accessible to all authenticated users
+    },
+    {
+      path: '/feedback',
+      component: FeedbackWrapper,
+      meta: { requiresAuth: true, roles: ['student', 'lecturer'] },
+      children: [
+        {
+          path: '',
+          name: 'feedback',
+          redirect: to => {
+            const userStore = useUserStore();
+            return userStore.userRole === 'student' ? '/feedback/student' : '/feedback/lecturer';
+          }
+        },
+        {
+          path: 'student',
+          name: 'student-feedback',
+          component: StudentFeedback,
+          meta: { requiresAuth: true, roles: ['student'] }
+        },
+        {
+          path: 'lecturer',
+          name: 'lecturer-feedback',
+          component: LecturerFeedback,
+          meta: { requiresAuth: true, roles: ['lecturer'] }
+        }
+      ]
     },
     // {
     //   path: '/:pathMatch(.*)*',
