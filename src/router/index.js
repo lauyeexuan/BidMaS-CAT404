@@ -55,7 +55,7 @@ const router = createRouter({
       path: '/projects',
       name: 'Projects',
       component: ProjectWrapper,
-      meta: { requiresAuth: true, roles: ['lecturer','student'] }
+      meta: { requiresAuth: true, roles: ['lecturer','student','admin'] }
     },
     {
       path: '/profile',
