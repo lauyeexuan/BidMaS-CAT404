@@ -5,90 +5,212 @@
       <!-- Submissions Section -->
       <div class="bg-white p-5 rounded-lg shadow-md">
         <h2 class="text-2xl font-semibold mb-4">
-          Submissions
-          <span v-if="selectedMajor || selectedMilestoneFilter" class="text-lg font-normal text-gray-600">
-            {{ getFilterDescription }}
-          </span>
+          <template v-if="!showFeedbackView">
+            Submissions
+            <span v-if="selectedMajor || selectedMilestoneFilter" class="text-lg font-normal text-gray-600">
+              {{ getFilterDescription }}
+            </span>
+          </template>
+          <template v-else>
+            <button 
+              @click="returnToSubmissions"
+              class="flex items-center text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back to Submissions
+            </button>
+          </template>
         </h2>
 
-        <!-- Initial Loading State -->
-        <div v-if="submissionsLoading && !submissions.length" class="py-4">
-          <div class="animate-pulse space-y-4">
-            <div class="h-24 bg-gray-200 rounded"></div>
-            <div class="h-24 bg-gray-200 rounded"></div>
-            <div class="h-24 bg-gray-200 rounded"></div>
-          </div>
-        </div>
-
-        <!-- Error State -->
-        <div v-else-if="submissionsError" class="text-red-500 py-4 text-center">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p>{{ submissionsError }}</p>
-        </div>
-
-        <!-- Empty State -->
-        <div v-else-if="!submissions.length" class="text-center py-8">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <p class="text-gray-500">No submissions found</p>
-          <p class="text-sm text-gray-400">
-            {{ selectedMajor || selectedMilestoneFilter ? 'Try adjusting your filters' : 'Waiting for student submissions' }}
-          </p>
-        </div>
-
-        <!-- Submission Cards with Virtual Scrolling -->
-        <div v-else class="relative" style="height: calc(100vh - 250px)" ref="containerRef" v-bind="containerProps">
-          <div v-bind="wrapperProps" class="grid grid-cols-2 gap-4">
-            <div
-              v-for="item in list"
-              :key="item.data.id"
-              class="border rounded-lg p-4 hover:shadow-md transition-shadow duration-200"
+        <!-- Feedback View -->
+        <div v-if="showFeedbackView" class="space-y-6">
+          <!-- Submission Info -->
+          <div class="bg-gray-50 p-4 rounded-lg">
+            <div class="flex items-center gap-2 mb-2">
+              <h3 class="font-medium text-gray-900">{{ selectedSubmission.fileName }}</h3>
+              <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
+                {{ selectedSubmission.major }}
+              </span>
+            </div>
+            <p class="text-sm text-gray-500">
+              Submitted by {{ selectedSubmission.studentName }}
+            </p>
+            <div class="flex items-center gap-4 mt-2 text-xs text-gray-500">
+              <p class="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                {{ selectedSubmission.projectTitle }}
+              </p>
+              <p class="flex items-center" v-if="selectedSubmission.submittedAt">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {{ formatDate(selectedSubmission.submittedAt.toDate()) }}
+              </p>
+            </div>
+            <a 
+              :href="selectedSubmission.downloadUrl"
+              target="_blank"
+              class="mt-4 inline-flex items-center px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm hover:bg-blue-100 transition-colors"
             >
-              <div class="flex flex-col">
-                <div class="flex items-center gap-2 mb-2">
-                  <h3 class="font-medium text-gray-900">{{ item.data.fileName }}</h3>
-                  <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
-                    {{ item.data.major }}
-                  </span>
-                </div>
-                <p class="text-sm text-gray-500">
-                  Submitted by {{ item.data.studentName }}
-                </p>
-                <div class="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                  <p class="flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Download Submission
+            </a>
+          </div>
+
+          <!-- Feedback Form -->
+          <form @submit.prevent="saveFeedback" class="space-y-6">
+            <!-- Rating -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Rating</label>
+              <div class="flex items-center gap-2">
+                <template v-for="i in 5" :key="i">
+                  <button
+                    type="button"
+                    @click="feedbackData.rating = i"
+                    class="focus:outline-none"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-8 w-8"
+                      :class="i <= feedbackData.rating ? 'text-yellow-400' : 'text-gray-300'"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                     </svg>
-                    {{ item.data.projectTitle }}
-                  </p>
-                  <p class="flex items-center" v-if="item.data.submittedAt">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {{ item.data.submittedAt?.toDate?.() ? formatDate(item.data.submittedAt.toDate()) : 'Date not available' }}
-                  </p>
-                </div>
+                  </button>
+                </template>
               </div>
+            </div>
+
+            <!-- Comment -->
+            <div>
+              <label for="comment" class="block text-sm font-medium text-gray-700 mb-2">Comment</label>
+              <textarea
+                id="comment"
+                v-model="feedbackData.comment"
+                rows="4"
+                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                placeholder="Enter your feedback comment..."
+              ></textarea>
+            </div>
+
+            <!-- Advice -->
+            <div>
+              <label for="advice" class="block text-sm font-medium text-gray-700 mb-2">Advice for Improvement</label>
+              <textarea
+                id="advice"
+                v-model="feedbackData.advice"
+                rows="4"
+                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                placeholder="Enter your advice for improvement..."
+              ></textarea>
+            </div>
+
+            <!-- Error Message -->
+            <p v-if="feedbackError" class="text-red-600 text-sm">{{ feedbackError }}</p>
+
+            <!-- Submit Button -->
+            <div class="flex justify-end">
+              <button
+                type="submit"
+                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+                :disabled="feedbackLoading"
+              >
+                {{ feedbackLoading ? 'Saving...' : 'Save Feedback' }}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Submissions List (Original Content) -->
+        <template v-else>
+          <!-- Initial Loading State -->
+          <div v-if="submissionsLoading && !submissions.length" class="py-4">
+            <div class="animate-pulse space-y-4">
+              <div class="h-24 bg-gray-200 rounded"></div>
+              <div class="h-24 bg-gray-200 rounded"></div>
+              <div class="h-24 bg-gray-200 rounded"></div>
             </div>
           </div>
 
-          <!-- Background Loading Indicator -->
-          <div 
-            v-if="isBackgroundLoading"
-            class="absolute bottom-0 left-0 right-0 p-2 bg-gray-50 text-center text-sm text-gray-600"
-          >
-            Loading more submissions...
+          <!-- Error State -->
+          <div v-else-if="submissionsError" class="text-red-500 py-4 text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p>{{ submissionsError }}</p>
           </div>
 
-          <!-- Intersection Observer Target -->
-          <div 
-            ref="submissionsContainer"
-            class="h-4"
-          ></div>
-        </div>
+          <!-- Empty State -->
+          <div v-else-if="!submissions.length" class="text-center py-8">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <p class="text-gray-500">No submissions found</p>
+            <p class="text-sm text-gray-400">
+              {{ selectedMajor || selectedMilestoneFilter ? 'Try adjusting your filters' : 'Waiting for student submissions' }}
+            </p>
+          </div>
+
+          <!-- Submission Cards with Virtual Scrolling -->
+          <div v-else class="relative" style="height: calc(100vh - 250px)" ref="containerRef" v-bind="containerProps">
+            <div v-bind="wrapperProps" class="grid grid-cols-2 gap-4">
+              <div
+                v-for="item in list"
+                :key="item.data.id"
+                class="border rounded-lg p-4 hover:shadow-md transition-shadow duration-200 cursor-pointer"
+                @click="handleSubmissionClick(item.data)"
+              >
+                <div class="flex flex-col">
+                  <div class="flex items-center gap-2 mb-2">
+                    <h3 class="font-medium text-gray-900">{{ item.data.fileName }}</h3>
+                    <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
+                      {{ item.data.major }}
+                    </span>
+                  </div>
+                  <p class="text-sm text-gray-500">
+                    Submitted by {{ item.data.studentName }}
+                  </p>
+                  <div class="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                    <p class="flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                      {{ item.data.projectTitle }}
+                    </p>
+                    <p class="flex items-center" v-if="item.data.submittedAt">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {{ item.data.submittedAt?.toDate?.() ? formatDate(item.data.submittedAt.toDate()) : 'Date not available' }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Background Loading Indicator -->
+            <div 
+              v-if="isBackgroundLoading"
+              class="absolute bottom-0 left-0 right-0 p-2 bg-gray-50 text-center text-sm text-gray-600"
+            >
+              Loading more submissions...
+            </div>
+
+            <!-- Intersection Observer Target -->
+            <div 
+              ref="submissionsContainer"
+              class="h-4"
+            ></div>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -236,7 +358,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { getMilestoneData } from '@/utils/milestones'
 import { useUserStore } from '@/stores/userStore'
 import { formatDate } from '@/utils/milestoneHelpers'
-import { collection, query, where, getDocs, getDoc, doc, limit, startAfter, orderBy } from 'firebase/firestore'
+import { collection, query, where, getDocs, getDoc, doc, limit, startAfter, orderBy, updateDoc, addDoc } from 'firebase/firestore'
 import { db } from '@/firebase'
 import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
 import { useVirtualList } from '@vueuse/core'
@@ -260,6 +382,17 @@ export default {
     const studentNameCache = ref({})
     const isBackgroundLoading = ref(false)
     const submissionsContainer = ref(null)
+
+    // New state variables for feedback
+    const showFeedbackView = ref(false)
+    const selectedSubmission = ref(null)
+    const feedbackLoading = ref(false)
+    const feedbackError = ref(null)
+    const feedbackData = ref({
+      comment: '',
+      rating: 0,
+      advice: ''
+    })
 
     // Virtual list setup
     const containerRef = ref(null)
@@ -507,6 +640,110 @@ export default {
       }
     }
 
+    // Add click handler for submission card
+    const handleSubmissionClick = (submission) => {
+      selectedSubmission.value = submission
+      showFeedbackView.value = true
+      loadExistingFeedback(submission)
+    }
+
+    // Function to load existing feedback
+    const loadExistingFeedback = async (submission) => {
+      if (!submission || !userStore.currentUser?.school) return
+
+      feedbackLoading.value = true
+      feedbackError.value = null
+
+      try {
+        const feedbackRef = collection(db, 'schools', userStore.currentUser.school, 'feedback')
+        const q = query(
+          feedbackRef,
+          where('submissionId', '==', submission.id),
+          where('lecturerId', '==', userStore.currentUser.uid),
+          limit(1)
+        )
+
+        const feedbackSnapshot = await getDocs(q)
+        
+        if (!feedbackSnapshot.empty) {
+          const feedbackDoc = feedbackSnapshot.docs[0]
+          const data = feedbackDoc.data()
+          feedbackData.value = {
+            comment: data.comment || '',
+            rating: data.rating || 0,
+            advice: data.advice || '',
+            id: feedbackDoc.id
+          }
+        } else {
+          // Reset form if no existing feedback
+          feedbackData.value = {
+            comment: '',
+            rating: 0,
+            advice: ''
+          }
+        }
+      } catch (error) {
+        console.error('Error loading feedback:', error)
+        feedbackError.value = 'Failed to load feedback'
+      } finally {
+        feedbackLoading.value = false
+      }
+    }
+
+    // Function to save feedback
+    const saveFeedback = async () => {
+      if (!selectedSubmission.value || !userStore.currentUser?.school) return
+
+      feedbackLoading.value = true
+      feedbackError.value = null
+
+      try {
+        const feedbackRef = collection(db, 'schools', userStore.currentUser.school, 'feedback')
+        const feedbackPayload = {
+          submissionId: selectedSubmission.value.id,
+          lecturerId: userStore.currentUser.uid,
+          studentId: selectedSubmission.value.submittedBy,
+          yearId: selectedSubmission.value.yearId,
+          majorId: selectedSubmission.value.majorId,
+          milestoneDescription: selectedSubmission.value.milestoneDescription,
+          projectId: selectedSubmission.value.projectId,
+          comment: feedbackData.value.comment,
+          rating: feedbackData.value.rating,
+          advice: feedbackData.value.advice,
+          updatedAt: new Date()
+        }
+
+        if (feedbackData.value.id) {
+          // Update existing feedback
+          await updateDoc(doc(feedbackRef, feedbackData.value.id), feedbackPayload)
+        } else {
+          // Create new feedback
+          feedbackPayload.createdAt = new Date()
+          await addDoc(feedbackRef, feedbackPayload)
+        }
+
+        // Return to submissions view
+        showFeedbackView.value = false
+        selectedSubmission.value = null
+      } catch (error) {
+        console.error('Error saving feedback:', error)
+        feedbackError.value = 'Failed to save feedback'
+      } finally {
+        feedbackLoading.value = false
+      }
+    }
+
+    // Function to return to submissions view
+    const returnToSubmissions = () => {
+      showFeedbackView.value = false
+      selectedSubmission.value = null
+      feedbackData.value = {
+        comment: '',
+        rating: 0,
+        advice: ''
+      }
+    }
+
     onMounted(() => {
       if (userStore.currentUser?.major) {
         const majors = userStore.currentUser.major
@@ -567,7 +804,16 @@ export default {
       containerRef,
       containerProps,
       wrapperProps,
-      list
+      list,
+      // Add new return values
+      showFeedbackView,
+      selectedSubmission,
+      feedbackLoading,
+      feedbackError,
+      feedbackData,
+      handleSubmissionClick,
+      saveFeedback,
+      returnToSubmissions
     }
   }
 }
