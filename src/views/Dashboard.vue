@@ -365,7 +365,6 @@ import '@/assets/styles/dashboard.css'
 export default {
   setup() {
     const userStore = useUserStore()
-    const milestoneStore = useMilestoneStore()
     const upcomingMilestone = ref(null)
     const allMilestones = ref([])
     const loading = ref(true)
@@ -990,6 +989,12 @@ export default {
           loading.value = false
           projectLoading.value = false
         })
+      }
+    })
+
+    onBeforeUnmount(() => {
+      if (unsubscribeSubmissions.value) {
+        unsubscribeSubmissions.value()
       }
     })
 
