@@ -10,6 +10,7 @@ import Profile from '@/views/Profile.vue'
 import FeedbackWrapper from '@/views/FeedbackWrapper.vue'
 import StudentFeedback from '@/views/StudentFeedback.vue'
 import LecturerFeedback from '@/views/LecturerFeedback.vue'
+import DataMigration from '@/components/DataMigration.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -92,6 +93,15 @@ const router = createRouter({
           meta: { requiresAuth: true, roles: ['lecturer'] }
         }
       ]
+    },
+    {
+      path: '/data-migration',
+      name: 'data-migration',
+      component: DataMigration,
+      meta: { 
+        requiresAuth: true,
+        requiresAdmin: true  // Restrict to admin only for safety
+      }
     },
     // {
     //   path: '/:pathMatch(.*)*',

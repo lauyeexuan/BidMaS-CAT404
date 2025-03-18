@@ -10,8 +10,85 @@
             {{ getFilterDescription }}
           </span>
         </h2>
-        <!-- Submission content will go here -->
-        <p class="text-gray-500">Submission content coming soon...</p>
+
+        <!-- Initial Loading State -->
+        <div v-if="submissionsLoading && !submissions.length" class="py-4">
+          <div class="animate-pulse space-y-4">
+            <div class="h-24 bg-gray-200 rounded"></div>
+            <div class="h-24 bg-gray-200 rounded"></div>
+            <div class="h-24 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+
+        <!-- Error State -->
+        <div v-else-if="submissionsError" class="text-red-500 py-4 text-center">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p>{{ submissionsError }}</p>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else-if="!submissions.length" class="text-center py-8">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <p class="text-gray-500">No submissions found</p>
+          <p class="text-sm text-gray-400">
+            {{ selectedMajor || selectedMilestoneFilter ? 'Try adjusting your filters' : 'Waiting for student submissions' }}
+          </p>
+        </div>
+
+        <!-- Submission Cards with Virtual Scrolling -->
+        <div v-else class="relative" style="height: calc(100vh - 250px)" ref="containerRef" v-bind="containerProps">
+          <div v-bind="wrapperProps" class="grid grid-cols-2 gap-4">
+            <div
+              v-for="item in list"
+              :key="item.data.id"
+              class="border rounded-lg p-4 hover:shadow-md transition-shadow duration-200"
+            >
+              <div class="flex flex-col">
+                <div class="flex items-center gap-2 mb-2">
+                  <h3 class="font-medium text-gray-900">{{ item.data.fileName }}</h3>
+                  <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
+                    {{ item.data.major }}
+                  </span>
+                </div>
+                <p class="text-sm text-gray-500">
+                  Submitted by {{ item.data.studentName }}
+                </p>
+                <div class="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                  <p class="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    {{ item.data.projectTitle }}
+                  </p>
+                  <p class="flex items-center" v-if="item.data.submittedAt">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {{ item.data.submittedAt?.toDate?.() ? formatDate(item.data.submittedAt.toDate()) : 'Date not available' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Background Loading Indicator -->
+          <div 
+            v-if="isBackgroundLoading"
+            class="absolute bottom-0 left-0 right-0 p-2 bg-gray-50 text-center text-sm text-gray-600"
+          >
+            Loading more submissions...
+          </div>
+
+          <!-- Intersection Observer Target -->
+          <div 
+            ref="submissionsContainer"
+            class="h-4"
+          ></div>
+        </div>
       </div>
     </div>
 
@@ -21,36 +98,36 @@
       <div class="bg-white p-4 rounded-lg shadow-md mb-4">
         <div class="flex justify-between items-center mb-3">
           <h2 class="text-sm font-medium text-gray-500">Current Milestone</h2>
-          <!-- Major Selection Tabs -->
-          <div class="flex space-x-2">
-            <button
-              v-for="major in userStore.currentUser?.major || []"
-              :key="major"
+        <!-- Major Selection Tabs -->
+        <div class="flex space-x-2">
+          <button
+            v-for="major in userStore.currentUser?.major || []"
+            :key="major"
               @click="currentDisplayMajor = major"
               class="px-2 py-1 text-xs rounded-full transition-colors"
               :class="currentDisplayMajor === major ? 
-                'bg-blue-100 text-blue-800 font-medium' : 
-                'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-            >
-              {{ major }}
-            </button>
-          </div>
+              'bg-blue-100 text-blue-800 font-medium' : 
+              'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+          >
+            {{ major }}
+          </button>
         </div>
+      </div>
+      
+      <div v-if="currentMilestoneData" class="relative">
+        <!-- Decorative element -->
+        <div class="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-full"></div>
         
-        <div v-if="currentMilestoneData" class="relative">
-          <!-- Decorative element -->
-          <div class="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-full"></div>
-          
-          <div class="pl-4">
-            <h3 class="text-lg font-semibold text-green-800 mb-1">
-              {{ currentMilestoneData.upcomingMilestone.description }}
-            </h3>
+        <div class="pl-4">
+          <h3 class="text-lg font-semibold text-green-800 mb-1">
+            {{ currentMilestoneData.upcomingMilestone.description }}
+          </h3>
             <div class="flex items-center text-gray-500 text-sm">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span>{{ formatDate(currentMilestoneData.upcomingMilestone.deadline) }}</span>
-            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span>{{ formatDate(currentMilestoneData.upcomingMilestone.deadline) }}</span>
+          </div>
           </div>
         </div>
         
@@ -58,7 +135,7 @@
           <p class="text-gray-500 text-sm">No milestone data available</p>
         </div>
       </div>
-
+      
       <!-- Submission Filters (Expandable) -->
       <div class="bg-white rounded-lg shadow-md">
         <div 
@@ -159,6 +236,11 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { getMilestoneData } from '@/utils/milestones'
 import { useUserStore } from '@/stores/userStore'
 import { formatDate } from '@/utils/milestoneHelpers'
+import { collection, query, where, getDocs, getDoc, doc, limit, startAfter, orderBy } from 'firebase/firestore'
+import { db } from '@/firebase'
+import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
+import { useVirtualList } from '@vueuse/core'
+import { debounce } from 'lodash'
 
 export default {
   name: 'LecturerFeedback',
@@ -169,6 +251,73 @@ export default {
     const milestoneDataMap = ref({})
     const showFilters = ref(false)
     const currentDisplayMajor = ref(null)
+    const submissions = ref([])
+    const submissionsLoading = ref(false)
+    const submissionsError = ref(null)
+    const pageSize = ref(10)
+    const lastDoc = ref(null)
+    const hasMore = ref(true)
+    const studentNameCache = ref({})
+    const isBackgroundLoading = ref(false)
+    const submissionsContainer = ref(null)
+
+    // Virtual list setup
+    const containerRef = ref(null)
+    const { list, containerProps, wrapperProps } = useVirtualList(submissions, {
+      itemHeight: 100,
+      overscan: 10,
+    })
+
+    // Define the submission card component
+    const submissionCard = {
+      props: {
+        source: {
+          type: Object,
+          required: true
+        }
+      },
+      template: `
+        <div class="border rounded-lg p-4 hover:shadow-md transition-shadow duration-200 mx-2">
+          <div class="flex justify-between items-start">
+            <div class="flex-grow">
+              <div class="flex items-center gap-2">
+                <h3 class="font-medium text-gray-900">{{ source.fileName }}</h3>
+                <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
+                  {{ source.major }}
+                </span>
+              </div>
+              <p class="text-sm text-gray-500 mt-1">
+                Submitted by {{ source.studentName }}
+              </p>
+              <div class="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                <p class="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  {{ source.projectTitle }}
+                </p>
+                <p class="flex items-center" v-if="source.submittedAt">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {{ source.submittedAt?.toDate?.() ? formatDate(source.submittedAt.toDate()) : 'Date not available' }}
+                </p>
+              </div>
+            </div>
+            <a 
+              :href="source.downloadUrl"
+              target="_blank"
+              class="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm hover:bg-blue-100 transition-colors flex items-center gap-1"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Download
+            </a>
+          </div>
+        </div>
+      `
+    }
 
     // Computed property for current milestone data
     const currentMilestoneData = computed(() => {
@@ -190,16 +339,163 @@ export default {
       return parts.length ? parts.join(' ') : '';
     })
 
-    // Modified function to handle major selection
+    // Function to handle major selection
     const handleMajorSelect = (major) => {
       selectedMajor.value = major;
-      // Always clear milestone filter when major changes or is cleared
       selectedMilestoneFilter.value = null;
+      fetchSubmissions(); // Fetch submissions when major changes
     }
 
     // Function to toggle filters visibility
     const toggleFilters = () => {
       showFilters.value = !showFilters.value;
+    }
+
+    // Debounced fetch function
+    const debouncedFetch = debounce(() => {
+      fetchSubmissions()
+    }, 300)
+
+    // Get student name with caching
+    const getStudentName = async (schoolId, studentId) => {
+      if (studentNameCache.value[studentId]) {
+        return studentNameCache.value[studentId]
+      }
+
+      try {
+        const studentRef = doc(db, 'schools', schoolId, 'users', studentId)
+        const studentDoc = await getDoc(studentRef)
+        const studentData = studentDoc.data()
+        const name = studentData?.name || 'Unknown Student'
+        studentNameCache.value[studentId] = name
+        return name
+      } catch (err) {
+        console.error('Error fetching student name:', err)
+        return 'Unknown Student'
+      }
+    }
+
+    // Modified fetchSubmissions with composite queries
+    const fetchSubmissions = async (loadMore = false) => {
+      if (!loadMore) {
+        submissions.value = []
+        lastDoc.value = null
+        hasMore.value = true
+      }
+      
+      if (!hasMore.value && loadMore) return
+
+      submissionsLoading.value = true
+      submissionsError.value = null
+
+      try {
+        if (!userStore.currentUser?.school || !userStore.currentUser?.uid) {
+          throw new Error('User information not available')
+        }
+
+        const schoolId = userStore.currentUser.school
+        const userId = userStore.currentUser.uid
+        
+        const academicYearData = await getLatestAcademicYear(schoolId)
+        if (!academicYearData?.yearId) {
+          throw new Error('Failed to determine academic year')
+        }
+        const yearId = academicYearData.yearId
+
+        const majorsToFetch = selectedMajor.value ? [selectedMajor.value] : userStore.currentUser.major || []
+        const newSubmissions = []
+
+        // Create a batch to get all submissions at once
+        const submissionPromises = majorsToFetch.map(async (majorId) => {
+          const submissionsRef = collection(
+            db, 
+            'schools', schoolId,
+            'submissions' // New collection to store all submissions
+          )
+
+          let submissionQuery = query(
+            submissionsRef,
+            where('yearId', '==', yearId),
+            where('majorId', '==', majorId),
+            where('lecturerId', '==', userId),
+            orderBy('submittedAt', 'desc'),
+            limit(pageSize.value)
+          )
+
+          if (loadMore && lastDoc.value) {
+            submissionQuery = query(submissionQuery, startAfter(lastDoc.value))
+          }
+
+          if (selectedMilestoneFilter.value) {
+            submissionQuery = query(
+              submissionQuery,
+              where('milestoneDescription', '==', selectedMilestoneFilter.value.description)
+            )
+          }
+
+          const submissionsSnapshot = await getDocs(submissionQuery)
+          
+          if (submissionsSnapshot.empty) {
+            hasMore.value = false
+            return []
+          }
+
+          lastDoc.value = submissionsSnapshot.docs[submissionsSnapshot.docs.length - 1]
+
+          // Process submissions in parallel
+          const processedSubmissions = await Promise.all(
+            submissionsSnapshot.docs.map(async (doc) => {
+              const submissionData = doc.data()
+              const studentName = await getStudentName(schoolId, submissionData.submittedBy)
+              
+              return {
+                id: doc.id,
+                projectId: submissionData.projectId,
+                projectTitle: submissionData.projectTitle,
+                major: majorId,
+                studentName,
+                ...submissionData
+              }
+            })
+          )
+
+          return processedSubmissions
+        })
+
+        const submissionResults = await Promise.all(submissionPromises)
+        newSubmissions.push(...submissionResults.flat())
+
+        // Sort and update submissions
+        const sortedSubmissions = newSubmissions.sort((a, b) => {
+          const dateA = a.submittedAt?.toDate?.() || new Date(0)
+          const dateB = b.submittedAt?.toDate?.() || new Date(0)
+          return dateB - dateA
+        })
+
+        if (loadMore) {
+          submissions.value = [...submissions.value, ...sortedSubmissions]
+        } else {
+          submissions.value = sortedSubmissions
+        }
+
+      } catch (error) {
+        console.error('Error fetching submissions:', error)
+        submissionsError.value = 'Failed to load submissions'
+      } finally {
+        submissionsLoading.value = false
+      }
+    }
+
+    // Background loading function
+    const preloadNextPage = async () => {
+      if (isBackgroundLoading.value || !hasMore.value) return
+      
+      isBackgroundLoading.value = true
+      try {
+        await fetchSubmissions(true)
+      } finally {
+        isBackgroundLoading.value = false
+      }
     }
 
     // Function to load milestone data for a specific major
@@ -222,7 +518,31 @@ export default {
         majors.forEach(majorId => {
           loadMilestoneData(majorId)
         })
+        // Initial submissions fetch
+        fetchSubmissions()
       }
+
+      // Add intersection observer for infinite scroll
+      const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          preloadNextPage()
+        }
+      }, { threshold: 0.5 })
+
+      if (submissionsContainer.value) {
+        observer.observe(submissionsContainer.value)
+      }
+
+      return () => {
+        if (submissionsContainer.value) {
+          observer.unobserve(submissionsContainer.value)
+        }
+      }
+    })
+
+    // Modified watchers
+    watch([selectedMajor, selectedMilestoneFilter], () => {
+      debouncedFetch()
     })
     
     return {
@@ -236,7 +556,18 @@ export default {
       handleMajorSelect,
       toggleFilters,
       formatDate,
-      currentDisplayMajor
+      currentDisplayMajor,
+      submissions,
+      submissionsLoading,
+      submissionsError,
+      submissionsContainer,
+      hasMore,
+      isBackgroundLoading,
+      submissionCard,
+      containerRef,
+      containerProps,
+      wrapperProps,
+      list
     }
   }
 }
@@ -246,5 +577,28 @@ export default {
 .lecturer-feedback {
   padding: 20px;
   display: flex;
+}
+
+[data-virtual-list] {
+  height: 100%;
+  overflow-y: auto;
+}
+
+[data-virtual-list]::-webkit-scrollbar {
+  width: 8px;
+}
+
+[data-virtual-list]::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+[data-virtual-list]::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+[data-virtual-list]::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
 </style> 

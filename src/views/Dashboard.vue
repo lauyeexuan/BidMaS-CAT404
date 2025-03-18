@@ -875,11 +875,35 @@ export default {
           throw new Error('Project document not found')
         }
 
-        // Create the submissions collection reference
+        // Get project data for lecturer ID and project title
+        const projectData = projectDoc.data()
+
+        // Create the submissions collection reference (original location)
         const submissionsRef = collection(projectRef, 'submissions')
 
-        // Add the submission document
+        // Add the submission document to the original location
         const submissionRef = await addDoc(submissionsRef, submissionData)
+
+        // ALSO save to the new flattened structure for optimized queries
+        const flattenedSubmissionData = {
+          ...submissionData,
+          yearId: assignedProject.value.year,
+          majorId: assignedProject.value.major,
+          lecturerId: projectData.userId || '',  // Lecturer ID from project
+          projectId: assignedProject.value.id,
+          projectTitle: projectData.Title || 'Untitled Project',
+          migratedAt: new Date()
+        }
+        
+        // Add to the new submissions collection
+        const flattenedSubmissionsRef = collection(
+          db,
+          'schools',
+          userStore.currentUser.school,
+          'submissions'
+        )
+        
+        await addDoc(flattenedSubmissionsRef, flattenedSubmissionData)
 
         // Reset form and fetch updated submissions
         selectedFile.value = null
