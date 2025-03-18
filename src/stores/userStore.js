@@ -124,15 +124,22 @@ export const useUserStore = defineStore('user', () => {
   // Logout
   const logout = async () => {
     try {
-      loading.value = true
-      error.value = null
+      // Store the user ID before clearing currentUser
+      const userId = currentUser.value?.uid
+      
+      // Existing logout code
       await signOut(auth)
       currentUser.value = null
-    } catch (err) {
-      error.value = err.message
-      throw err
-    } finally {
-      loading.value = false
+      isAuthenticated.value = false
+      
+      // Clear milestone data using stored userId
+      if (userId) {
+        const userKey = `${userId}_milestones`
+        localStorage.removeItem(userKey)
+      }
+      
+    } catch (error) {
+      console.error('Error during logout:', error)
     }
   }
 
