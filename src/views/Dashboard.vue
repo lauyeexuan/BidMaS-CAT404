@@ -559,8 +559,24 @@ export default {
             upcomingMilestone.value = sortedMilestones[sortedMilestones.length - 1]
           }
           
-          // Store milestone data in the milestone store
-          milestoneStore.setMilestoneData(upcomingMilestone.value, allMilestones.value)
+          // Store milestone data in the local storage
+          const storeMilestoneData = () => {
+            try {
+              // Store data with user-specific key
+              const userKey = `${userStore.currentUser.uid}_milestones`
+              localStorage.setItem(userKey, JSON.stringify({
+                upcomingMilestone: upcomingMilestone.value,
+                allMilestones: allMilestones.value,
+                lastUpdated: new Date().getTime()
+              }))
+            } catch (err) {
+              console.error('Error storing milestone data:', err)
+            }
+          }
+
+          if (upcomingMilestone.value) {
+            storeMilestoneData()
+          }
         }
       } catch (err) {
         error.value = `Failed to load milestone data: ${err.message}`

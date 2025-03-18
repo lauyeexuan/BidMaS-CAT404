@@ -3,7 +3,7 @@
     <h1 class="text-2xl font-bold mb-6">Student Feedback</h1>
     
     <!-- Upcoming Milestone Section -->
-    <div v-if="milestoneStore.upcomingMilestone" class="bg-white p-5 rounded-lg shadow-md mb-6">
+    <div v-if="milestoneData && milestoneData.upcomingMilestone" class="bg-white p-5 rounded-lg shadow-md mb-6">
       <h2 class="text-lg font-semibold mb-4">Current Milestone</h2>
       
       <div class="relative">
@@ -11,12 +11,12 @@
         <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-full"></div>
         
         <div class="pl-4">
-          <h3 class="text-lg font-semibold text-blue-800 mb-1">{{ milestoneStore.upcomingMilestone.description }}</h3>
+          <h3 class="text-lg font-semibold text-blue-800 mb-1">{{ milestoneData.upcomingMilestone.description }}</h3>
           <div class="flex items-center text-gray-500">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            <span>{{ milestoneStore.formatDate(milestoneStore.upcomingMilestone.deadline) }}</span>
+            <span>Due: {{ formatDate(milestoneData.upcomingMilestone.deadline) }}</span>
           </div>
           
           <!-- Days remaining indicator -->
@@ -24,11 +24,11 @@
             <div class="w-full bg-gray-200 rounded-full h-2">
               <div 
                 class="bg-blue-600 h-2 rounded-full" 
-                :style="`width: ${getDaysRemainingPercentage(milestoneStore.upcomingMilestone)}%`"
+                :style="`width: ${getDaysRemainingPercentage(milestoneData.upcomingMilestone)}%`"
               ></div>
             </div>
-            <span class="ml-2 text-xs font-medium" :class="milestoneStore.getDaysRemainingClass(milestoneStore.upcomingMilestone)">
-              {{ milestoneStore.getDaysRemainingText(milestoneStore.upcomingMilestone) }}
+            <span class="ml-2 text-xs font-medium" :class="getDaysRemainingClass(milestoneData.upcomingMilestone)">
+              {{ getDaysRemainingText(milestoneData.upcomingMilestone) }}
             </span>
           </div>
         </div>
@@ -42,33 +42,38 @@
 </template>
 
 <script>
-import { useMilestoneStore } from '@/stores/milestoneStore'
-import { computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useUserStore } from '@/stores/userStore'
+import { getMilestoneData } from '@/utils/milestones'
+import { 
+  formatDate,
+  getDaysRemaining,
+  getDaysRemainingText,
+  getDaysRemainingClass,
+  getDaysRemainingPercentage
+} from '@/utils/milestoneHelpers'
 
 export default {
   name: 'StudentFeedback',
   setup() {
-    const milestoneStore = useMilestoneStore()
-    
-    // Function to get percentage for progress bar
-    const getDaysRemainingPercentage = (milestone) => {
-      const daysRemaining = milestoneStore.getDaysRemaining(milestone)
-      
-      // If less than 30 days remaining, show percentage based on days left
-      // 30 days = 100%, 0 days = 0%
-      if (daysRemaining <= 30) {
-        return (daysRemaining / 30) * 100
-      }
-      
-      return 100 // If more than 30 days, show full bar
-    }
+    const userStore = useUserStore()
+    const milestoneData = ref(null)
     
     onMounted(() => {
-      console.log('StudentFeedback mounted, milestone data:', milestoneStore.upcomingMilestone)
+      if (userStore.currentUser) {
+        const data = getMilestoneData(userStore.currentUser.uid)
+        if (data) {
+          milestoneData.value = data
+        }
+      }
     })
-    
+
     return {
-      milestoneStore,
+      milestoneData,
+      formatDate,
+      getDaysRemaining,
+      getDaysRemainingText,
+      getDaysRemainingClass,
       getDaysRemainingPercentage
     }
   }

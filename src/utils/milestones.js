@@ -45,6 +45,70 @@ export const getMilestones = async (schoolId, year, majorId, majorDocId) => {
     }
   }
 
+  export const getMilestoneData = (userId) => {
+    try {
+      const userKey = `${userId}_milestones`
+      const storedData = localStorage.getItem(userKey)
+      
+      if (!storedData) return null
+      
+      const data = JSON.parse(storedData)
+      
+      // Check if data is stale (older than 1 hour)
+      const now = new Date().getTime()
+      const isStale = now - data.lastUpdated > 3600000 // 1 hour in milliseconds
+      
+      if (isStale) {
+        localStorage.removeItem(userKey)
+        return null
+      }
+      
+      // Convert date strings back to Date objects
+      if (data.upcomingMilestone?.deadline) {
+        // Check if deadline is a Firestore timestamp format
+        if (typeof data.upcomingMilestone.deadline === 'object' && data.upcomingMilestone.deadline.seconds) {
+          data.upcomingMilestone.deadline = new Date(data.upcomingMilestone.deadline.seconds * 1000)
+        } else {
+          // Try to parse as regular date string
+          const parsedDate = new Date(data.upcomingMilestone.deadline)
+          data.upcomingMilestone.deadline = isNaN(parsedDate.getTime()) ? null : parsedDate
+        }
+      }
+      
+      if (data.allMilestones) {
+        data.allMilestones = data.allMilestones.map(milestone => {
+          if (!milestone.deadline) return milestone
+          
+          let deadlineDate
+          // Check if deadline is a Firestore timestamp format
+          if (typeof milestone.deadline === 'object' && milestone.deadline.seconds) {
+            deadlineDate = new Date(milestone.deadline.seconds * 1000)
+          } else {
+            // Try to parse as regular date string
+            deadlineDate = new Date(milestone.deadline)
+            if (isNaN(deadlineDate.getTime())) {
+              deadlineDate = null
+            }
+          }
+          
+          return {
+            ...milestone,
+            deadline: deadlineDate
+          }
+        })
+      }
+      
+      // Log the converted dates for debugging
+      console.log('Converted upcoming milestone deadline:', data.upcomingMilestone?.deadline)
+      console.log('Converted all milestones:', data.allMilestones?.map(m => m.deadline))
+      
+      return data
+    } catch (err) {
+      console.error('Error retrieving milestone data:', err)
+      return null
+    }
+  }
+
 /**
  * Check if a specific milestone's deadline has passed
  * @param {string} schoolId - The school ID
