@@ -1,15 +1,41 @@
 <template>
   <div class="lecturer-feedback">
     <!-- Left Side Content (Main Content) -->
-    <div class="w-2/3 mr-6">
+    <div class="w-3/4 mr-6">
       <!-- Submissions Section -->
       <div class="bg-white p-5 rounded-lg shadow-md">
         <h2 class="text-2xl font-semibold mb-4">
           <template v-if="!showFeedbackView">
-            Submissions
-            <span v-if="selectedMajor || selectedMilestoneFilter" class="text-lg font-normal text-gray-600">
-              {{ getFilterDescription }}
-            </span>
+            <div class="flex justify-between items-center">
+              <div>
+                Submissions
+                <span v-if="selectedMajor || selectedMilestoneFilter" class="text-lg font-normal text-gray-600">
+                  {{ getFilterDescription }}
+                </span>
+              </div>
+              <div class="relative">
+                <input
+                  type="text"
+                  v-model="searchQuery"
+                  placeholder="Search for filename, student or project"
+                  class="w-96 px-4 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              </div>
+            </div>
           </template>
           <template v-else>
             <button 
@@ -161,46 +187,59 @@
 
           <!-- Submission Cards with Virtual Scrolling -->
           <div v-else class="relative" style="height: calc(100vh - 250px)" ref="containerRef" v-bind="containerProps">
-            <div v-bind="wrapperProps" class="grid grid-cols-2 gap-4">
+            <div v-bind="wrapperProps" class="grid grid-cols-2 gap-3">
               <div
                 v-for="item in list"
                 :key="item.data.id"
-                class="border rounded-lg p-4 hover:shadow-md transition-shadow duration-200 cursor-pointer"
+                class="border rounded-lg p-3 hover:shadow-md transition-shadow duration-200 cursor-pointer"
                 @click="handleSubmissionClick(item.data)"
               >
-                <div class="flex flex-col">
-                  <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center gap-2">
-                      <h3 class="font-medium text-gray-900">{{ item.data.fileName }}</h3>
-                      <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
-                        {{ item.data.major }}
-                      </span>
+                <div class="flex flex-col space-y-2">
+                  <!-- Top row: Filename, Major, and Review Status -->
+                  <div class="flex items-start justify-between">
+                    <div class="flex flex-col gap-1.5 max-w-[70%]">
+                      <div class="flex items-center gap-2">
+                        <h3 class="font-medium text-gray-900 leading-tight line-clamp-2">{{ item.data.fileName }}</h3>
+                        <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full flex-shrink-0">
+                          {{ item.data.major }}
+                        </span>
+                      </div>
+                      <span class="text-sm bg-blue-50 text-blue-700 px-2 py-0.5 rounded w-fit">{{ item.data.studentName }}</span>
                     </div>
                     <span 
-                      class="text-xs px-2 py-0.5 rounded-full"
+                      class="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
                       :class="item.data.hasBeenReviewed ? 
                         'bg-green-100 text-green-800' : 
                         'bg-yellow-100 text-yellow-800'"
                     >
-                      {{ item.data.hasBeenReviewed ? 'Reviewed' : 'Pending Review' }}
+                      {{ item.data.hasBeenReviewed ? 'Reviewed' : 'Pending' }}
                     </span>
                   </div>
-                  <p class="text-sm text-gray-500">
-                    Submitted by {{ item.data.studentName }}
-                  </p>
-                  <div class="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                    <p class="flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+
+                  <!-- Bottom section: Project Title, Milestone, and Date -->
+                  <div class="flex flex-col gap-1.5">
+                    <div class="flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                       </svg>
-                      {{ item.data.projectTitle }}
-                    </p>
-                    <p class="flex items-center" v-if="item.data.submittedAt">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      {{ item.data.submittedAt?.toDate?.() ? formatDate(item.data.submittedAt.toDate()) : 'Date not available' }}
-                    </p>
+                      <p class="text-sm text-gray-700 font-medium truncate">{{ item.data.projectTitle }}</p>
+                    </div>
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                        </svg>
+                        <p class="text-xs text-gray-400 truncate">{{ item.data.milestoneDescription }}</p>
+                      </div>
+                      <div class="flex items-center gap-1" v-if="item.data.submittedAt">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p class="text-xs text-gray-400">
+                          {{ item.data.submittedAt?.toDate?.() ? formatDate(item.data.submittedAt.toDate()) : 'Date not available' }}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -225,7 +264,7 @@
     </div>
 
     <!-- Right Side (Milestone and Filters) -->
-    <div class="w-1/3">
+    <div class="w-1/4">
       <!-- Current Milestone Display -->
       <div class="bg-white p-4 rounded-lg shadow-md mb-4">
         <div class="flex justify-between items-center mb-3">
@@ -406,8 +445,24 @@ export default {
 
     // Virtual list setup
     const containerRef = ref(null)
-    const { list, containerProps, wrapperProps } = useVirtualList(submissions, {
-      itemHeight: 100,
+    // Add search functionality
+    const searchQuery = ref('')
+    
+    // Modified computed property for filtered submissions
+    const filteredSubmissions = computed(() => {
+      if (!searchQuery.value) return submissions.value
+      
+      const query = searchQuery.value.toLowerCase()
+      return submissions.value.filter(submission => {
+        return submission.fileName.toLowerCase().includes(query) ||
+               submission.studentName.toLowerCase().includes(query) ||
+               submission.projectTitle.toLowerCase().includes(query)
+      })
+    })
+
+    // Virtual list using filtered submissions
+    const { list, containerProps, wrapperProps } = useVirtualList(filteredSubmissions, {
+      itemHeight: 60,
       overscan: 10,
     })
 
@@ -841,7 +896,8 @@ export default {
       feedbackData,
       handleSubmissionClick,
       saveFeedback,
-      returnToSubmissions
+      returnToSubmissions,
+      searchQuery
     }
   }
 }
