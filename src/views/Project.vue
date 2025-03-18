@@ -128,6 +128,9 @@
                       Major
                     </th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Assigned To
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -149,6 +152,20 @@
                         ]"
                       >
                         {{ project.major }}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                      <span 
+                        v-if="project.assignedTo" 
+                        class="px-2.5 py-1 rounded-full text-xs font-medium shadow-sm bg-purple-100 text-purple-800"
+                      >
+                        {{ getUserName(project.assignedTo) }}
+                      </span>
+                      <span 
+                        v-else 
+                        class="px-2.5 py-1 rounded-full text-xs font-medium shadow-sm bg-gray-100 text-gray-600"
+                      >
+                        Not assigned
                       </span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
