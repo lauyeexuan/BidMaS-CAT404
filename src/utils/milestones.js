@@ -45,9 +45,13 @@ export const getMilestones = async (schoolId, year, majorId, majorDocId) => {
     }
   }
 
-  export const getMilestoneData = (userId) => {
+  export const getMilestoneData = (userId, majorId = null) => {
     try {
-      const userKey = `${userId}_milestones`
+      // If majorId is provided, use lecturer key pattern, otherwise use student pattern
+      const userKey = majorId ? 
+        `${userId}_${majorId}_milestones` : 
+        `${userId}_milestones`
+        
       const storedData = localStorage.getItem(userKey)
       
       if (!storedData) return null

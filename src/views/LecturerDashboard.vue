@@ -764,11 +764,15 @@
             milestonesPromises.push(
               getMilestones(school, yearId, majorId, majorDocId)
                 .then(milestones => {
-                  console.log(`Found ${milestones.length} milestones for major ${majorId}`);
-                  return milestones.map(milestone => ({
+                  const majorMilestones = milestones.map(milestone => ({
                     ...milestone,
-                    major: majorId // Add major information to each milestone
+                    major: majorId
                   }));
+                  
+                  // Store milestone data for this major in localStorage
+                  storeMilestoneData(majorId, majorMilestones);
+                  
+                  return majorMilestones;
                 })
                 .catch(err => {
                   console.error(`Error fetching milestones for major ${majorId}:`, err);
@@ -1142,6 +1146,39 @@
         submissionStatsCache.value = {};
       };
   
+      // Add this function in setup() to store milestone data
+      const storeMilestoneData = (majorId, majorMilestones) => {
+        try {
+          if (!userStore.currentUser?.uid) return;
+          
+          // Find upcoming milestone for this major
+          const now = new Date();
+          const sortedMilestones = [...majorMilestones].sort((a, b) => {
+            const dateA = a.deadline instanceof Date ? a.deadline : a.deadline.toDate();
+            const dateB = b.deadline instanceof Date ? b.deadline : b.deadline.toDate();
+            return dateA - dateB;
+          });
+          
+          const upcomingMilestone = sortedMilestones.find(milestone => {
+            const deadlineDate = milestone.deadline instanceof Date ? 
+              milestone.deadline : 
+              milestone.deadline.toDate();
+            return deadlineDate > now;
+          }) || sortedMilestones[sortedMilestones.length - 1];
+
+          // Create user and major specific key
+          const userMajorKey = `${userStore.currentUser.uid}_${majorId}_milestones`;
+          
+          localStorage.setItem(userMajorKey, JSON.stringify({
+            upcomingMilestone,
+            allMilestones: majorMilestones,
+            lastUpdated: new Date().getTime()
+          }));
+        } catch (err) {
+          console.error('Error storing milestone data:', err);
+        }
+      };
+  
       return {
         upcomingMilestone,
         allMilestones,
@@ -1168,7 +1205,8 @@
         selectedSubmissionMajor,
         currentMilestoneSubmissionStats,
         preloadAllSubmissionStats,
-        clearSubmissionStatsCache
+        clearSubmissionStatsCache,
+        storeMilestoneData
       }
     }
   }

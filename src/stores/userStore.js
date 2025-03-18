@@ -126,16 +126,24 @@ export const useUserStore = defineStore('user', () => {
     try {
       // Store the user ID before clearing currentUser
       const userId = currentUser.value?.uid
+      const userRole = currentUser.value?.role
+      const userMajors = currentUser.value?.major // This will be an array for lecturers
       
-      // Existing logout code
       await signOut(auth)
       currentUser.value = null
       isAuthenticated.value = false
       
-      // Clear milestone data using stored userId
+      // Clear milestone data
       if (userId) {
-        const userKey = `${userId}_milestones`
-        localStorage.removeItem(userKey)
+        // Clear student milestone data
+        localStorage.removeItem(`${userId}_milestones`)
+        
+        // Clear lecturer milestone data (for all majors)
+        if (userRole === 'lecturer' && Array.isArray(userMajors)) {
+          userMajors.forEach(majorId => {
+            localStorage.removeItem(`${userId}_${majorId}_milestones`)
+          })
+        }
       }
       
     } catch (error) {
