@@ -169,10 +169,20 @@
                 @click="handleSubmissionClick(item.data)"
               >
                 <div class="flex flex-col">
-                  <div class="flex items-center gap-2 mb-2">
-                    <h3 class="font-medium text-gray-900">{{ item.data.fileName }}</h3>
-                    <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
-                      {{ item.data.major }}
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                      <h3 class="font-medium text-gray-900">{{ item.data.fileName }}</h3>
+                      <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
+                        {{ item.data.major }}
+                      </span>
+                    </div>
+                    <span 
+                      class="text-xs px-2 py-0.5 rounded-full"
+                      :class="item.data.hasBeenReviewed ? 
+                        'bg-green-100 text-green-800' : 
+                        'bg-yellow-100 text-yellow-800'"
+                    >
+                      {{ item.data.hasBeenReviewed ? 'Reviewed' : 'Pending Review' }}
                     </span>
                   </div>
                   <p class="text-sm text-gray-500">
@@ -581,12 +591,24 @@ export default {
               const submissionData = doc.data()
               const studentName = await getStudentName(schoolId, submissionData.submittedBy)
               
+              // Check if feedback exists for this submission
+              const feedbackRef = collection(db, 'schools', schoolId, 'feedback')
+              const feedbackQuery = query(
+                feedbackRef,
+                where('submissionId', '==', doc.id),
+                where('lecturerId', '==', userId),
+                limit(1)
+              )
+              const feedbackSnapshot = await getDocs(feedbackQuery)
+              const hasBeenReviewed = !feedbackSnapshot.empty
+              
               return {
                 id: doc.id,
                 projectId: submissionData.projectId,
                 projectTitle: submissionData.projectTitle,
                 major: majorId,
                 studentName,
+                hasBeenReviewed,
                 ...submissionData
               }
             })
@@ -720,6 +742,12 @@ export default {
           // Create new feedback
           feedbackPayload.createdAt = new Date()
           await addDoc(feedbackRef, feedbackPayload)
+        }
+
+        // Update the submission's review status in the local state
+        const submissionIndex = submissions.value.findIndex(s => s.id === selectedSubmission.value.id)
+        if (submissionIndex !== -1) {
+          submissions.value[submissionIndex].hasBeenReviewed = true
         }
 
         // Return to submissions view
