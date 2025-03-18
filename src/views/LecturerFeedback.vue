@@ -307,6 +307,29 @@
         </div>
       </div>
       
+      <!-- Submission Statistics Card -->
+      <div class="bg-white p-4 rounded-lg shadow-md mb-4">
+        <h2 class="text-sm font-medium text-gray-500 mb-3">Current Milestone Submissions</h2>
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span class="text-gray-600">Total Submissions:</span>
+          </div>
+          <span class="text-lg font-semibold text-blue-600">{{ currentMilestoneSubmissionCount }}</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span class="text-gray-600">Reviewed:</span>
+          </div>
+          <span class="text-lg font-semibold text-green-600">{{ currentMilestoneReviewedCount }}</span>
+        </div>
+      </div>
+      
       <!-- Submission Filters (Expandable) -->
       <div class="bg-white rounded-lg shadow-md">
         <div 
@@ -827,6 +850,24 @@ export default {
       }
     }
 
+    // Add computed properties for submission counts
+    const currentMilestoneSubmissionCount = computed(() => {
+      if (!currentMilestoneData.value?.upcomingMilestone?.description) return 0;
+      return submissions.value.filter(submission => 
+        submission.milestoneDescription === currentMilestoneData.value.upcomingMilestone.description &&
+        (!selectedMajor.value || submission.major === selectedMajor.value)
+      ).length;
+    });
+
+    const currentMilestoneReviewedCount = computed(() => {
+      if (!currentMilestoneData.value?.upcomingMilestone?.description) return 0;
+      return submissions.value.filter(submission => 
+        submission.milestoneDescription === currentMilestoneData.value.upcomingMilestone.description &&
+        (!selectedMajor.value || submission.major === selectedMajor.value) &&
+        submission.hasBeenReviewed
+      ).length;
+    });
+
     onMounted(() => {
       if (userStore.currentUser?.major) {
         const majors = userStore.currentUser.major
@@ -897,7 +938,9 @@ export default {
       handleSubmissionClick,
       saveFeedback,
       returnToSubmissions,
-      searchQuery
+      searchQuery,
+      currentMilestoneSubmissionCount,
+      currentMilestoneReviewedCount
     }
   }
 }
