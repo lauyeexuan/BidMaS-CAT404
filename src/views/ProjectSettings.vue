@@ -781,62 +781,51 @@ const milestoneCount = ref(0)
 const fetchSettings = async () => {
   try {
     const schoolId = userStore.currentUser.school
-    console.log('Fetching settings for school:', schoolId)
     
     const projectsRef = collection(db, 'schools', schoolId, 'projects')
     const projectsSnapshot = await getDocs(query(projectsRef))
-    console.log('Found academic years:', projectsSnapshot.docs.map(doc => doc.id))
 
-    const settings = []
-    
-    // For each academic year document
-    for (const projectDoc of projectsSnapshot.docs) {
+    // Use Promise.all to fetch all academic years in parallel
+    const academicYearsPromises = projectsSnapshot.docs.map(async (projectDoc) => {
       const academicYear = projectDoc.id
-      console.log('\nProcessing academic year:', academicYear)
-      const majors = []
-
-      // Get the document data first
       const yearData = projectDoc.data()
-      console.log('Year data:', yearData)
-
-      // Get the list of majors from the document
       const majorNames = yearData.majors || []
-      console.log('Found majors:', majorNames)
       
-      // For each major name, try to get its quota
-      for (const majorName of majorNames) {
-        console.log('\nProcessing major:', majorName)
-        // Get the quota document from this major collection
+      // Use Promise.all to fetch all majors for this academic year in parallel
+      const majorsPromises = majorNames.map(async (majorName) => {
         const majorRef = collection(db, 'schools', schoolId, 'projects', academicYear, majorName)
         const quotaSnapshot = await getDocs(majorRef)
-        console.log('Quota documents found:', quotaSnapshot.docs.length)
         
         if (quotaSnapshot.docs.length > 0) {
           const quotaDoc = quotaSnapshot.docs[0]
           const quotaData = quotaDoc.data()
-          console.log('Quota value:', quotaData.quota)
           
-          majors.push({
+          return {
             name: majorName,
             quota: quotaData.quota,
             docId: quotaDoc.id,
             headers: quotaData.headers || null,
             milestones: quotaData.milestones || null
-          })
+          }
         }
-      }
-
-      console.log('All majors for year', academicYear, ':', majors)
-      settings.push({
+        return null
+      })
+      
+      // Wait for all majors to be fetched
+      const majors = (await Promise.all(majorsPromises)).filter(Boolean)
+      
+      return {
         academicYear,
         majors
-      })
-    }
-
-    console.log('\nFinal settings data:', settings)
+      }
+    })
+    
+    // Wait for all academic years to be fetched
+    const settings = await Promise.all(academicYearsPromises)
+    
     existingSettings.value = settings
   } catch (error) {
-    console.error('Error details:', error)
+    console.error('Error fetching project settings:', error)
     showToast('Failed to fetch project settings', 'error')
   } finally {
     loading.value = false
@@ -1005,18 +994,14 @@ const openHeadersModal = async (major, academicYear) => {
   currentMajor.value = { ...major, academicYear }
   
   try {
-    console.log('Opening modal for major:', major.name, 'academicYear:', academicYear)
     const majorRef = doc(db, 'schools', userStore.currentUser.school, 'projects', academicYear, major.name, major.docId || 'default')
     const majorDoc = await getDoc(majorRef)
-    console.log('Major doc exists:', majorDoc.exists(), 'data:', majorDoc.data())
     
     if (majorDoc.exists()) {
       const data = majorDoc.data()
       
       // Load headers if they exist
       if (data.headers) {
-        console.log('Loading headers from Firestore:', data.headers);
-        
         currentHeaders.value = Object.entries(data.headers).map(([name, config]) => ({
           name,
           type: config.type,
@@ -1043,7 +1028,6 @@ const openHeadersModal = async (major, academicYear) => {
         isEditMode.value = true
       } else {
         // Initialize with mandatory Title and Description headers
-        console.log('Initializing with mandatory headers');
         currentHeaders.value = [
           {
             name: 'Title',
@@ -1063,29 +1047,21 @@ const openHeadersModal = async (major, academicYear) => {
       
       // Load milestones if they exist
       if (data.milestones && Array.isArray(data.milestones)) {
-        console.log('Loading milestones from Firestore:', data.milestones);
-        
         currentMilestones.value = data.milestones.map(m => {
           // Handle different types of date objects that might come from Firestore
           let dateString = '';
           
           if (m.deadline) {
-            console.log(`Processing milestone "${m.description}" deadline:`, m.deadline);
-            
+            // Convert any Firestore timestamp to YYYY-MM-DD format
             if (m.deadline instanceof Date) {
-              // If it's a JavaScript Date object
-              console.log(`  It's a Date object: ${m.deadline}`);
               const year = m.deadline.getFullYear();
               const month = String(m.deadline.getMonth() + 1).padStart(2, '0');
               const day = String(m.deadline.getDate()).padStart(2, '0');
               dateString = `${year}-${month}-${day}`;
             } else if (m.deadline.seconds !== undefined) {
               // If it's a Firestore Timestamp
-              console.log(`  It's a Firestore Timestamp: seconds=${m.deadline.seconds}, nanoseconds=${m.deadline.nanoseconds}`);
-              // Create a date object from the timestamp
               const date = new Date(0); // Start with epoch
               date.setUTCSeconds(m.deadline.seconds);
-              console.log(`  Converted to Date: ${date.toISOString()}`);
               
               // Format as YYYY-MM-DD using UTC to avoid timezone issues
               const year = date.getUTCFullYear();
@@ -1093,12 +1069,8 @@ const openHeadersModal = async (major, academicYear) => {
               const day = String(date.getUTCDate()).padStart(2, '0');
               dateString = `${year}-${month}-${day}`;
             } else if (typeof m.deadline === 'string') {
-              // If it's already a string
-              console.log(`  It's a string: ${m.deadline}`);
               dateString = m.deadline;
             }
-            
-            console.log(`  Final date string: ${dateString}`);
           }
           
           return {
@@ -1120,7 +1092,6 @@ const openHeadersModal = async (major, academicYear) => {
         }
       } else {
         // Initialize with mandatory Project Bidding Done milestone
-        console.log('Initializing with mandatory Project Bidding Done milestone');
         currentMilestones.value = [{
           description: 'Project Bidding Done',
           deadline: '',
@@ -1148,7 +1119,6 @@ const openHeadersModal = async (major, academicYear) => {
       }
     } else {
       // For new/unconfigured majors, always start with headers tab
-      console.log('Initializing for new/unconfigured major');
       currentHeaders.value = [{
         name: 'Title',
         type: 'string',
@@ -1230,8 +1200,8 @@ const saveMilestones = async () => {
     if (applyToAllMajorsMap.value[currentMajor.value.academicYear]) {
       const currentSetting = existingSettings.value.find(s => s.academicYear === currentMajor.value.academicYear)
       if (currentSetting) {
-        // Save milestones to all majors
-        for (const major of currentSetting.majors) {
+        // Save milestones to all majors in parallel
+        const savePromises = currentSetting.majors.map(async (major) => {
           const majorRef = doc(
             db, 
             'schools', 
@@ -1247,11 +1217,14 @@ const saveMilestones = async () => {
           const existingData = majorDoc.exists() ? majorDoc.data() : { quota: major.quota || 0 }
 
           // Update with milestones
-          await setDoc(majorRef, { 
+          return setDoc(majorRef, { 
             ...existingData,
             milestones
           })
-        }
+        })
+        
+        // Wait for all save operations to complete
+        await Promise.all(savePromises)
         showToast('Project milestones saved to all majors successfully')
       }
     } else {
@@ -1281,6 +1254,7 @@ const saveMilestones = async () => {
     showHeadersModal.value = false
     await fetchSettings() // Refresh the data
   } catch (error) {
+    console.error('Error saving milestones:', error)
     showToast('Failed to save project milestones', 'error')
   }
 }
@@ -1301,8 +1275,8 @@ const saveHeaders = async () => {
     if (applyToAllMajorsMap.value[currentMajor.value.academicYear]) {
       const currentSetting = existingSettings.value.find(s => s.academicYear === currentMajor.value.academicYear)
       if (currentSetting) {
-        // Save headers to all majors
-        for (const major of currentSetting.majors) {
+        // Save headers to all majors in parallel
+        const savePromises = currentSetting.majors.map(async (major) => {
           const majorRef = doc(
             db, 
             'schools', 
@@ -1318,11 +1292,14 @@ const saveHeaders = async () => {
           const existingData = majorDoc.exists() ? majorDoc.data() : { quota: major.quota || 0 }
 
           // Update with headers
-          await setDoc(majorRef, { 
+          return setDoc(majorRef, { 
             ...existingData,
             headers
           })
-        }
+        })
+
+        // Wait for all save operations to complete
+        await Promise.all(savePromises)
         showToast('Project headers saved to all majors successfully')
       }
     } else {
