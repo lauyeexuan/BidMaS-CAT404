@@ -1,4 +1,7 @@
 <template>
+  <!-- Preconnect to Firebase to speed up initial connection -->
+  <link rel="preconnect" href="https://firestore.googleapis.com" />
+  
   <div class="min-h-screen bg-gray-50 p-8">
     <div class="bg-white rounded-lg shadow-lg p-6">
       <h1 class="text-3xl font-bold text-gray-900 mb-4">Projects</h1>
@@ -40,8 +43,47 @@
       <!-- Projects Tab Panel -->
       <div v-show="activeTab === 'projects'">
         <!-- Loading State -->
-        <div v-if="loading" class="flex justify-center items-center py-8">
-          <p class="text-gray-600">Loading projects...</p>
+        <div v-if="loading" class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="w-16 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  No.
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Title
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Major
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Supervisor
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-for="i in 5" :key="i" class="animate-pulse">
+                <td class="w-16 px-3 py-4 whitespace-nowrap">
+                  <div class="h-4 bg-gray-200 rounded w-6"></div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="h-4 bg-gray-200 rounded w-48"></div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="h-4 bg-gray-200 rounded w-16"></div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="h-4 bg-gray-200 rounded w-24"></div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="h-8 bg-gray-200 rounded w-20"></div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
         
         <!-- Projects List with Bid Action -->
@@ -61,6 +103,7 @@
                 type="text"
                 placeholder="Search projects by title..."
                 class="w-full px-4 py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                @input="debounceSearch(searchQuery)"
               />
               <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -94,85 +137,102 @@
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr v-for="(project, index) in paginatedProjects" :key="index"
-                    class="hover:bg-blue-50 cursor-pointer transition-colors duration-150 hover:shadow-sm"
-                    @click="openProjectDetailsWindow(project)">
+                    :class="[
+                      project.placeholder ? 'animate-pulse' : 'hover:bg-blue-50 cursor-pointer transition-colors duration-150 hover:shadow-sm',
+                    ]"
+                    @click="!project.placeholder && openProjectDetailsWindow(project)">
                   <td class="w-16 px-3 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                    {{ (currentPage - 1) * itemsPerPage + index + 1 }}
+                    <template v-if="!project.placeholder">
+                      {{ (currentPage - 1) * itemsPerPage + index + 1 }}
+                    </template>
+                    <div v-else class="h-4 bg-gray-200 rounded w-6 mx-auto"></div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" @click.stop>
                     <div class="flex items-center">
-                      <span 
-                        @click="openProjectDetailsWindow(project)"
-                        class="truncate hover:text-blue-600 text-gray-900 transition-colors w-full cursor-pointer"
-                      >
-                        {{ project.Title }}
-                      </span>
+                      <template v-if="!project.placeholder">
+                        <span 
+                          @click="openProjectDetailsWindow(project)"
+                          class="truncate hover:text-blue-600 text-gray-900 transition-colors w-full cursor-pointer"
+                        >
+                          {{ project.Title }}
+                        </span>
+                      </template>
+                      <div v-else class="h-4 bg-gray-200 rounded w-48"></div>
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm">
-                    <span 
-                      class="px-2 py-1 rounded-full text-xs"
-                      :class="[
-                        getMajorColorClasses(project.major).bg,
-                        getMajorColorClasses(project.major).text
-                      ]"
-                    >
-                      {{ project.major }}
-                    </span>
+                    <template v-if="!project.placeholder">
+                      <span 
+                        class="px-2 py-1 rounded-full text-xs"
+                        :class="[
+                          getMajorColorClasses(project.major).bg,
+                          getMajorColorClasses(project.major).text
+                        ]"
+                      >
+                        {{ project.major }}
+                      </span>
+                    </template>
+                    <div v-else class="h-4 bg-gray-200 rounded w-16"></div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {{ getUserName(project.userId) }}
+                    <template v-if="!project.placeholder">
+                      {{ getUserName(project.userId) }}
+                    </template>
+                    <div v-else class="h-4 bg-gray-200 rounded w-24"></div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm" @click.stop>
                     <!-- Show different button based on whether project has been bid on, is assigned, or bids are finalized -->
-                    <button 
-                      v-if="project.isAssigned"
-                      class="inline-flex items-center justify-center w-28 px-3 py-1.5 bg-gray-100 text-gray-500 rounded-md cursor-not-allowed"
-                      disabled
-                    >
-                      Taken
-                    </button>
-                    <button 
-                      v-else-if="biddedProjectIds.has(project.id)"
-                      class="inline-flex items-center justify-center w-28 px-3 py-1.5 bg-green-100 text-green-700 rounded-md cursor-default"
-                      disabled
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                      Bid Placed
-                    </button>
-                    <button 
-                      v-else-if="bidsFinalized"
-                      class="inline-flex items-center justify-center w-28 px-3 py-1.5 bg-gray-100 text-gray-500 rounded-md cursor-not-allowed"
-                      disabled
-                    >
-                      Bids Locked
-                    </button>
-                    <button 
-                      v-else
-                      @click="handleBid(project.id)"
-                      class="inline-flex items-center justify-center w-28 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors"
-                    >
-                      <img 
-                        v-if="bidIconLoaded"
-                        src="@/assets/bid.png" 
-                        alt="Bid" 
-                        class="h-4 w-4 mr-1.5 object-contain" 
-                        @error="bidIconLoaded = false"
-                      />
-                      <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
-                      </svg>
-                      Bid
-                    </button>
+                    <template v-if="!project.placeholder">
+                      <button 
+                        v-if="project.isAssigned"
+                        class="inline-flex items-center justify-center w-28 px-3 py-1.5 bg-gray-100 text-gray-500 rounded-md cursor-not-allowed"
+                        disabled
+                      >
+                        Taken
+                      </button>
+                      <button 
+                        v-else-if="biddedProjectIds.has(project.id)"
+                        class="inline-flex items-center justify-center w-28 px-3 py-1.5 bg-green-100 text-green-700 rounded-md cursor-default"
+                        disabled
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                        Bid Placed
+                      </button>
+                      <button 
+                        v-else-if="bidsFinalized"
+                        class="inline-flex items-center justify-center w-28 px-3 py-1.5 bg-gray-100 text-gray-500 rounded-md cursor-not-allowed"
+                        disabled
+                      >
+                        Bids Locked
+                      </button>
+                      <button 
+                        v-else
+                        @click="handleBid(project.id)"
+                        class="inline-flex items-center justify-center w-28 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors"
+                      >
+                        <img 
+                          v-if="bidIconLoaded"
+                          src="@/assets/bid.png" 
+                          alt="Bid" 
+                          class="h-4 w-4 mr-1.5 object-contain" 
+                          @error="bidIconLoaded = false"
+                        />
+                        <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                        </svg>
+                        Bid
+                      </button>
+                    </template>
+                    <div v-else class="h-8 bg-gray-200 rounded w-20"></div>
                   </td>
                 </tr>
               </tbody>
             </table>
 
-            <!-- Pagination -->
-            <div class="flex items-center justify-between mt-4 px-4">
+            <!-- Only show pagination if no placeholders -->
+            <div v-if="!loading" class="flex items-center justify-between mt-4 px-4">
               <div class="flex items-center gap-2">
                 <button 
                   @click="currentPage--"
@@ -207,8 +267,20 @@
       <!-- My Bid Tab Panel -->
       <div v-show="activeTab === 'mybid'" class="py-4">
         <!-- Loading State -->
-        <div v-if="loadingBids" class="flex justify-center items-center py-8">
-          <p class="text-gray-600">Loading your bids...</p>
+        <div v-if="loadingBids" class="space-y-4">
+          <div v-for="i in 3" :key="i" class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm animate-pulse">
+            <div class="flex justify-between items-start">
+              <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200"></div>
+                <div class="space-y-2">
+                  <div class="h-5 bg-gray-200 rounded w-40"></div>
+                  <div class="h-4 bg-gray-200 rounded w-32"></div>
+                  <div class="h-4 bg-gray-200 rounded w-24 mt-2"></div>
+                </div>
+              </div>
+              <div class="h-4 bg-gray-200 rounded w-16"></div>
+            </div>
+          </div>
         </div>
 
         <!-- Bids List -->
@@ -439,7 +511,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useUserStore } from '@/stores/userStore'
 import { useRouter } from 'vue-router'
 import { db } from '@/firebase'
-import { doc, collection, getDocs, getDoc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore'
+import { doc, collection, getDocs, getDoc, setDoc, deleteDoc, onSnapshot, query, where, limit } from 'firebase/firestore'
 import { getLatestAcademicYear, formatAcademicYear } from '@/utils/latestAcademicYear'
 import { createProjectDetailsWindow } from '@/utils/windowUtils'
 
@@ -451,6 +523,8 @@ const userNamesMap = ref(new Map())
 const academicYear = ref('')
 const academicYearId = ref('')
 const searchQuery = ref('')
+const debouncedSearchQuery = ref('')
+const searchDebounceTimeout = ref(null)
 const activeTab = ref('projects')
 const bidIconLoaded = ref(true)
 
@@ -524,11 +598,25 @@ const uniqueProjectMajors = computed(() => {
   return [...new Set(projects.value.map(project => project.major))]
 })
 
+// Add debounce function
+const debounceSearch = (value) => {
+  if (searchDebounceTimeout.value) {
+    clearTimeout(searchDebounceTimeout.value)
+  }
+  
+  searchDebounceTimeout.value = setTimeout(() => {
+    debouncedSearchQuery.value = value
+    // Reset to first page when search changes
+    currentPage.value = 1
+  }, 300) // 300ms debounce
+}
+
+// Update the computed property to use the debounced value
 const filteredProjects = computed(() => {
-  if (!searchQuery.value.trim()) {
+  if (!debouncedSearchQuery.value.trim()) {
     return projects.value
   }
-  const query = searchQuery.value.toLowerCase().trim()
+  const query = debouncedSearchQuery.value.toLowerCase().trim()
   return projects.value.filter(project => 
     project.Title?.toLowerCase().includes(query)
   )
@@ -547,24 +635,15 @@ const rejectedBidsReference = ref([])
 
 // Fix the visibleRejectedBids computed property
 const visibleRejectedBids = computed(() => {
-  // Don't filter based on finalized status
-  
   // Show both current rejected bids and reference bids
   const currentRejected = myBids.value.filter(b => b.status === 'rejected')
-  
-  console.log('Visible rejected bids calculation:', {
-    currentRejected: currentRejected.length,
-    referenceRejected: rejectedBidsReference.value.length
-  })
   
   // Ensure we don't show duplicate bids (same project) from reference
   const referenceWithoutDuplicates = rejectedBidsReference.value.filter(refBid => 
     !currentRejected.some(curBid => curBid.projectId === refBid.projectId)
   )
   
-  const combined = [...currentRejected, ...referenceWithoutDuplicates]
-  console.log('Combined rejected bids:', combined.length)
-  return combined
+  return [...currentRejected, ...referenceWithoutDuplicates]
 })
 
 // Methods
@@ -580,7 +659,6 @@ const fetchLatestAcademicYear = async () => {
     if (latestYear) {
       academicYear.value = latestYear.academicYear
       academicYearId.value = latestYear.yearId
-      console.log('Latest academic year:', academicYear.value, academicYearId.value)
     } else {
       console.error('No academic years found')
     }
@@ -593,8 +671,6 @@ const fetchUserNames = async (userIds) => {
   try {
     if (!userIds.length) return
     
-    console.log('Debug - Fetching names for', userIds.length, 'users')
-    
     // Clear the map before fetching new data
     userNamesMap.value.clear()
     
@@ -606,31 +682,51 @@ const fetchUserNames = async (userIds) => {
       return
     }
     
-    console.log(`Debug - Using school ID: ${schoolId}`)
-    
     // Define the collection path using the current user's school
     const collectionPath = `schools/${schoolId}/users`
     
-    // Fetch user documents directly
-    for (const userId of userIds) {
-      try {
-        const userDocRef = doc(db, collectionPath, userId)
-        const userDoc = await getDoc(userDocRef)
-        
-        if (userDoc.exists()) {
-          const userData = userDoc.data()
-          
-          // Store the user's name in the map using their ID as the key
-          if (userData.name || userData.displayName || userData.email) {
-            const userName = userData.name || userData.displayName || userData.email.split('@')[0]
-            userNamesMap.value.set(userId, userName)
-            console.log(`Found user: ${userId} -> ${userName}`)
-          }
-        }
-      } catch (docError) {
-        console.error(`Error fetching user: ${userId}`, docError.message)
-      }
+    // Batch fetch users in groups of 10 for better performance
+    const batchSize = 10
+    const batches = []
+    
+    // Split user IDs into batches
+    for (let i = 0; i < userIds.length; i += batchSize) {
+      batches.push(userIds.slice(i, i + batchSize))
     }
+    
+    // Process batches in parallel
+    const batchPromises = batches.map(async (batchUserIds) => {
+      const userPromises = batchUserIds.map(async (userId) => {
+        try {
+          const userDocRef = doc(db, collectionPath, userId)
+          const userDoc = await getDoc(userDocRef)
+          
+          if (userDoc.exists()) {
+            const userData = userDoc.data()
+            
+            // Store the user's name in the map using their ID as the key
+            if (userData.name || userData.displayName || userData.email) {
+              const userName = userData.name || userData.displayName || userData.email.split('@')[0]
+              return { userId, userName }
+            }
+          }
+        } catch (docError) {
+          console.error(`Error fetching user: ${userId}`, docError.message)
+        }
+        return null
+      })
+      
+      const results = await Promise.all(userPromises)
+      return results.filter(Boolean) // Filter out nulls
+    })
+    
+    // Wait for all batches to complete
+    const batchResults = await Promise.all(batchPromises)
+    
+    // Update the user names map
+    batchResults.flat().forEach(({ userId, userName }) => {
+      userNamesMap.value.set(userId, userName)
+    })
     
     // If we couldn't find any users, add current user as fallback
     if (userNamesMap.value.size === 0 && userIds.includes(userStore.currentUser.uid)) {
@@ -639,8 +735,6 @@ const fetchUserNames = async (userIds) => {
         userStore.currentUser.name || userStore.currentUser.displayName || 'You'
       )
     }
-    
-    console.log(`Successfully fetched ${userNamesMap.value.size} user names`)
   } catch (error) {
     console.error('Error fetching user names:', error.message)
   }
@@ -648,19 +742,24 @@ const fetchUserNames = async (userIds) => {
 
 const fetchProjects = async () => {
   try {
-    console.log('Debug - fetchProjects called in StudentProject');
     loading.value = true;
     const schoolId = userStore.currentUser.school;
     const userMajor = userStore.currentUser.major;
-    console.log('Debug - Using school ID:', schoolId, 'and major:', userMajor);
     
     if (!academicYearId.value || !userMajor) {
       console.error('Missing academic year or user major')
       return
     }
     
-    // Clear existing projects
-    projects.value = []
+    // Keep placeholder state while we load real data
+    if (projects.value.length === 0) {
+      projects.value = Array(5).fill().map(() => ({
+        placeholder: true,
+        Title: '',
+        major: '',
+        userId: ''
+      }))
+    }
     
     // Create a map to track projects by ID to avoid duplicates
     const projectsMap = new Map()
@@ -668,17 +767,12 @@ const fetchProjects = async () => {
     const userIds = new Set()
     
     try {
-      console.log(`Debug - Fetching projects for major: ${userMajor}`)
       const majorRef = collection(db, 'schools', schoolId, 'projects', academicYearId.value, userMajor)
       const majorDocs = await getDocs(majorRef)
-      
-      console.log(`Debug - Found ${majorDocs.docs.length} docs for major ${userMajor}`)
       
       if (!majorDocs.empty) {
         const majorDoc = majorDocs.docs[0]
         const majorDocId = majorDoc.id
-        
-        console.log(`Debug - Using majorDocId: ${majorDocId} for major ${userMajor}`)
         
         const projectsRef = collection(
           db, 
@@ -691,32 +785,31 @@ const fetchProjects = async () => {
           'projectsPerYear'
         )
         
+        // Limit initial fetch to improve performance (load 20 projects at a time)
+        const initialQuery = query(projectsRef, limit(20))
+        
         // Get all projects without filtering by userId
-        const projectsDocs = await getDocs(projectsRef)
+        const projectsDocs = await getDocs(initialQuery)
         
-        console.log(`Debug - Found ${projectsDocs.docs.length} projects for major ${userMajor}`)
-        
+        // Process all projects at once
         for (const doc of projectsDocs.docs) {
           const projectId = doc.id
           const projectData = doc.data()
           
-          // Add userId to the set of IDs to fetch
+          // Add userId to the set of IDs to fetch (but defer the fetch)
           if (projectData.userId) {
             userIds.add(projectData.userId)
           }
           
-          // Check if project has any accepted bids
-          const bidsRef = collection(projectsRef, projectId, 'bids')
-          const bidsSnapshot = await getDocs(bidsRef)
-          const hasAcceptedBid = bidsSnapshot.docs.some(bid => bid.data().status === 'accepted')
-          
-          // Use Map to ensure uniqueness by project ID
+          // Store project data in map with isAssigned from the document
+          // No need to check bids subcollection
           if (!projectsMap.has(projectId)) {
             projectsMap.set(projectId, {
               id: projectId,
               majorDocId,
               ...projectData,
-              isAssigned: projectData.isAssigned || hasAcceptedBid
+              // Use isAssigned field directly, if it exists
+              isAssigned: projectData.isAssigned === true
             })
           }
         }
@@ -728,11 +821,18 @@ const fetchProjects = async () => {
     // Convert map values to array
     projects.value = Array.from(projectsMap.values())
     
-    console.log('Debug - Total unique loaded projects:', projects.value.length)
-    
-    // Fetch user names for all projects
-    if (userIds.size > 0) {
-      await fetchUserNames(Array.from(userIds))
+    // Fetch only the first few user names immediately, defer others
+    const priorityUserIds = Array.from(userIds).slice(0, 10)
+    if (priorityUserIds.length > 0) {
+      fetchUserNames(priorityUserIds).then(() => {
+        // After the priority users are loaded, load the rest in the background
+        const remainingUserIds = Array.from(userIds).slice(10)
+        if (remainingUserIds.length > 0) {
+          setTimeout(() => {
+            fetchUserNames(remainingUserIds)
+          }, 1000) // Delay background fetching by 1 second
+        }
+      })
     }
     
   } catch (error) {
@@ -894,7 +994,12 @@ const fetchMyBids = async () => {
     const bids = []
     
     let hasFinalized = false
+    
+    // Create a map to store project refs by ID to avoid duplicates
+    const projectRefs = new Map()
+    const bidDataByProjectId = new Map()
 
+    // First pass: extract all project references and bid data
     for (const bidDoc of bidsSnapshot.docs) {
       const bidData = bidDoc.data()
       
@@ -904,9 +1009,8 @@ const fetchMyBids = async () => {
 
       if (bidData.projectId) {
         tempBiddedProjectIds.add(bidData.projectId)
-      }
-      
-      try {
+        
+        // Store the project reference
         const projectRef = doc(db,
           'schools', schoolId,
           'projects', bidData.year,
@@ -914,23 +1018,46 @@ const fetchMyBids = async () => {
           'projectsPerYear', bidData.projectId
         )
         
-        const projectDoc = await getDoc(projectRef)
-        if (projectDoc.exists()) {
-          const projectData = projectDoc.data()
-          bids.push({
-            id: bidDoc.id,
-            ...bidData,
-            project: {
-              id: projectDoc.id,
-              ...projectData
-            }
-          })
-        }
-      } catch (projectError) {
-        console.error('Error fetching project for bid:', projectError)
+        projectRefs.set(bidData.projectId, projectRef)
+        
+        // Store the bid data by project ID
+        bidDataByProjectId.set(bidData.projectId, {
+          id: bidDoc.id,
+          ...bidData
+        })
+      }
+    }
+    
+    // Second pass: fetch all projects in parallel
+    const projectPromises = Array.from(projectRefs.entries()).map(
+      ([projectId, projectRef]) => getDoc(projectRef).then(doc => ({
+        projectId,
+        doc
+      }))
+    )
+    
+    // Wait for all project fetches to complete
+    const projectResults = await Promise.all(projectPromises)
+    
+    // Process results and create final bid objects
+    for (const result of projectResults) {
+      const { projectId, doc } = result
+      
+      if (doc.exists()) {
+        const projectData = doc.data()
+        const bidData = bidDataByProjectId.get(projectId)
+        
+        bids.push({
+          ...bidData,
+          project: {
+            id: projectId,
+            ...projectData
+          }
+        })
       }
     }
 
+    // Sort bids by priority or creation time
     bids.sort((a, b) => {
       if (a.priority !== undefined && b.priority !== undefined) {
         return a.priority - b.priority
@@ -945,13 +1072,16 @@ const fetchMyBids = async () => {
     bidCount.value = bids.length
     bidsFinalized.value = hasFinalized
     
-    // Set up real-time listener for bid updates
+    // Set up real-time listener for bid updates with optimized project fetching
     unsubscribeBids.value = onSnapshot(bidsRef, async (snapshot) => {
       // Skip processing if we're currently updating priorities
       if (isUpdatingPriorities.value) return;
       
-      let needsReordering = false;
       let statusChanged = false;
+      
+      // Process changed documents first
+      const changedBids = []
+      const projectFetchPromises = []
       
       for (const change of snapshot.docChanges()) {
         const bidData = change.doc.data()
@@ -963,73 +1093,131 @@ const fetchMyBids = async () => {
           
           if (bidIndex !== -1) {
             const oldStatus = myBids.value[bidIndex].status
-            // Update the bid with new data
-            myBids.value[bidIndex] = {
+            const projectId = bidData.projectId
+            
+            // Update basic bid data
+            const updatedBid = {
               ...myBids.value[bidIndex],
               ...bidData
             }
             
-            // Check if status changed
-            if (bidData.status && oldStatus !== bidData.status) {
-              statusChanged = true;
-              const statusText = bidData.status.charAt(0).toUpperCase() + bidData.status.slice(1)
-              const projectTitle = myBids.value[bidIndex].project?.Title || 'a project'
+            changedBids.push({
+              index: bidIndex,
+              bid: updatedBid,
+              oldStatus,
+              type: 'modified'
+            })
+            
+            // Check if we need to update the project data
+            if (change.type === 'added' && projectId) {
+              const projectRef = doc(db,
+                'schools', schoolId,
+                'projects', bidData.year,
+                bidData.majorId, bidData.majorDocId,
+                'projectsPerYear', projectId
+              )
               
-              // Create notification with enhanced styling and content for accepted bids
-              const notification = document.createElement('div')
-              notification.className = `fixed bottom-4 right-4 px-6 py-4 rounded-lg shadow-lg transform transition-transform duration-300 translate-y-0 ${
-                bidData.status === 'accepted' ? 'bg-green-500 text-white' : 
-                bidData.status === 'rejected' ? 'bg-red-500 text-white' : 
-                'bg-blue-500 text-white'
-              }`
-
-              // Enhanced content for accepted bids
-              if (bidData.status === 'accepted') {
-                notification.innerHTML = `
-                  <div class="flex flex-col gap-2">
-                    <div class="flex items-center gap-2">
-                      <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span class="font-bold">Congratulations!</span>
-                    </div>
-                    <p>Your bid for "${projectTitle}" has been accepted!</p>
-                    <p class="text-sm mt-1">You can now proceed to work on this project.</p>
-                    <div class="flex gap-2 mt-2">
-                      <button onclick="window.location.href='/project-details/${myBids.value[bidIndex].projectId}'" 
-                              class="text-sm bg-white text-green-600 px-3 py-1 rounded hover:bg-green-50 transition-colors">
-                        View Project Details
-                      </button>
-                    </div>
-                  </div>
-                `
-              } else {
-                notification.textContent = `Your bid for "${projectTitle}" has been ${statusText}`
-              }
-              
-              document.body.appendChild(notification)
-              
-              // Remove notification after 5 seconds for accepted bids, 3 seconds for others
-              const timeout = bidData.status === 'accepted' ? 5000 : 3000
-              setTimeout(() => {
-                notification.style.transform = 'translateY(150%)'
-                setTimeout(() => {
-                  document.body.removeChild(notification)
-                }, 300)
-              }, timeout)
+              projectFetchPromises.push(
+                getDoc(projectRef).then(doc => ({
+                  bidIndex,
+                  projectDoc: doc
+                }))
+              )
             }
           }
         } else if (change.type === 'removed') {
-          // Remove the bid from our array
+          // Find the bid to remove
           const bidIndex = myBids.value.findIndex(b => b.id === bidId)
           if (bidIndex !== -1) {
-            myBids.value.splice(bidIndex, 1)
-            bidCount.value = myBids.value.length
-            
-            // Update biddedProjectIds
-            if (bidData.projectId) {
-              biddedProjectIds.value.delete(bidData.projectId)
+            changedBids.push({
+              index: bidIndex,
+              type: 'removed',
+              projectId: bidData.projectId
+            })
+          }
+        }
+      }
+      
+      // Fetch any new project data in parallel
+      if (projectFetchPromises.length > 0) {
+        const projectResults = await Promise.all(projectFetchPromises)
+        
+        // Update bids with fetched project data
+        for (const result of projectResults) {
+          const { bidIndex, projectDoc } = result
+          if (projectDoc.exists() && bidIndex !== -1 && bidIndex < changedBids.length) {
+            const projectData = projectDoc.data()
+            changedBids[bidIndex].bid.project = {
+              id: projectDoc.id,
+              ...projectData
             }
+          }
+        }
+      }
+      
+      // Apply all changes to the local array
+      for (const change of changedBids) {
+        if (change.type === 'modified') {
+          // Update the bid
+          myBids.value[change.index] = change.bid
+          
+          // Check if status changed
+          if (change.bid.status && change.oldStatus !== change.bid.status) {
+            statusChanged = true;
+            const statusText = change.bid.status.charAt(0).toUpperCase() + change.bid.status.slice(1)
+            const projectTitle = change.bid.project?.Title || 'a project'
+            
+            // Create notification
+            const notification = document.createElement('div')
+            notification.className = `fixed bottom-4 right-4 px-6 py-4 rounded-lg shadow-lg transform transition-transform duration-300 translate-y-0 ${
+              change.bid.status === 'accepted' ? 'bg-green-500 text-white' : 
+              change.bid.status === 'rejected' ? 'bg-red-500 text-white' : 
+              'bg-blue-500 text-white'
+            }`
+
+            // Enhanced content for accepted bids
+            if (change.bid.status === 'accepted') {
+              notification.innerHTML = `
+                <div class="flex flex-col gap-2">
+                  <div class="flex items-center gap-2">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span class="font-bold">Congratulations!</span>
+                  </div>
+                  <p>Your bid for "${projectTitle}" has been accepted!</p>
+                  <p class="text-sm mt-1">You can now proceed to work on this project.</p>
+                  <div class="flex gap-2 mt-2">
+                    <button onclick="window.location.href='/project-details/${change.bid.projectId}'" 
+                            class="text-sm bg-white text-green-600 px-3 py-1 rounded hover:bg-green-50 transition-colors">
+                      View Project Details
+                    </button>
+                  </div>
+                </div>
+              `
+            } else {
+              notification.textContent = `Your bid for "${projectTitle}" has been ${statusText}`
+            }
+            
+            document.body.appendChild(notification)
+            
+            // Remove notification after 5 seconds for accepted bids, 3 seconds for others
+            const timeout = change.bid.status === 'accepted' ? 5000 : 3000
+            setTimeout(() => {
+              notification.style.transform = 'translateY(150%)'
+              setTimeout(() => {
+                document.body.removeChild(notification)
+              }, 300)
+            }, timeout)
+          }
+        } else if (change.type === 'removed') {
+          // Remove the bid
+          myBids.value.splice(change.index, 1)
+          bidCount.value = myBids.value.length
+          
+          // Update biddedProjectIds
+          if (change.projectId) {
+            biddedProjectIds.value.delete(change.projectId)
           }
         }
       }
@@ -1056,10 +1244,11 @@ const fetchMyBids = async () => {
       // Check if any bid was just accepted
       const newlyAcceptedBid = myBids.value.find(bid => 
         bid.status === 'accepted' && 
-        snapshot.docChanges().some(change => 
-          change.doc.id === bid.id && 
+        changedBids.some(change => 
           change.type === 'modified' && 
-          change.doc.data().status === 'accepted'
+          change.bid.id === bid.id && 
+          change.bid.status === 'accepted' && 
+          change.oldStatus !== 'accepted'
         )
       )
       
@@ -1389,17 +1578,24 @@ const openProjectDetailsWindow = async (project) => {
     // Get user name for creator
     let creatorName = getUserName(project.userId) || 'Unknown';
     
-    // Get project headers from the majorDocId document
+    // Create color class for major
+    const majorColorClass = getMajorColorClasses(project.major);
+    const colorClasses = majorColorClass || { bg: 'bg-blue-100', text: 'text-blue-800' };
+
+    // Open the project details window immediately with basic data
+    const windowInstance = createProjectDetailsWindow({
+      project,
+      creatorName,
+      headers: {},
+      majorColorClass: colorClasses
+    });
+    
+    // Async fetch headers after window is already open
     const schoolId = userStore.currentUser.school;
     const majorId = project.major;
     const majorDocId = project.majorDocId;
     const year = academicYearId.value;
     
-    console.log('Debug - Fetching headers with:', { schoolId, year, majorId, majorDocId });
-    
-    let headers = {};
-    
-    // Fetch the headers map from the majorDocId document
     if (schoolId && year && majorId && majorDocId) {
       try {
         const majorDocRef = doc(db, 
@@ -1412,50 +1608,75 @@ const openProjectDetailsWindow = async (project) => {
         if (majorDoc.exists()) {
           const majorData = majorDoc.data();
           if (majorData.headers && typeof majorData.headers === 'object') {
-            headers = majorData.headers;
-            console.log('Found headers:', Object.keys(headers));
-          } else {
-            console.log('No headers found in major document');
+            // Update the window with headers if available
+            if (windowInstance && windowInstance.updateData) {
+              windowInstance.updateData({ headers: majorData.headers });
+            }
           }
-        } else {
-          console.log('Major document not found');
         }
       } catch (error) {
         console.error('Error fetching headers:', error);
       }
-    } else {
-      console.log('Missing data for headers fetch:', { schoolId, year, majorId, majorDocId });
     }
-    
-    // Create color class for major
-    const majorColorClass = getMajorColorClasses(project.major);
-    const colorClasses = majorColorClass || { bg: 'bg-blue-100', text: 'text-blue-800' };
-
-    // Open the project details window with the component
-    createProjectDetailsWindow({
-      project,
-      creatorName,
-      headers,
-      majorColorClass: colorClasses
-    });
   } catch (error) {
     console.error('Error opening project details window:', error);
     alert('There was an error opening the project details. Please try again.');
   }
 }
 
+// Add a watch to prefetch bids when tab changes
+watch(activeTab, (newTab, oldTab) => {
+  if (newTab === 'mybid' && !myBids.value.length && !loadingBids.value) {
+    fetchMyBids()
+  }
+})
+
 onMounted(async () => {
-  console.log('Student Project page loaded')
-  console.log('Current user role:', userStore.userRole)
+  // Initialize debounced search with initial value
+  debouncedSearchQuery.value = searchQuery.value
   
-  await fetchLatestAcademicYear()
+  // Start fetching academic year early
+  const academicYearPromise = fetchLatestAcademicYear()
+  
+  // Set up placeholder state immediately for better UX
+  projects.value = Array(5).fill().map(() => ({
+    placeholder: true,
+    Title: '',
+    major: '',
+    userId: ''
+  }))
+  
+  // Wait for academic year data with a timeout to prevent blocking forever
+  const academicYearTimeout = new Promise(resolve => {
+    setTimeout(resolve, 2000) // Max wait 2 seconds
+  })
+  
+  // Use Promise.race to either get the data or timeout
+  await Promise.race([academicYearPromise, academicYearTimeout])
+  
   if (academicYearId.value) {
-    await Promise.all([
-      fetchProjects(),
+    // Start both fetches in parallel
+    fetchProjects()
+    
+    // Delay loading bids until after projects are shown
+    setTimeout(() => {
       fetchMyBids()
-    ])
+    }, 500)
   } else {
     loading.value = false
+    
+    // Try once more after a delay if academic year failed
+    setTimeout(async () => {
+      if (!academicYearId.value) {
+        await fetchLatestAcademicYear()
+        if (academicYearId.value) {
+          fetchProjects()
+          setTimeout(() => {
+            fetchMyBids()
+          }, 500)
+        }
+      }
+    }, 2000)
   }
 })
 
@@ -1463,6 +1684,11 @@ onUnmounted(() => {
   // Clean up function on component unmount
   if (unsubscribeBids.value) {
     unsubscribeBids.value()
+  }
+  
+  // Clear search debounce timeout
+  if (searchDebounceTimeout.value) {
+    clearTimeout(searchDebounceTimeout.value)
   }
 })
 </script>
