@@ -489,6 +489,9 @@ export default {
       overscan: 10,
     })
 
+    // Add new ref for all submissions
+    const allSubmissions = ref([])
+
     // Define the submission card component
     const submissionCard = {
       props: {
@@ -596,7 +599,7 @@ export default {
       }
     }
 
-    // Modified fetchSubmissions with composite queries
+    // Modified fetchSubmissions function
     const fetchSubmissions = async (loadMore = false) => {
       if (!loadMore) {
         submissions.value = []
@@ -631,7 +634,7 @@ export default {
           const submissionsRef = collection(
             db, 
             'schools', schoolId,
-            'submissions' // New collection to store all submissions
+            'submissions'
           )
 
           let submissionQuery = query(
@@ -709,6 +712,57 @@ export default {
           submissions.value = [...submissions.value, ...sortedSubmissions]
         } else {
           submissions.value = sortedSubmissions
+        }
+
+        // Update allSubmissions without filters
+        if (!loadMore) {
+          // Fetch all submissions without milestone filter
+          const allSubmissionPromises = userStore.currentUser.major.map(async (majorId) => {
+            const submissionsRef = collection(db, 'schools', schoolId, 'submissions')
+            const baseQuery = query(
+              submissionsRef,
+              where('yearId', '==', yearId),
+              where('majorId', '==', majorId),
+              where('lecturerId', '==', userId),
+              orderBy('submittedAt', 'desc')
+            )
+
+            const allSubmissionsSnapshot = await getDocs(baseQuery)
+            
+            return Promise.all(
+              allSubmissionsSnapshot.docs.map(async (doc) => {
+                const submissionData = doc.data()
+                const studentName = await getStudentName(schoolId, submissionData.submittedBy)
+                
+                const feedbackRef = collection(db, 'schools', schoolId, 'feedback')
+                const feedbackQuery = query(
+                  feedbackRef,
+                  where('submissionId', '==', doc.id),
+                  where('lecturerId', '==', userId),
+                  limit(1)
+                )
+                const feedbackSnapshot = await getDocs(feedbackQuery)
+                const hasBeenReviewed = !feedbackSnapshot.empty
+                
+                return {
+                  id: doc.id,
+                  projectId: submissionData.projectId,
+                  projectTitle: submissionData.projectTitle,
+                  major: majorId,
+                  studentName,
+                  hasBeenReviewed,
+                  ...submissionData
+                }
+              })
+            )
+          })
+
+          const allResults = await Promise.all(allSubmissionPromises)
+          allSubmissions.value = allResults.flat().sort((a, b) => {
+            const dateA = a.submittedAt?.toDate?.() || new Date(0)
+            const dateB = b.submittedAt?.toDate?.() || new Date(0)
+            return dateB - dateA
+          })
         }
 
       } catch (error) {
@@ -850,20 +904,26 @@ export default {
       }
     }
 
-    // Add computed properties for submission counts
+    // Modified computed properties for submission counts
     const currentMilestoneSubmissionCount = computed(() => {
-      if (!currentMilestoneData.value?.upcomingMilestone?.description) return 0;
-      return submissions.value.filter(submission => 
-        submission.milestoneDescription === currentMilestoneData.value.upcomingMilestone.description &&
-        (!selectedMajor.value || submission.major === selectedMajor.value)
+      if (!currentMilestoneData.value?.upcomingMilestone?.description || !currentDisplayMajor.value) return 0;
+      const currentMilestoneDesc = currentMilestoneData.value.upcomingMilestone.description;
+      
+      // Count submissions only for the current milestone of the displayed major using allSubmissions
+      return allSubmissions.value.filter(submission => 
+        submission.milestoneDescription === currentMilestoneDesc &&
+        submission.major === currentDisplayMajor.value
       ).length;
     });
 
     const currentMilestoneReviewedCount = computed(() => {
-      if (!currentMilestoneData.value?.upcomingMilestone?.description) return 0;
-      return submissions.value.filter(submission => 
-        submission.milestoneDescription === currentMilestoneData.value.upcomingMilestone.description &&
-        (!selectedMajor.value || submission.major === selectedMajor.value) &&
+      if (!currentMilestoneData.value?.upcomingMilestone?.description || !currentDisplayMajor.value) return 0;
+      const currentMilestoneDesc = currentMilestoneData.value.upcomingMilestone.description;
+      
+      // Count reviewed submissions only for the current milestone of the displayed major using allSubmissions
+      return allSubmissions.value.filter(submission => 
+        submission.milestoneDescription === currentMilestoneDesc &&
+        submission.major === currentDisplayMajor.value &&
         submission.hasBeenReviewed
       ).length;
     });
