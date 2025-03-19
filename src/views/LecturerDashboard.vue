@@ -3,319 +3,325 @@
     <div class="relative">
       <!-- Dashboard Cards -->
       <div class="mt-6 grid grid-cols-12 gap-4">
-        <!-- Milestone Card with Expandable Content -->
-        <div 
-          class="col-span-6 bg-white p-4 shadow rounded relative transition-all duration-200 overflow-hidden flex flex-col min-h-[160px]"
-          :class="{'shadow-lg': showAllMilestones}"
-        >
-          <!-- Card Header -->
-          <div>
-            <!-- Remove the first Current Milestone and major selector -->
-          </div>
-          
-          <div @click="toggleAllMilestones" class="cursor-pointer">
-            <div class="flex justify-between items-center mb-2">
-              <h2 class="text-sm font-medium text-gray-500 flex items-center">
-                Current Milestone
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  class="h-4 w-4 ml-2 transition-transform duration-300" 
-                  :class="{'rotate-180': showAllMilestones}"
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </h2>
-              <!-- Major Selector Tabs -->
-              <div class="flex space-x-2" @click.stop>
-                <button
-                  v-for="major in lecturerMajors"
-                  :key="major"
-                  @click.stop="selectedMajor = major"
-                  class="px-3 py-1 text-xs rounded-full transition-colors"
-                  :class="selectedMajor === major ? 
-                    'bg-blue-100 text-blue-800 font-medium' : 
-                    'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-                >
-                  {{ major }}
-                </button>
-              </div>
-            </div>
-          
-            <div v-if="loading" class="py-2">
-              <div class="h-5 bg-gray-200 rounded animate-pulse w-3/4 mb-2"></div>
-              <div class="h-4 bg-gray-200 rounded animate-pulse w-1/2"></div>
-            </div>
-            <div v-else-if="error" class="py-2">
-              <p class="text-red-500">{{ error }}</p>
-            </div>
-            <div v-else-if="currentUpcomingMilestone" class="cursor-pointer">
-              <!-- Milestone content with enhanced styling -->
-              <div class="relative">
-                <!-- Decorative element -->
-                <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-full"></div>
-                
-                <div class="pl-4">
-                  <h3 class="text-lg font-semibold text-blue-800 mb-1">{{ currentUpcomingMilestone.description }}</h3>
-                  <div class="flex items-center text-gray-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span>{{ formatDate(currentUpcomingMilestone.deadline) }}</span>
-                  </div>
-                  
-                  <!-- Days remaining indicator -->
-                  <div class="mt-3 flex items-center">
-                    <div class="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        class="bg-blue-600 h-2 rounded-full" 
-                        :style="`width: ${getDaysRemainingPercentage(currentUpcomingMilestone)}%`"
-                      ></div>
-                    </div>
-                    <span class="ml-2 text-xs font-medium" :class="getDaysRemainingClass(currentUpcomingMilestone)">
-                      {{ getDaysRemainingText(currentUpcomingMilestone) }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div v-else class="py-2">
-              <p class="text-gray-500">No upcoming milestones found.</p>
-            </div>
-          </div>
-          
-          <!-- Quick Actions -->
-          <div v-if="currentUpcomingMilestone" class="flex gap-2 mt-2">
-            <button class="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200">
-              <span class="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Template
-              </span>
-            </button>
-            <button class="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200">
-              <span class="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Guidelines
-              </span>
-            </button>
-          </div>
-          
-          <!-- Expandable Milestone List -->
-          <transition
-            enter-active-class="transition-all duration-500 ease-out"
-            enter-from-class="max-h-0 opacity-0 overflow-hidden"
-            enter-to-class="max-h-[300px] opacity-100"
-            leave-active-class="transition-all duration-300 ease-in"
-            leave-from-class="max-h-[300px] opacity-100"
-            leave-to-class="max-h-0 opacity-0 overflow-hidden"
+        <!-- Left Column -->
+        <div class="col-span-6 flex flex-col gap-4">
+          <!-- Milestone Card with Expandable Content -->
+          <div 
+            class="bg-white p-4 shadow rounded relative transition-all duration-200 overflow-hidden flex flex-col"
+            :class="{'shadow-lg': showAllMilestones}"
           >
-            <div v-if="showAllMilestones && filteredMilestones && filteredMilestones.length > 0" class="mt-4 pt-4 border-t border-gray-200 overflow-auto flex-grow">
-              <div class="flex justify-between items-center mb-3">
-                <h3 class="font-medium text-gray-800">All Milestones</h3>
-                <button 
-                  @click="toggleAllMilestones" 
-                  class="text-gray-400 hover:text-gray-600"
-                  aria-label="Close milestones panel"
-                >
-                </button>
-              </div>
-              
-              <div class="milestone-list-container">
-                <transition-group 
-                  name="milestone-list" 
-                  tag="div"
-                  class="space-y-3"
-                >
-                  <div 
-                    v-for="(milestone, index) in otherMilestones" 
-                    :key="index"
-                    class="p-3 rounded-md transition-all duration-200 relative overflow-hidden"
-                    :class="isMilestonePast(milestone) ? 'bg-gray-50 hover:bg-gray-100' : 'bg-blue-50 hover:bg-blue-100'"
+            <!-- Card Header -->
+            <div>
+              <!-- Remove the first Current Milestone and major selector -->
+            </div>
+            
+            <div @click="toggleAllMilestones" class="cursor-pointer">
+              <div class="flex justify-between items-center mb-2">
+                <h2 class="text-sm font-medium text-gray-500 flex items-center">
+                  Current Milestone
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    class="h-4 w-4 ml-2 transition-transform duration-300" 
+                    :class="{'rotate-180': showAllMilestones}"
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
                   >
-                    <!-- Decorative element -->
-                    <div 
-                      class="absolute left-0 top-0 bottom-0 w-1 rounded-full"
-                      :class="isMilestonePast(milestone) ? 'bg-gray-400' : 'bg-blue-500'"
-                    ></div>
-                    
-                    <div class="flex justify-between items-start pl-3">
-                      <div>
-                        <p class="font-medium" :class="isMilestonePast(milestone) ? 'text-gray-600' : 'text-blue-700'">
-                          {{ milestone.description }}
-                        </p>
-                        <p class="text-sm flex items-center mt-1" :class="isMilestonePast(milestone) ? 'text-gray-500' : 'text-blue-600'">
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          {{ formatDate(milestone.deadline) }}
-                        </p>
-                      </div>
-                      <div 
-                        class="text-xs px-2 py-1 rounded-full"
-                        :class="isMilestonePast(milestone) ? 'bg-gray-200 text-gray-700' : 'bg-blue-200 text-blue-800'"
-                      >
-                        {{ isMilestonePast(milestone) ? 'Past' : 'Upcoming' }}
-                      </div>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </h2>
+                <!-- Major Selector Tabs -->
+                <div class="flex space-x-2" @click.stop>
+                  <button
+                    v-for="major in lecturerMajors"
+                    :key="major"
+                    @click.stop="selectedMajor = major"
+                    class="px-3 py-1 text-xs rounded-full transition-colors"
+                    :class="selectedMajor === major ? 
+                      'bg-blue-100 text-blue-800 font-medium' : 
+                      'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                  >
+                    {{ major }}
+                  </button>
+                </div>
+              </div>
+            
+              <div v-if="loading" class="py-2">
+                <div class="h-5 bg-gray-200 rounded animate-pulse w-3/4 mb-2"></div>
+                <div class="h-4 bg-gray-200 rounded animate-pulse w-1/2"></div>
+              </div>
+              <div v-else-if="error" class="py-2">
+                <p class="text-red-500">{{ error }}</p>
+              </div>
+              <div v-else-if="currentUpcomingMilestone" class="cursor-pointer">
+                <!-- Milestone content with enhanced styling -->
+                <div class="relative">
+                  <!-- Decorative element -->
+                  <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-full"></div>
+                  
+                  <div class="pl-4">
+                    <h3 class="text-lg font-semibold text-blue-800 mb-1">{{ currentUpcomingMilestone.description }}</h3>
+                    <div class="flex items-center text-gray-500">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>{{ formatDate(currentUpcomingMilestone.deadline) }}</span>
                     </div>
-                  </div>
-                </transition-group>
-              </div>
-            </div>
-          </transition>
-        </div>
-        
-        <!-- Assigned Project Card -->
-        <div class="col-span-6 bg-white p-4 shadow rounded self-start min-h-[160px] relative">
-          <div class="flex justify-between items-start">
-            <h2 class="text-sm font-medium text-gray-500 mb-2">Your Projects Overview</h2>
-          </div>
-          
-          <div v-if="projectLoading" class="py-4">
-            <div class="h-6 bg-gray-200 rounded animate-pulse w-3/4 mb-3"></div>
-            <div class="h-4 bg-gray-200 rounded animate-pulse w-1/2 mb-2"></div>
-            <div class="h-4 bg-gray-200 rounded animate-pulse w-2/3"></div>
-          </div>
-          
-          <div v-else-if="projectError" class="py-4">
-            <p class="text-red-500">{{ projectError }}</p>
-          </div>
-          
-          <div v-else-if="lecturerProjectStats.total > 0" class="py-2">
-            <div class="relative">
-              <div class="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-full"></div>
-              
-              <div class="pl-4">
-                <h3 class="text-lg font-semibold text-gray-800 mb-3">Project Statistics</h3>
-                
-                <div class="grid grid-cols-3 gap-4 mb-4">
-                  <!-- Total Projects -->
-                  <div class="bg-blue-50 p-3 rounded-lg text-center">
-                    <p class="text-2xl font-bold text-blue-700">{{ lecturerProjectStats.total }}</p>
-                    <p class="text-sm text-blue-600">Total Projects</p>
-                  </div>
-                  
-                  <!-- Assigned Projects -->
-                  <div class="bg-green-50 p-3 rounded-lg text-center">
-                    <p class="text-2xl font-bold text-green-700">{{ lecturerProjectStats.assigned }}</p>
-                    <p class="text-sm text-green-600">Assigned</p>
-                  </div>
-                  
-                  <!-- Unassigned Projects -->
-                  <div class="bg-amber-50 p-3 rounded-lg text-center">
-                    <p class="text-2xl font-bold text-amber-700">{{ lecturerProjectStats.unassigned }}</p>
-                    <p class="text-sm text-amber-600">Unassigned</p>
-                  </div>
-                </div>
-                
-                <!-- Assignment Rate Progress Bar -->
-                <div class="mt-2">
-                  <div class="flex justify-between items-center mb-1">
-                    <span class="text-sm font-medium text-gray-700">Assignment Rate</span>
-                    <span class="text-sm font-medium text-gray-700">{{ lecturerProjectStats.assignmentRate }}%</span>
-                  </div>
-                  <div class="w-full bg-gray-200 rounded-full h-2.5">
-                    <div 
-                      class="bg-blue-600 h-2.5 rounded-full" 
-                      :style="`width: ${lecturerProjectStats.assignmentRate}%`"
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div v-else class="py-4 text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <p class="text-gray-500">No projects created yet.</p>
-            <p class="text-sm text-gray-400 mt-1">Create projects for students to bid on.</p>
-          </div>
-        </div>
-        
-        <!-- Submission Info Card -->
-        <div class="col-span-6 bg-white p-4 shadow rounded mt-4 relative">
-          <div class="flex justify-between items-center mb-3">
-            <h2 class="text-sm font-medium text-gray-500">Milestone Submissions</h2>
-          </div>
-          
-          <div v-if="submissionLoading" class="py-4">
-            <div class="h-6 bg-gray-200 rounded animate-pulse w-3/4 mb-3"></div>
-            <div class="h-4 bg-gray-200 rounded animate-pulse w-1/2 mb-2"></div>
-            <div class="h-4 bg-gray-200 rounded animate-pulse w-2/3"></div>
-          </div>
-          
-          <div v-else-if="submissionError" class="py-4">
-            <p class="text-red-500">{{ submissionError }}</p>
-          </div>
-          
-          <div v-else-if="currentMilestoneSubmissionStats" class="py-2">
-            <div class="relative">
-              <div class="absolute left-0 top-0 bottom-0 w-1 bg-purple-500 rounded-full"></div>
-              
-              <div class="pl-4">
-                <h3 class="text-lg font-semibold text-gray-800 mb-3">
-                  {{ currentMilestoneSubmissionStats.milestoneName }}
-                </h3>
-                
-                <!-- Circular Progress Display -->
-                <div class="flex flex-col items-center justify-center py-6">
-                  <div class="relative w-32 h-32">
-                    <!-- Background Circle -->
-                    <svg class="w-full h-full" viewBox="0 0 100 100">
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="45"
-                        fill="none"
-                        stroke="#E2E8F0"
-                        stroke-width="8"
-                      />
-                      <!-- Progress Circle -->
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="45"
-                        fill="none"
-                        stroke="#7C3AED"
-                        stroke-width="8"
-                        stroke-linecap="round"
-                        :stroke-dasharray="`${currentMilestoneSubmissionStats.submissionRate * 2.83} 283`"
-                        transform="rotate(-90 50 50)"
-                      />
-                    </svg>
-                    <!-- Fraction Display -->
-                    <div class="absolute inset-0 flex items-center justify-center">
-                      <span class="text-2xl font-bold text-gray-800">
-                        {{ currentMilestoneSubmissionStats.projectsWithSubmissions }}/{{ currentMilestoneSubmissionStats.totalAssigned }}
+                    
+                    <!-- Days remaining indicator -->
+                    <div class="mt-3 flex items-center">
+                      <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          class="bg-blue-600 h-2 rounded-full" 
+                          :style="`width: ${getDaysRemainingPercentage(currentUpcomingMilestone)}%`"
+                        ></div>
+                      </div>
+                      <span class="ml-2 text-xs font-medium" :class="getDaysRemainingClass(currentUpcomingMilestone)">
+                        {{ getDaysRemainingText(currentUpcomingMilestone) }}
                       </span>
                     </div>
                   </div>
-                  <!-- Submission Status Text -->
-                  <p class="mt-4 text-center text-gray-600">
-                    {{ currentMilestoneSubmissionStats.projectsWithSubmissions }} out of {{ currentMilestoneSubmissionStats.totalAssigned }} 
-                    {{ currentMilestoneSubmissionStats.totalAssigned === 1 ? 'student' : 'students' }}
-                    {{ currentMilestoneSubmissionStats.projectsWithSubmissions < 2 ? 'has' : 'have' }} submitted thier work.
-                  </p>
+                </div>
+              </div>
+              <div v-else class="py-2">
+                <p class="text-gray-500">No upcoming milestones found.</p>
+              </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div v-if="currentUpcomingMilestone" class="flex gap-2 mt-2">
+              <button class="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200">
+                <span class="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Template
+                </span>
+              </button>
+              <button class="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200">
+                <span class="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Guidelines
+                </span>
+              </button>
+            </div>
+            
+            <!-- Expandable Milestone List -->
+            <transition
+              enter-active-class="transition-all duration-500 ease-out"
+              enter-from-class="max-h-0 opacity-0 overflow-hidden"
+              enter-to-class="max-h-[300px] opacity-100"
+              leave-active-class="transition-all duration-300 ease-in"
+              leave-from-class="max-h-[300px] opacity-100"
+              leave-to-class="max-h-0 opacity-0 overflow-hidden"
+            >
+              <div v-if="showAllMilestones && filteredMilestones && filteredMilestones.length > 0" class="mt-4 pt-4 border-t border-gray-200 overflow-auto flex-grow">
+                <div class="flex justify-between items-center mb-3">
+                  <h3 class="font-medium text-gray-800">All Milestones</h3>
+                  <button 
+                    @click="toggleAllMilestones" 
+                    class="text-gray-400 hover:text-gray-600"
+                    aria-label="Close milestones panel"
+                  >
+                  </button>
+                </div>
+                
+                <div class="milestone-list-container">
+                  <transition-group 
+                    name="milestone-list" 
+                    tag="div"
+                    class="space-y-3"
+                  >
+                    <div 
+                      v-for="(milestone, index) in otherMilestones" 
+                      :key="index"
+                      class="p-3 rounded-md transition-all duration-200 relative overflow-hidden"
+                      :class="isMilestonePast(milestone) ? 'bg-gray-50 hover:bg-gray-100' : 'bg-blue-50 hover:bg-blue-100'"
+                    >
+                      <!-- Decorative element -->
+                      <div 
+                        class="absolute left-0 top-0 bottom-0 w-1 rounded-full"
+                        :class="isMilestonePast(milestone) ? 'bg-gray-400' : 'bg-blue-500'"
+                      ></div>
+                      
+                      <div class="flex justify-between items-start pl-3">
+                        <div>
+                          <p class="font-medium" :class="isMilestonePast(milestone) ? 'text-gray-600' : 'text-blue-700'">
+                            {{ milestone.description }}
+                          </p>
+                          <p class="text-sm flex items-center mt-1" :class="isMilestonePast(milestone) ? 'text-gray-500' : 'text-blue-600'">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {{ formatDate(milestone.deadline) }}
+                          </p>
+                        </div>
+                        <div 
+                          class="text-xs px-2 py-1 rounded-full"
+                          :class="isMilestonePast(milestone) ? 'bg-gray-200 text-gray-700' : 'bg-blue-200 text-blue-800'"
+                        >
+                          {{ isMilestonePast(milestone) ? 'Past' : 'Upcoming' }}
+                        </div>
+                      </div>
+                    </div>
+                  </transition-group>
+                </div>
+              </div>
+            </transition>
+          </div>
+          
+          <!-- Submission Info Card -->
+          <div class="bg-white p-4 shadow rounded relative">
+            <div class="flex justify-between items-center mb-2">
+              <h2 class="text-sm font-medium text-gray-500">Milestone Submissions</h2>
+            </div>
+            
+            <div v-if="submissionLoading" class="py-3">
+              <div class="h-6 bg-gray-200 rounded animate-pulse w-3/4 mb-3"></div>
+              <div class="h-4 bg-gray-200 rounded animate-pulse w-1/2 mb-2"></div>
+              <div class="h-4 bg-gray-200 rounded animate-pulse w-2/3"></div>
+            </div>
+            
+            <div v-else-if="submissionError" class="py-3">
+              <p class="text-red-500">{{ submissionError }}</p>
+            </div>
+            
+            <div v-else-if="currentMilestoneSubmissionStats" class="py-1">
+              <div class="relative">
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-purple-500 rounded-full"></div>
+                
+                <div class="pl-4">
+                  <h3 class="text-lg font-semibold text-gray-800 mb-2">
+                    {{ currentMilestoneSubmissionStats.milestoneName }}
+                  </h3>
+                  
+                  <!-- Circular Progress Display -->
+                  <div class="flex flex-col items-center justify-center py-3">
+                    <div class="relative w-32 h-32">
+                      <!-- Background Circle -->
+                      <svg class="w-full h-full" viewBox="0 0 100 100">
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="45"
+                          fill="none"
+                          stroke="#E2E8F0"
+                          stroke-width="8"
+                        />
+                        <!-- Progress Circle -->
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="45"
+                          fill="none"
+                          stroke="#7C3AED"
+                          stroke-width="8"
+                          stroke-linecap="round"
+                          :stroke-dasharray="`${currentMilestoneSubmissionStats.submissionRate * 2.83} 283`"
+                          transform="rotate(-90 50 50)"
+                        />
+                      </svg>
+                      <!-- Fraction Display -->
+                      <div class="absolute inset-0 flex items-center justify-center">
+                        <span class="text-2xl font-bold text-gray-800">
+                          {{ currentMilestoneSubmissionStats.projectsWithSubmissions }}/{{ currentMilestoneSubmissionStats.totalAssigned }}
+                        </span>
+                      </div>
+                    </div>
+                    <!-- Submission Status Text -->
+                    <p class="mt-3 text-center text-gray-600">
+                      {{ currentMilestoneSubmissionStats.projectsWithSubmissions }} out of {{ currentMilestoneSubmissionStats.totalAssigned }} 
+                      {{ currentMilestoneSubmissionStats.totalAssigned === 1 ? 'student' : 'students' }}
+                      {{ currentMilestoneSubmissionStats.projectsWithSubmissions < 2 ? 'has' : 'have' }} submitted their work.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
+            
+            <div v-else class="py-3 text-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <p class="text-gray-500">No submission data available.</p>
+              <p class="text-sm text-gray-400 mt-1">
+                {{ currentUpcomingMilestone ? 'No assigned projects for this milestone yet.' : 'No current milestone found.' }}
+              </p>
+            </div>
           </div>
-          
-          <div v-else class="py-4 text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            <p class="text-gray-500">No submission data available.</p>
-            <p class="text-sm text-gray-400 mt-1">
-              {{ currentUpcomingMilestone ? 'No assigned projects for this milestone yet.' : 'No current milestone found.' }}
-            </p>
+        </div>
+        
+        <!-- Right Column -->
+        <div class="col-span-6">
+          <!-- Assigned Project Card -->
+          <div class="bg-white p-4 shadow rounded relative">
+            <div class="flex justify-between items-start">
+              <h2 class="text-sm font-medium text-gray-500 mb-2">Your Projects Overview</h2>
+            </div>
+            
+            <div v-if="projectLoading" class="py-4">
+              <div class="h-6 bg-gray-200 rounded animate-pulse w-3/4 mb-3"></div>
+              <div class="h-4 bg-gray-200 rounded animate-pulse w-1/2 mb-2"></div>
+              <div class="h-4 bg-gray-200 rounded animate-pulse w-2/3"></div>
+            </div>
+            
+            <div v-else-if="projectError" class="py-4">
+              <p class="text-red-500">{{ projectError }}</p>
+            </div>
+            
+            <div v-else-if="lecturerProjectStats.total > 0" class="py-2">
+              <div class="relative">
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-full"></div>
+                
+                <div class="pl-4">
+                  <h3 class="text-lg font-semibold text-gray-800 mb-3">Project Statistics</h3>
+                  
+                  <div class="grid grid-cols-3 gap-4 mb-4">
+                    <!-- Total Projects -->
+                    <div class="bg-blue-50 p-3 rounded-lg text-center">
+                      <p class="text-2xl font-bold text-blue-700">{{ lecturerProjectStats.total }}</p>
+                      <p class="text-sm text-blue-600">Total Projects</p>
+                    </div>
+                    
+                    <!-- Assigned Projects -->
+                    <div class="bg-green-50 p-3 rounded-lg text-center">
+                      <p class="text-2xl font-bold text-green-700">{{ lecturerProjectStats.assigned }}</p>
+                      <p class="text-sm text-green-600">Assigned</p>
+                    </div>
+                    
+                    <!-- Unassigned Projects -->
+                    <div class="bg-amber-50 p-3 rounded-lg text-center">
+                      <p class="text-2xl font-bold text-amber-700">{{ lecturerProjectStats.unassigned }}</p>
+                      <p class="text-sm text-amber-600">Unassigned</p>
+                    </div>
+                  </div>
+                  
+                  <!-- Assignment Rate Progress Bar -->
+                  <div class="mt-2">
+                    <div class="flex justify-between items-center mb-1">
+                      <span class="text-sm font-medium text-gray-700">Assignment Rate</span>
+                      <span class="text-sm font-medium text-gray-700">{{ lecturerProjectStats.assignmentRate }}%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                      <div 
+                        class="bg-blue-600 h-2.5 rounded-full" 
+                        :style="`width: ${lecturerProjectStats.assignmentRate}%`"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div v-else class="py-4 text-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <p class="text-gray-500">No projects created yet.</p>
+              <p class="text-sm text-gray-400 mt-1">Create projects for students to bid on.</p>
+            </div>
           </div>
         </div>
       </div>
