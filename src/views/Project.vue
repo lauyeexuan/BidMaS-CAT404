@@ -3278,52 +3278,67 @@ const fetchBasicSettings = async () => {
     // Don't clear project settings until we have new data
     // projectSettings.value = null  <-- Remove this line
     
-    // Get all available majors
-    const projectsRef = doc(db, 'schools', schoolId, 'projects', yearData.yearId)
-    const projectsDoc = await getDoc(projectsRef)
+    // Add caching for academic year majors to avoid redundant queries
+    const cacheKey = `${schoolId}-${yearData.yearId}`
+    const majorsCacheKey = `${cacheKey}-majors`
     
-    if (projectsDoc.exists() && projectsDoc.data().majors && projectsDoc.data().majors.length > 0) {
-      const availableMajorsInYear = projectsDoc.data().majors;
-      availableMajors.value = availableMajorsInYear;
-      
-      // Update userMajors to match the available majors for this academic year
-      // This ensures the milestone display shows the correct majors
-      userMajors.value = [...availableMajorsInYear];
-      
-      // Reset selectedMajor and selectedMilestoneViewMajor to ensure they exist in this academic year
-      let majorFound = false;
-      
-      // First try to use the user's major if it exists in this academic year
-      if (userStore.currentUser.role === 'lecturer' && userStore.currentUser.major) {
-        const userMajors = Array.isArray(userStore.currentUser.major) 
-          ? userStore.currentUser.major 
-          : [userStore.currentUser.major];
-          
-        // Find the first user major that exists in this academic year
-        const validUserMajor = userMajors.find(major => availableMajorsInYear.includes(major));
-        
-        if (validUserMajor) {
-          selectedMajor.value = validUserMajor;
-          selectedMilestoneViewMajor.value = validUserMajor;
-          majorFound = true;
-          console.log(`Found user major ${validUserMajor} in academic year ${yearData.yearId}`);
-        }
-      }
-      
-      // If no valid user major was found, use the first available major
-      if (!majorFound) {
-        selectedMajor.value = availableMajorsInYear[0];
-        selectedMilestoneViewMajor.value = availableMajorsInYear[0];
-        console.log(`Using first available major ${availableMajorsInYear[0]} for academic year ${yearData.yearId}`);
-      }
+    // Check if we have cached majors data
+    const cachedMajorsData = sessionStorage.getItem(majorsCacheKey)
+    let availableMajorsInYear
+    
+    if (cachedMajorsData) {
+      console.log('Using cached majors data')
+      availableMajorsInYear = JSON.parse(cachedMajorsData)
+      availableMajors.value = availableMajorsInYear
+      userMajors.value = [...availableMajorsInYear]
     } else {
-      console.warn(`No majors found for academic year ${yearData.yearId}`);
-      availableMajors.value = [];
-      selectedMajor.value = null;
-      selectedMilestoneViewMajor.value = null;
-      userMajors.value = [];
-      projectSettings.value = null;  // Only set to null if no majors found
-      return;
+      // Get all available majors
+      const projectsRef = doc(db, 'schools', schoolId, 'projects', yearData.yearId)
+      const projectsDoc = await getDoc(projectsRef)
+      
+      if (projectsDoc.exists() && projectsDoc.data().majors && projectsDoc.data().majors.length > 0) {
+        availableMajorsInYear = projectsDoc.data().majors
+        availableMajors.value = availableMajorsInYear
+        userMajors.value = [...availableMajorsInYear]
+        
+        // Cache the majors data
+        sessionStorage.setItem(majorsCacheKey, JSON.stringify(availableMajorsInYear))
+      } else {
+        console.warn(`No majors found for academic year ${yearData.yearId}`)
+        availableMajors.value = []
+        selectedMajor.value = null
+        selectedMilestoneViewMajor.value = null
+        userMajors.value = []
+        projectSettings.value = null  // Only set to null if no majors found
+        return
+      }
+    }
+    
+    // Reset selectedMajor and selectedMilestoneViewMajor to ensure they exist in this academic year
+    let majorFound = false
+    
+    // First try to use the user's major if it exists in this academic year
+    if (userStore.currentUser.role === 'lecturer' && userStore.currentUser.major) {
+      const userMajors = Array.isArray(userStore.currentUser.major) 
+        ? userStore.currentUser.major 
+        : [userStore.currentUser.major]
+        
+      // Find the first user major that exists in this academic year
+      const validUserMajor = userMajors.find(major => availableMajorsInYear.includes(major))
+      
+      if (validUserMajor) {
+        selectedMajor.value = validUserMajor
+        selectedMilestoneViewMajor.value = validUserMajor
+        majorFound = true
+        console.log(`Found user major ${validUserMajor} in academic year ${yearData.yearId}`)
+      }
+    }
+    
+    // If no valid user major was found, use the first available major
+    if (!majorFound) {
+      selectedMajor.value = availableMajorsInYear[0]
+      selectedMilestoneViewMajor.value = availableMajorsInYear[0]
+      console.log(`Using first available major ${availableMajorsInYear[0]} for academic year ${yearData.yearId}`)
     }
     
     console.log("selected major", selectedMajor.value);
@@ -3338,27 +3353,46 @@ const fetchBasicSettings = async () => {
     // Ensure selectedMajor is a string before using it in collection path
     const majorToUse = Array.isArray(selectedMajor.value) ? selectedMajor.value[0] : selectedMajor.value;
     
-    // Get project settings for the selected major
-    const majorRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, majorToUse);
-    const majorDocs = await getDocs(majorRef);
+    // Check cache for project settings
+    const settingsCacheKey = `${cacheKey}-settings-${majorToUse}`
+    const cachedSettings = sessionStorage.getItem(settingsCacheKey)
     
-    if (!majorDocs.empty) {
-      const majorDoc = majorDocs.docs[0];
-      const majorData = majorDoc.data();
+    if (cachedSettings) {
+      console.log(`Using cached project settings for major ${majorToUse}`)
+      projectSettings.value = JSON.parse(cachedSettings)
       
-      projectSettings.value = {
-        headers: majorData.headers || {},
-        milestones: majorData.milestones || []
-      };
-      
-      if (majorData.headers) {
-        Object.keys(majorData.headers).forEach(headerName => {
+      // Re-initialize newProject fields if they exist
+      if (projectSettings.value && projectSettings.value.headers) {
+        Object.keys(projectSettings.value.headers).forEach(headerName => {
           newProject.value[headerName] = '';
         });
       }
     } else {
-      console.warn(`No settings found for major ${majorToUse} in academic year ${yearData.yearId}`);
-      projectSettings.value = null;
+      // Get project settings for the selected major
+      const majorRef = collection(db, 'schools', schoolId, 'projects', yearData.yearId, majorToUse);
+      const majorDocs = await getDocs(majorRef);
+      
+      if (!majorDocs.empty) {
+        const majorDoc = majorDocs.docs[0];
+        const majorData = majorDoc.data();
+        
+        projectSettings.value = {
+          headers: majorData.headers || {},
+          milestones: majorData.milestones || []
+        };
+        
+        // Cache the settings
+        sessionStorage.setItem(settingsCacheKey, JSON.stringify(projectSettings.value))
+        
+        if (majorData.headers) {
+          Object.keys(majorData.headers).forEach(headerName => {
+            newProject.value[headerName] = '';
+          });
+        }
+      } else {
+        console.warn(`No settings found for major ${majorToUse} in academic year ${yearData.yearId}`);
+        projectSettings.value = null;
+      }
     }
     
     // Try to load settings from first project major if needed
@@ -3432,24 +3466,106 @@ async function checkAndProcessDeadlines() {
 
 // This is the only onMounted hook we need to keep
 onMounted(async () => {
-  await fetchAvailableYears()
-  // Fetch user majors
-  await fetchUserMajors()
-  
-  console.log("mounted", selectedAcademicYear.value)
-  if (selectedAcademicYear.value) {
-    console.log(" selected major on mount", selectedMajor.value)
-    await loadTabData(activeTab.value)
-    // We don't need to call fetchBiddingMilestone here anymore since fetchUserMajors
-    // will call fetchMilestoneForMajor which fetches the milestone
-    // await fetchBiddingMilestone()
-    // Add this line to trigger deadline processing on page load
-    await checkAndProcessDeadlines();
-  } else {
-    console.log('Missing required data:', {
-      hasAcademicYear: !!selectedAcademicYear.value,
-      hasSelectedMajor: !!selectedMajor.value
-    })
+  try {
+    console.log("Starting improved loading sequence...")
+    const startTime = performance.now()
+    
+    // First, start the essential data fetches in parallel
+    const availableYearsPromise = fetchAvailableYears()
+    const userMajorsPromise = fetchUserMajors() 
+    
+    // Wait for the critical data needed to determine what to load next
+    await Promise.all([availableYearsPromise, userMajorsPromise])
+    
+    if (selectedAcademicYear.value) {
+      // Start loading basic settings right away (don't await yet)
+      const settingsPromise = fetchBasicSettings()
+      
+      // Start loading tab data in parallel
+      console.log("Loading tab data for", activeTab.value)
+      let tabDataPromise = null
+      
+      const schoolId = userStore.currentUser.school
+      let userId = userStore.currentUser.id || userStore.currentUser.uid || userStore.currentUser._id || userStore.currentUser.userId
+      if (!userId) {
+        userId = "unknown-user-" + Date.now()
+      }
+      
+      // Only start loading specific tab data
+      if (activeTab.value === 'myProjects' && !myProjectsLoaded.value) {
+        myProjectsLoading.value = true
+        tabDataPromise = fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
+          .then(() => { myProjectsLoaded.value = true })
+      } else if (activeTab.value === 'allProjects' && !allProjectsLoaded.value) {
+        allProjectsLoading.value = true
+        tabDataPromise = fetchAllProjects()
+          .then(() => { allProjectsLoaded.value = true })
+      } else if (activeTab.value === 'bids' && !bidsLoaded.value) {
+        bidsLoading.value = true
+        tabDataPromise = fetchProjectBids()
+          .then(async () => { 
+            await setupAllBidsListeners()
+            bidsLoaded.value = true 
+          })
+      }
+      
+      // Wait for settings and the active tab's data to load
+      await Promise.all([settingsPromise, tabDataPromise])
+      
+      // Start prefetching data for other tabs in the background (don't await)
+      if (activeTab.value === 'myProjects') {
+        // Prefetch bids and all projects in background
+        if (!bidsLoaded.value) {
+          projectBids.value = []
+          fetchProjectBids().then(async () => {
+            await setupAllBidsListeners()
+            bidsLoaded.value = true
+          }).catch(error => {
+            console.error('Error prefetching bids:', error)
+          })
+        }
+        
+        if (!allProjectsLoaded.value) {
+          allProjects.value = []
+          fetchAllProjects().then(() => {
+            allProjectsLoaded.value = true
+          }).catch(error => {
+            console.error('Error prefetching all projects:', error)
+          })
+        }
+      } else if (activeTab.value === 'allProjects') {
+        // Prefetch bids in background
+        if (!bidsLoaded.value) {
+          projectBids.value = []
+          fetchProjectBids().then(async () => {
+            await setupAllBidsListeners()
+            bidsLoaded.value = true
+          }).catch(error => {
+            console.error('Error prefetching bids:', error)
+          })
+        }
+      }
+      
+      // Process deadlines
+      await checkAndProcessDeadlines()
+      
+      const endTime = performance.now()
+      console.log(`Improved loading sequence completed in ${(endTime - startTime).toFixed(2)}ms`)
+    } else {
+      console.log('Missing required data:', {
+        hasAcademicYear: !!selectedAcademicYear.value,
+        hasSelectedMajor: !!selectedMajor.value
+      })
+    }
+  } catch (error) {
+    console.error("Error during page initialization:", error)
+    showToast('Failed to load page data', 'error')
+  } finally {
+    // Ensure loading state is reset
+    loading.value = false
+    myProjectsLoading.value = false
+    allProjectsLoading.value = false
+    bidsLoading.value = false
   }
 })
 
