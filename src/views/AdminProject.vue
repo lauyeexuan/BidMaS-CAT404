@@ -170,7 +170,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore'
+import { collection, getDocs, doc, getDoc, query, limit } from 'firebase/firestore'
 import { db } from '@/firebase'
 import { useUserStore } from '@/stores/userStore'
 import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
@@ -188,6 +188,7 @@ const selectedMajorFilters = ref(new Set())
 const userNames = ref({}) // Map of userId to name
 const itemsPerPage = 10
 const currentPage = ref(1)
+const userIdsToFetch = new Set() // Track user IDs that need fetching
 
 // Define color palette
 const colorPalette = [
@@ -262,17 +263,12 @@ const fetchProjects = async () => {
   try {
     loading.value = true
     projects.value = [] // Clear projects immediately to show loading state
+    userIdsToFetch.clear() // Reset user IDs to fetch
     
     const schoolId = userStore.currentUser.school
     
     // Create a map to track projects by ID to avoid duplicates
     const projectsMap = new Map()
-    // Create a set to track unique user IDs
-    const userIds = new Set()
-    
-    // According to the Firestore structure, we need to:
-    // 1. Get the year document from the projects subcollection
-    // 2. For each major, get the majorDocId and then the projectsPerYear subcollection
     
     // Get available majors from the year document
     const yearRef = doc(db, 'schools', schoolId, 'projects', selectedAcademicYear.value)
@@ -281,8 +277,8 @@ const fetchProjects = async () => {
     if (yearDoc.exists()) {
       const majors = yearDoc.data().majors || []
       
-      // Fetch projects from all majors
-      for (const major of majors) {
+      // Use Promise.all to fetch projects from all majors in parallel
+      await Promise.all(majors.map(async (major) => {
         try {
           // Get the major collection
           const majorCollectionRef = collection(db, 'schools', schoolId, 'projects', selectedAcademicYear.value, major)
@@ -314,12 +310,12 @@ const fetchProjects = async () => {
               
               // Add userId to the set of IDs to fetch
               if (projectData.userId) {
-                userIds.add(projectData.userId)
+                userIdsToFetch.add(projectData.userId)
               }
               
               // Add assignedTo user ID to the set of IDs to fetch if it exists
               if (projectData.assignedTo) {
-                userIds.add(projectData.assignedTo)
+                userIdsToFetch.add(projectData.assignedTo)
               }
               
               // Use Map to ensure uniqueness by project ID
@@ -337,30 +333,21 @@ const fetchProjects = async () => {
         } catch (majorError) {
           console.error(`Error fetching projects for major ${major}:`, majorError)
         }
-      }
+      }))
     } else {
       console.error(`Year document ${selectedAcademicYear.value} does not exist`)
     }
     
     // Convert map values to array
     projects.value = Array.from(projectsMap.values())
-
-    // Debug log to verify majors
-    console.log('Loaded projects with majors:', projects.value.map(p => p.major))
     
     // Fetch user names for all creators
-    await fetchUserNames(Array.from(userIds))
+    if (userIdsToFetch.size > 0) {
+      await fetchUserNames(Array.from(userIdsToFetch))
+    }
     
     // Initialize major filters with all majors
     const uniqueMajors = uniqueProjectMajors.value
-    console.log('Unique majors found:', uniqueMajors)
-
-    // Ensure each major has a color assigned
-    uniqueMajors.forEach(major => {
-      const color = getMajorColorClasses(major)
-      console.log(`Major ${major} assigned color:`, color)
-    })
-
     selectedMajorFilters.value = new Set(uniqueMajors)
     
     // Reset to page 1 when switching years
@@ -373,24 +360,30 @@ const fetchProjects = async () => {
   }
 }
 
-// Fetch user names
+// Fetch user names - optimized to fetch in batches
 const fetchUserNames = async (userIds) => {
   try {
     const schoolId = userStore.currentUser.school
     
-    for (const userId of userIds) {
-      if (!userNames.value[userId]) {
-        // According to the Firestore structure, users are in a subcollection of the school
-        const userRef = doc(db, 'schools', schoolId, 'users', userId)
-        const userDoc = await getDoc(userRef)
-        
-        if (userDoc.exists()) {
-          const userData = userDoc.data()
-          userNames.value[userId] = userData.name || userData.email || 'Unknown'
-        } else {
-          userNames.value[userId] = 'Unknown'
+    // Process in batches of 10 users at a time
+    const batchSize = 10;
+    for (let i = 0; i < userIds.length; i += batchSize) {
+      const batch = userIds.slice(i, i + batchSize);
+      
+      await Promise.all(batch.map(async (userId) => {
+        if (!userNames.value[userId]) {
+          // According to the Firestore structure, users are in a subcollection of the school
+          const userRef = doc(db, 'schools', schoolId, 'users', userId)
+          const userDoc = await getDoc(userRef)
+          
+          if (userDoc.exists()) {
+            const userData = userDoc.data()
+            userNames.value[userId] = userData.name || userData.email || 'Unknown'
+          } else {
+            userNames.value[userId] = 'Unknown'
+          }
         }
-      }
+      }));
     }
   } catch (error) {
     console.error('Error fetching user names:', error)
@@ -414,14 +407,12 @@ const toggleMajorFilter = (major) => {
   currentPage.value = 1
 }
 
-// Get major color classes
+// Get major color classes - memoized
 const getMajorColorClasses = (major) => {
   if (!majorColorMap.value.has(major)) {
     // Assign next available color or cycle back to start
     const colorIndex = majorColorMap.value.size % colorPalette.length
-    const baseColor = colorPalette[colorIndex]
-    
-    majorColorMap.value.set(major, baseColor)
+    majorColorMap.value.set(major, colorPalette[colorIndex])
   }
   
   return majorColorMap.value.get(major)
@@ -467,6 +458,8 @@ watch(filteredProjects, () => {
 // Lifecycle hooks
 onMounted(async () => {
   await fetchAcademicYears()
-  await fetchProjects()
+  if (selectedAcademicYear.value) {
+    await fetchProjects()
+  }
 })
 </script> 
