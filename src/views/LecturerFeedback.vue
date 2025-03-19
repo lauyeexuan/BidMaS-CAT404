@@ -118,25 +118,29 @@
             <!-- Comment -->
             <div>
               <label for="comment" class="block text-sm font-medium text-gray-700 mb-2">Comment</label>
-              <textarea
+              <QuillEditor
                 id="comment"
-                v-model="feedbackData.comment"
-                rows="4"
-                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                v-model:content="feedbackData.comment"
+                theme="snow"
+                :toolbar="editorToolbar"
+                contentType="html"
+                class="bg-white rounded-md border-gray-300 h-40 feedback-editor"
                 placeholder="Enter your feedback comment..."
-              ></textarea>
+              />
             </div>
 
             <!-- Advice -->
             <div>
               <label for="advice" class="block text-sm font-medium text-gray-700 mb-2">Advice for Improvement</label>
-              <textarea
+              <QuillEditor
                 id="advice"
-                v-model="feedbackData.advice"
-                rows="4"
-                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                v-model:content="feedbackData.advice"
+                theme="snow"
+                :toolbar="editorToolbar"
+                contentType="html"
+                class="bg-white rounded-md border-gray-300 h-40 feedback-editor"
                 placeholder="Enter your advice for improvement..."
-              ></textarea>
+              />
             </div>
 
             <!-- Error Message -->
@@ -435,9 +439,16 @@ import { db } from '@/firebase'
 import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
 import { useVirtualList } from '@vueuse/core'
 import { debounce } from 'lodash'
+// Import QuillEditor correctly
+import { QuillEditor } from '@vueup/vue-quill'
+// Import Quill styles
+import '@vueup/vue-quill/dist/vue-quill.snow.css'
 
 export default {
   name: 'LecturerFeedback',
+  components: {
+    QuillEditor
+  },
   setup() {
     const userStore = useUserStore()
     const selectedMajor = ref(null)
@@ -488,6 +499,21 @@ export default {
       itemHeight: 60,
       overscan: 10,
     })
+
+    // Add a custom toolbar configuration for the QuillEditor
+    const editorToolbar = [
+      ['bold', 'italic', 'underline', 'strike'],
+      ['blockquote', 'code-block'],
+      [{ 'header': 1 }, { 'header': 2 }],
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+      [{ 'script': 'sub' }, { 'script': 'super' }],
+      [{ 'indent': '-1' }, { 'indent': '+1' }],
+      [{ 'direction': 'rtl' }],
+      [{ 'size': ['small', false, 'large', 'huge'] }],
+      [{ 'color': [] }, { 'background': [] }],
+      [{ 'align': [] }],
+      ['clean']
+    ]
 
     // Add new ref for all submissions
     const allSubmissions = ref([])
@@ -914,9 +940,9 @@ export default {
           majorId: selectedSubmission.value.majorId,
           milestoneDescription: selectedSubmission.value.milestoneDescription,
           projectId: selectedSubmission.value.projectId,
-          comment: feedbackData.value.comment,
+          comment: feedbackData.value.comment || '',
           rating: feedbackData.value.rating,
-          advice: feedbackData.value.advice,
+          advice: feedbackData.value.advice || '',
           updatedAt: new Date()
         }
 
@@ -934,6 +960,12 @@ export default {
         if (submissionIndex !== -1) {
           submissions.value[submissionIndex].hasBeenReviewed = true
         }
+        
+        // Also update in allSubmissions
+        const allSubmissionIndex = allSubmissions.value.findIndex(s => s.id === selectedSubmission.value.id)
+        if (allSubmissionIndex !== -1) {
+          allSubmissions.value[allSubmissionIndex].hasBeenReviewed = true
+        }
 
         // Return to submissions view
         showFeedbackView.value = false
@@ -950,10 +982,12 @@ export default {
     const returnToSubmissions = () => {
       showFeedbackView.value = false
       selectedSubmission.value = null
+      // Reset feedback form
       feedbackData.value = {
         comment: '',
         rating: 0,
-        advice: ''
+        advice: '',
+        id: undefined
       }
     }
 
@@ -1016,7 +1050,8 @@ export default {
       searchQuery,
       currentMilestoneSubmissionCount,
       currentMilestoneReviewedCount,
-      updateFilteredSubmissions
+      updateFilteredSubmissions,
+      editorToolbar
     }
   }
 }
@@ -1049,5 +1084,33 @@ export default {
 
 [data-virtual-list]::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+/* Rich text editor styles */
+.feedback-editor {
+  margin-bottom: 1rem;
+}
+
+:deep(.ql-toolbar) {
+  border-top-left-radius: 0.375rem;
+  border-top-right-radius: 0.375rem;
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+}
+
+:deep(.ql-container) {
+  border-bottom-left-radius: 0.375rem;
+  border-bottom-right-radius: 0.375rem;
+  border-color: #d1d5db;
+  font-family: inherit;
+}
+
+:deep(.ql-editor) {
+  min-height: 120px;
+  font-size: 0.875rem;
+}
+
+:deep(.ql-snow .ql-picker) {
+  font-size: 0.875rem;
 }
 </style> 

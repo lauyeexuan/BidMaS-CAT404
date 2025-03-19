@@ -98,12 +98,12 @@
 
           <div v-if="selectedFeedback.comment" class="bg-gray-50 p-4 rounded">
             <h4 class="font-medium text-gray-700 mb-2">Comment</h4>
-            <p class="text-gray-600">{{ selectedFeedback.comment }}</p>
+            <div class="text-gray-600 feedback-content" v-html="selectedFeedback.comment"></div>
           </div>
           
           <div v-if="selectedFeedback.advice" class="bg-blue-50 p-4 rounded">
             <h4 class="font-medium text-blue-700 mb-2">Advice</h4>
-            <p class="text-blue-600">{{ selectedFeedback.advice }}</p>
+            <div class="text-blue-600 feedback-content" v-html="selectedFeedback.advice"></div>
           </div>
         </div>
 
@@ -259,8 +259,134 @@ export default {
 }
 </script>
 
-<style scoped>
+<style>
+/* Global styles for this component */
 .student-feedback {
   padding: 20px;
+}
+
+/* Rich text content styling */
+.feedback-content {
+  line-height: 1.5;
+  overflow: hidden; /* Prevent margin collapse */
+}
+
+/* Quill specific size classes */
+.feedback-content .ql-size-small {
+  font-size: 0.75em;
+}
+
+.feedback-content .ql-size-large {
+  font-size: 1.5em;
+}
+
+.feedback-content .ql-size-huge {
+  font-size: 2.5em;
+}
+
+.feedback-content ol,
+.feedback-content ul {
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.feedback-content ol {
+  list-style-type: decimal !important;
+}
+
+.feedback-content ul {
+  list-style-type: disc !important;
+}
+
+.feedback-content li {
+  margin-bottom: 0.25rem;
+  display: list-item !important;
+}
+
+.feedback-content p {
+  margin-bottom: 0.75rem;
+}
+
+.feedback-content strong {
+  font-weight: 600;
+}
+
+.feedback-content em {
+  font-style: italic;
+}
+
+.feedback-content u {
+  text-decoration: underline;
+}
+
+.feedback-content blockquote {
+  border-left: 3px solid #e2e8f0;
+  padding-left: 1rem;
+  margin-left: 0;
+  margin-right: 0;
+  font-style: italic;
+  color: #4a5568;
+}
+
+.feedback-content h1,
+.feedback-content h2,
+.feedback-content h3 {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.feedback-content h1 {
+  font-size: 1.5rem;
+}
+
+.feedback-content h2 {
+  font-size: 1.25rem;
+}
+
+.feedback-content h3 {
+  font-size: 1.125rem;
+}
+
+.feedback-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.feedback-content a {
+  color: #3182ce;
+  text-decoration: underline;
+}
+
+.feedback-content a:hover {
+  color: #2c5282;
+}
+
+/* Support for superscript and subscript */
+.feedback-content sup {
+  vertical-align: super;
+  font-size: smaller;
+}
+
+.feedback-content sub {
+  vertical-align: sub;
+  font-size: smaller;
+}
+
+/* Support for code blocks */
+.feedback-content pre {
+  background-color: #f7fafc;
+  padding: 1rem;
+  border-radius: 0.375rem;
+  overflow-x: auto;
+  margin: 0.75rem 0;
+}
+
+.feedback-content code {
+  font-family: monospace;
+  background-color: #f7fafc;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
 }
 </style> 
