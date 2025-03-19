@@ -143,6 +143,110 @@
               />
             </div>
 
+            <!-- File Attachment -->
+            <div>
+              <label for="attachment" class="block text-sm font-medium text-gray-700 mb-2">Attachment (Optional)</label>
+              <div class="flex items-start">
+                <div class="w-full">
+                  <div 
+                    class="flex items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                    @click="$refs.fileInput.click()"
+                    @dragover.prevent="dragover = true"
+                    @dragleave.prevent="dragover = false"
+                    @drop.prevent="handleFileDrop"
+                    :class="{'border-blue-300 bg-blue-50': dragover}"
+                  >
+                    <input 
+                      ref="fileInput"
+                      type="file"
+                      id="attachment"
+                      class="hidden"
+                      @change="handleFileChange"
+                    />
+                    <div class="text-center" v-if="!feedbackData.attachment">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      <p class="mt-1 text-sm text-gray-500">Click to upload a file or drag and drop</p>
+                      <p class="text-xs text-gray-400">PDF, Word, Excel, PowerPoint, or Images</p>
+                    </div>
+                    <div v-else class="flex items-center justify-between w-full">
+                      <div class="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <div>
+                          <p class="text-sm font-medium text-gray-700 truncate">{{ feedbackData.attachment.name }}</p>
+                          <p class="text-xs text-gray-500">{{ formatFileSize(feedbackData.attachment.size) }}</p>
+                        </div>
+                      </div>
+                      <button 
+                        type="button" 
+                        @click.stop="removeAttachment" 
+                        class="text-red-500 hover:text-red-700"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-if="feedbackData.attachmentUrl && !feedbackData.attachment" class="mt-2 flex items-center text-sm text-gray-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Previous attachment will be replaced if you upload a new file</span>
+              </div>
+              
+              <!-- Show existing attachment -->
+              <div v-if="feedbackData.attachmentUrl && !feedbackData.attachment" class="mt-3 p-3 bg-gray-50 rounded-lg">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <div>
+                      <p class="text-sm font-medium text-gray-700">{{ feedbackData.attachmentName }}</p>
+                      <p class="text-xs text-gray-500" v-if="feedbackData.attachmentSize">
+                        {{ formatFileSize(feedbackData.attachmentSize) }}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <a 
+                      :href="feedbackData.attachmentUrl" 
+                      target="_blank" 
+                      download 
+                      class="px-2 py-1 bg-blue-100 text-blue-700 text-sm rounded hover:bg-blue-200 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    </a>
+                    <button 
+                      type="button" 
+                      @click="removeExistingAttachment" 
+                      class="px-2 py-1 bg-red-100 text-red-700 text-sm rounded hover:bg-red-200 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Success Message -->
+            <div v-if="feedbackSuccess" class="mb-4 p-3 bg-green-100 border border-green-200 text-green-800 rounded-lg flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              {{ feedbackSuccess }}
+            </div>
+
             <!-- Error Message -->
             <p v-if="feedbackError" class="text-red-600 text-sm">{{ feedbackError }}</p>
 
@@ -443,6 +547,9 @@ import { debounce } from 'lodash'
 import { QuillEditor } from '@vueup/vue-quill'
 // Import Quill styles
 import '@vueup/vue-quill/dist/vue-quill.snow.css'
+// Import Firebase storage
+import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
+import { storage } from '@/firebase'
 
 export default {
   name: 'LecturerFeedback',
@@ -471,10 +578,13 @@ export default {
     const selectedSubmission = ref(null)
     const feedbackLoading = ref(false)
     const feedbackError = ref(null)
+    const feedbackSuccess = ref('')
     const feedbackData = ref({
       comment: '',
       rating: 0,
-      advice: ''
+      advice: '',
+      attachment: null,
+      attachmentUrl: null
     })
 
     // Virtual list setup
@@ -880,7 +990,84 @@ export default {
       loadExistingFeedback(submission)
     }
 
-    // Function to load existing feedback
+    // Add file handling methods
+    const dragover = ref(false);
+
+    const handleFileDrop = (event) => {
+      dragover.value = false;
+      const files = event.dataTransfer.files;
+      if (files.length > 0) {
+        feedbackData.value.attachment = files[0];
+      }
+    };
+
+    const handleFileChange = (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        feedbackData.value.attachment = file;
+      }
+    };
+
+    const removeAttachment = () => {
+      feedbackData.value.attachment = null;
+    };
+
+    const removeExistingAttachment = () => {
+      feedbackData.value.attachmentUrl = null;
+      feedbackData.value.attachmentName = null;
+      feedbackData.value.attachmentSize = null;
+      feedbackData.value.attachmentType = null;
+      feedbackData.value.attachmentPath = null;
+    };
+
+    const formatFileSize = (bytes) => {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
+    const uploadAttachment = async () => {
+      if (!feedbackData.value.attachment) return null;
+      
+      const file = feedbackData.value.attachment;
+      const timestamp = Date.now();
+      const schoolId = userStore.currentUser.school;
+      const submissionId = selectedSubmission.value.id;
+      
+      // Create a unique path for the file
+      const filePath = `schools/${schoolId}/feedback-attachments/${submissionId}/${timestamp}_${file.name}`;
+      const fileRef = storageRef(storage, filePath);
+      
+      // Upload the file
+      await uploadBytes(fileRef, file);
+      
+      // Get download URL
+      const downloadUrl = await getDownloadURL(fileRef);
+      
+      return {
+        url: downloadUrl,
+        path: filePath,
+        name: file.name,
+        size: file.size,
+        type: file.type
+      };
+    };
+
+    const deleteAttachment = async (filePath) => {
+      if (!filePath) return;
+      
+      try {
+        const fileRef = storageRef(storage, filePath);
+        await deleteObject(fileRef);
+      } catch (error) {
+        console.error('Error deleting attachment:', error);
+        // Continue anyway as we want to update the feedback record
+      }
+    };
+
+    // Modified loadExistingFeedback function
     const loadExistingFeedback = async (submission) => {
       if (!submission || !userStore.currentUser?.school) return
 
@@ -905,14 +1092,26 @@ export default {
             comment: data.comment || '',
             rating: data.rating || 0,
             advice: data.advice || '',
-            id: feedbackDoc.id
+            id: feedbackDoc.id,
+            attachment: null,
+            attachmentUrl: data.attachmentUrl || null,
+            attachmentName: data.attachmentName || null,
+            attachmentSize: data.attachmentSize || null,
+            attachmentType: data.attachmentType || null,
+            attachmentPath: data.attachmentPath || null
           }
         } else {
           // Reset form if no existing feedback
           feedbackData.value = {
             comment: '',
             rating: 0,
-            advice: ''
+            advice: '',
+            attachment: null,
+            attachmentUrl: null,
+            attachmentName: null,
+            attachmentSize: null,
+            attachmentType: null,
+            attachmentPath: null
           }
         }
       } catch (error) {
@@ -923,12 +1122,13 @@ export default {
       }
     }
 
-    // Function to save feedback
+    // Modified saveFeedback function
     const saveFeedback = async () => {
       if (!selectedSubmission.value || !userStore.currentUser?.school) return
 
       feedbackLoading.value = true
       feedbackError.value = null
+      feedbackSuccess.value = ''
 
       try {
         const feedbackRef = collection(db, 'schools', userStore.currentUser.school, 'feedback')
@@ -944,6 +1144,35 @@ export default {
           rating: feedbackData.value.rating,
           advice: feedbackData.value.advice || '',
           updatedAt: new Date()
+        }
+
+        // Handle file attachment
+        let attachmentData = null;
+        
+        // Check if we have a new attachment
+        if (feedbackData.value.attachment) {
+          // If there was a previous attachment, delete it
+          if (feedbackData.value.attachmentPath) {
+            await deleteAttachment(feedbackData.value.attachmentPath);
+          }
+          
+          // Upload the new attachment
+          attachmentData = await uploadAttachment();
+          
+          if (attachmentData) {
+            feedbackPayload.attachmentUrl = attachmentData.url;
+            feedbackPayload.attachmentName = attachmentData.name;
+            feedbackPayload.attachmentSize = attachmentData.size;
+            feedbackPayload.attachmentType = attachmentData.type;
+            feedbackPayload.attachmentPath = attachmentData.path;
+          }
+        } else if (feedbackData.value.attachmentUrl) {
+          // Keep existing attachment data
+          feedbackPayload.attachmentUrl = feedbackData.value.attachmentUrl;
+          feedbackPayload.attachmentName = feedbackData.value.attachmentName;
+          feedbackPayload.attachmentSize = feedbackData.value.attachmentSize;
+          feedbackPayload.attachmentType = feedbackData.value.attachmentType;
+          feedbackPayload.attachmentPath = feedbackData.value.attachmentPath;
         }
 
         if (feedbackData.value.id) {
@@ -967,9 +1196,13 @@ export default {
           allSubmissions.value[allSubmissionIndex].hasBeenReviewed = true
         }
 
-        // Return to submissions view
-        showFeedbackView.value = false
-        selectedSubmission.value = null
+        // Show success message and don't navigate away
+        feedbackSuccess.value = 'Feedback saved successfully!'
+        
+        // Clear success message after 5 seconds
+        setTimeout(() => {
+          feedbackSuccess.value = '';
+        }, 5000);
       } catch (error) {
         console.error('Error saving feedback:', error)
         feedbackError.value = 'Failed to save feedback'
@@ -982,12 +1215,19 @@ export default {
     const returnToSubmissions = () => {
       showFeedbackView.value = false
       selectedSubmission.value = null
+      feedbackSuccess.value = ''
       // Reset feedback form
       feedbackData.value = {
         comment: '',
         rating: 0,
         advice: '',
-        id: undefined
+        id: undefined,
+        attachment: null,
+        attachmentUrl: null,
+        attachmentName: null,
+        attachmentSize: null,
+        attachmentType: null,
+        attachmentPath: null
       }
     }
 
@@ -1043,6 +1283,7 @@ export default {
       selectedSubmission,
       feedbackLoading,
       feedbackError,
+      feedbackSuccess,
       feedbackData,
       handleSubmissionClick,
       saveFeedback,
@@ -1051,7 +1292,14 @@ export default {
       currentMilestoneSubmissionCount,
       currentMilestoneReviewedCount,
       updateFilteredSubmissions,
-      editorToolbar
+      editorToolbar,
+      // File handling methods
+      handleFileChange,
+      handleFileDrop,
+      dragover,
+      removeAttachment,
+      removeExistingAttachment,
+      formatFileSize
     }
   }
 }

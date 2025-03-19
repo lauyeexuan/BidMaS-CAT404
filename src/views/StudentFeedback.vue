@@ -105,6 +105,33 @@
             <h4 class="font-medium text-blue-700 mb-2">Advice</h4>
             <div class="text-blue-600 feedback-content" v-html="selectedFeedback.advice"></div>
           </div>
+          
+          <!-- Attachment Section -->
+          <div v-if="selectedFeedback.attachmentUrl" class="bg-gray-50 p-4 rounded">
+            <h4 class="font-medium text-gray-700 mb-2">Attachment</h4>
+            <div class="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <div class="flex-1">
+                <p class="text-sm font-medium text-gray-700">{{ selectedFeedback.attachmentName }}</p>
+                <p class="text-xs text-gray-500" v-if="selectedFeedback.attachmentSize">
+                  {{ formatFileSize(selectedFeedback.attachmentSize) }}
+                </p>
+              </div>
+              <a 
+                :href="selectedFeedback.attachmentUrl" 
+                target="_blank" 
+                download
+                class="px-3 py-1.5 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors inline-flex items-center"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download
+              </a>
+            </div>
+          </div>
         </div>
 
         <div v-else class="text-center py-8 text-gray-500">
@@ -234,6 +261,15 @@ export default {
       }
     }
     
+    // Helper function to format file size
+    const formatFileSize = (bytes) => {
+      if (!bytes || bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+    
     onMounted(async () => {
       if (userStore.currentUser) {
         const data = getMilestoneData(userStore.currentUser.uid)
@@ -253,7 +289,8 @@ export default {
       selectedFeedback,
       formatDate: safeFormatDate,
       getFeedback,
-      selectSubmission
+      selectSubmission,
+      formatFileSize
     }
   }
 }
