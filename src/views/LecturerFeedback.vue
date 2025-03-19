@@ -430,7 +430,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { getMilestoneData } from '@/utils/milestones'
 import { useUserStore } from '@/stores/userStore'
 import { formatDate } from '@/utils/milestoneHelpers'
-import { collection, query, where, getDocs, getDoc, doc, limit, startAfter, orderBy, updateDoc, addDoc } from 'firebase/firestore'
+import { collection, query, where, getDocs, getDoc, doc, limit, startAfter, orderBy, updateDoc, addDoc, onSnapshot } from 'firebase/firestore'
 import { db } from '@/firebase'
 import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
 import { useVirtualList } from '@vueuse/core'
@@ -627,152 +627,205 @@ export default {
         const yearId = academicYearData.yearId
 
         const majorsToFetch = selectedMajor.value ? [selectedMajor.value] : userStore.currentUser.major || []
-        const newSubmissions = []
-
-        // Create a batch to get all submissions at once
-        const submissionPromises = majorsToFetch.map(async (majorId) => {
-          const submissionsRef = collection(
-            db, 
-            'schools', schoolId,
-            'submissions'
-          )
-
-          let submissionQuery = query(
-            submissionsRef,
-            where('yearId', '==', yearId),
-            where('majorId', '==', majorId),
-            where('lecturerId', '==', userId),
-            orderBy('submittedAt', 'desc'),
-            limit(pageSize.value)
-          )
-
-          if (loadMore && lastDoc.value) {
-            submissionQuery = query(submissionQuery, startAfter(lastDoc.value))
-          }
-
-          if (selectedMilestoneFilter.value) {
-            submissionQuery = query(
-              submissionQuery,
-              where('milestoneDescription', '==', selectedMilestoneFilter.value.description)
-            )
-          }
-
-          const submissionsSnapshot = await getDocs(submissionQuery)
-          
-          if (submissionsSnapshot.empty) {
-            hasMore.value = false
-            return []
-          }
-
-          lastDoc.value = submissionsSnapshot.docs[submissionsSnapshot.docs.length - 1]
-
-          // Process submissions in parallel
-          const processedSubmissions = await Promise.all(
-            submissionsSnapshot.docs.map(async (doc) => {
-              const submissionData = doc.data()
-              const studentName = await getStudentName(schoolId, submissionData.submittedBy)
-              
-              // Check if feedback exists for this submission
-              const feedbackRef = collection(db, 'schools', schoolId, 'feedback')
-              const feedbackQuery = query(
-                feedbackRef,
-                where('submissionId', '==', doc.id),
-                where('lecturerId', '==', userId),
-                limit(1)
-              )
-              const feedbackSnapshot = await getDocs(feedbackQuery)
-              const hasBeenReviewed = !feedbackSnapshot.empty
-              
-              return {
-                id: doc.id,
-                projectId: submissionData.projectId,
-                projectTitle: submissionData.projectTitle,
-                major: majorId,
-                studentName,
-                hasBeenReviewed,
-                ...submissionData
-              }
-            })
-          )
-
-          return processedSubmissions
-        })
-
-        const submissionResults = await Promise.all(submissionPromises)
-        newSubmissions.push(...submissionResults.flat())
-
-        // Sort and update submissions
-        const sortedSubmissions = newSubmissions.sort((a, b) => {
-          const dateA = a.submittedAt?.toDate?.() || new Date(0)
-          const dateB = b.submittedAt?.toDate?.() || new Date(0)
-          return dateB - dateA
-        })
-
-        if (loadMore) {
-          submissions.value = [...submissions.value, ...sortedSubmissions]
-        } else {
-          submissions.value = sortedSubmissions
-        }
-
-        // Update allSubmissions without filters
-        if (!loadMore) {
-          // Fetch all submissions without milestone filter
-          const allSubmissionPromises = userStore.currentUser.major.map(async (majorId) => {
-            const submissionsRef = collection(db, 'schools', schoolId, 'submissions')
-            const baseQuery = query(
-              submissionsRef,
-              where('yearId', '==', yearId),
-              where('majorId', '==', majorId),
-              where('lecturerId', '==', userId),
-              orderBy('submittedAt', 'desc')
-            )
-
-            const allSubmissionsSnapshot = await getDocs(baseQuery)
-            
-            return Promise.all(
-              allSubmissionsSnapshot.docs.map(async (doc) => {
-                const submissionData = doc.data()
-                const studentName = await getStudentName(schoolId, submissionData.submittedBy)
-                
-                const feedbackRef = collection(db, 'schools', schoolId, 'feedback')
-                const feedbackQuery = query(
-                  feedbackRef,
-                  where('submissionId', '==', doc.id),
-                  where('lecturerId', '==', userId),
-                  limit(1)
-                )
-                const feedbackSnapshot = await getDocs(feedbackQuery)
-                const hasBeenReviewed = !feedbackSnapshot.empty
-                
-                return {
-                  id: doc.id,
-                  projectId: submissionData.projectId,
-                  projectTitle: submissionData.projectTitle,
-                  major: majorId,
-                  studentName,
-                  hasBeenReviewed,
-                  ...submissionData
-                }
-              })
-            )
-          })
-
-          const allResults = await Promise.all(allSubmissionPromises)
-          allSubmissions.value = allResults.flat().sort((a, b) => {
-            const dateA = a.submittedAt?.toDate?.() || new Date(0)
-            const dateB = b.submittedAt?.toDate?.() || new Date(0)
-            return dateB - dateA
-          })
-        }
-
+        
+        // Set up real-time listeners instead of one-time queries
+        setupSubmissionsListeners(schoolId, userId, yearId, majorsToFetch)
+        
       } catch (error) {
         console.error('Error fetching submissions:', error)
         submissionsError.value = 'Failed to load submissions'
-      } finally {
         submissionsLoading.value = false
       }
     }
 
+    // New function to set up real-time listeners
+    const submissionsUnsubscribers = ref([])
+    
+    const setupSubmissionsListeners = (schoolId, userId, yearId, majorsToFetch) => {
+      // Clear any existing listeners
+      submissionsUnsubscribers.value.forEach(unsubscribe => unsubscribe())
+      submissionsUnsubscribers.value = []
+      
+      const allNewSubmissions = []
+      const listeners = majorsToFetch.map(majorId => {
+        const submissionsRef = collection(db, 'schools', schoolId, 'submissions')
+        
+        let submissionQuery = query(
+          submissionsRef,
+          where('yearId', '==', yearId),
+          where('majorId', '==', majorId),
+          where('lecturerId', '==', userId),
+          orderBy('submittedAt', 'desc')
+        )
+        
+        if (selectedMilestoneFilter.value) {
+          submissionQuery = query(
+            submissionQuery,
+            where('milestoneDescription', '==', selectedMilestoneFilter.value.description)
+          )
+        }
+        
+        // Set up the listener
+        const unsubscribe = onSnapshot(submissionQuery, async (snapshot) => {
+          const newDocs = []
+          
+          const processPromises = snapshot.docs.map(async (doc) => {
+            const submissionData = doc.data()
+            const studentName = await getStudentName(schoolId, submissionData.submittedBy)
+            
+            // Check if feedback exists for this submission
+            const feedbackRef = collection(db, 'schools', schoolId, 'feedback')
+            const feedbackQuery = query(
+              feedbackRef,
+              where('submissionId', '==', doc.id),
+              where('lecturerId', '==', userId),
+              limit(1)
+            )
+            const feedbackSnapshot = await getDocs(feedbackQuery)
+            const hasBeenReviewed = !feedbackSnapshot.empty
+            
+            return {
+              id: doc.id,
+              projectId: submissionData.projectId,
+              projectTitle: submissionData.projectTitle,
+              major: majorId,
+              studentName,
+              hasBeenReviewed,
+              ...submissionData
+            }
+          })
+          
+          const processedDocs = await Promise.all(processPromises)
+          newDocs.push(...processedDocs)
+          
+          // Update all submissions data
+          if (allSubmissions.value.length === 0) {
+            allSubmissions.value = [...newDocs]
+          } else {
+            // Merge new submissions with existing ones
+            const updatedSubmissions = [...allSubmissions.value]
+            
+            newDocs.forEach(newDoc => {
+              const existingIndex = updatedSubmissions.findIndex(s => s.id === newDoc.id)
+              if (existingIndex !== -1) {
+                updatedSubmissions[existingIndex] = newDoc
+              } else {
+                updatedSubmissions.push(newDoc)
+              }
+            })
+            
+            allSubmissions.value = updatedSubmissions
+          }
+          
+          // Update filtered submissions based on search and filters
+          updateFilteredSubmissions()
+          
+          submissionsLoading.value = false
+        }, error => {
+          console.error('Error in real-time listener:', error)
+          submissionsError.value = 'Failed to establish real-time connection'
+          submissionsLoading.value = false
+        })
+        
+        submissionsUnsubscribers.value.push(unsubscribe)
+        return unsubscribe
+      })
+      
+      return listeners
+    }
+    
+    // Function to update filtered submissions
+    const updateFilteredSubmissions = () => {
+      const query = searchQuery.value.toLowerCase()
+      
+      // Apply filters client-side
+      let filtered = [...allSubmissions.value]
+      
+      // Apply major filter
+      if (selectedMajor.value) {
+        filtered = filtered.filter(sub => sub.major === selectedMajor.value)
+      }
+      
+      // Apply milestone filter
+      if (selectedMilestoneFilter.value) {
+        filtered = filtered.filter(sub => sub.milestoneDescription === selectedMilestoneFilter.value.description)
+      }
+      
+      // Apply search filter
+      if (query) {
+        filtered = filtered.filter(sub => 
+          sub.fileName.toLowerCase().includes(query) ||
+          sub.studentName.toLowerCase().includes(query) ||
+          sub.projectTitle.toLowerCase().includes(query)
+        )
+      }
+      
+      // Sort by submission date
+      filtered.sort((a, b) => {
+        const dateA = a.submittedAt?.toDate?.() || new Date(0)
+        const dateB = b.submittedAt?.toDate?.() || new Date(0)
+        return dateB - dateA
+      })
+      
+      submissions.value = filtered
+    }
+
+    // Cleanup function for component unmount
+    const cleanupListeners = () => {
+      submissionsUnsubscribers.value.forEach(unsubscribe => unsubscribe())
+      submissionsUnsubscribers.value = []
+    }
+
+    // Modified watchers for search and filters
+    watch(searchQuery, () => {
+      updateFilteredSubmissions()
+    })
+    
+    watch([selectedMajor, selectedMilestoneFilter], () => {
+      if (allSubmissions.value.length > 0) {
+        // If we already have data, just apply filters client-side
+        updateFilteredSubmissions()
+      } else {
+        // Otherwise fetch data
+        fetchSubmissions()
+      }
+    })
+    
+    onMounted(() => {
+      if (userStore.currentUser?.major) {
+        const majors = userStore.currentUser.major
+        // Set initial major for milestone display
+        if (majors.length > 0) {
+          currentDisplayMajor.value = majors[0]
+        }
+        // Load data for all majors
+        majors.forEach(majorId => {
+          loadMilestoneData(majorId)
+        })
+        // Initial submissions fetch
+        fetchSubmissions()
+      }
+
+      // Add intersection observer for infinite scroll
+      const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          preloadNextPage()
+        }
+      }, { threshold: 0.5 })
+
+      if (submissionsContainer.value) {
+        observer.observe(submissionsContainer.value)
+      }
+
+      return () => {
+        if (submissionsContainer.value) {
+          observer.unobserve(submissionsContainer.value)
+        }
+        // Clean up Firestore listeners when component unmounts
+        cleanupListeners()
+      }
+    })
+    
     // Background loading function
     const preloadNextPage = async () => {
       if (isBackgroundLoading.value || !hasMore.value) return
@@ -928,44 +981,6 @@ export default {
       ).length;
     });
 
-    onMounted(() => {
-      if (userStore.currentUser?.major) {
-        const majors = userStore.currentUser.major
-        // Set initial major for milestone display
-        if (majors.length > 0) {
-          currentDisplayMajor.value = majors[0]
-        }
-        // Load data for all majors
-        majors.forEach(majorId => {
-          loadMilestoneData(majorId)
-        })
-        // Initial submissions fetch
-        fetchSubmissions()
-      }
-
-      // Add intersection observer for infinite scroll
-      const observer = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting) {
-          preloadNextPage()
-        }
-      }, { threshold: 0.5 })
-
-      if (submissionsContainer.value) {
-        observer.observe(submissionsContainer.value)
-      }
-
-      return () => {
-        if (submissionsContainer.value) {
-          observer.unobserve(submissionsContainer.value)
-        }
-      }
-    })
-
-    // Modified watchers
-    watch([selectedMajor, selectedMilestoneFilter], () => {
-      debouncedFetch()
-    })
-    
     return {
       userStore,
       selectedMajor,
@@ -1000,7 +1015,8 @@ export default {
       returnToSubmissions,
       searchQuery,
       currentMilestoneSubmissionCount,
-      currentMilestoneReviewedCount
+      currentMilestoneReviewedCount,
+      updateFilteredSubmissions
     }
   }
 }
