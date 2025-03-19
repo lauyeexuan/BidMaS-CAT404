@@ -338,7 +338,6 @@
 <script>
 import { ref, onMounted, computed, onBeforeUnmount, watch } from 'vue'
 import { useUserStore } from '@/stores/userStore'
-import { useMilestoneStore } from '@/stores/milestoneStore'
 import { getMilestones } from '@/utils/milestones'
 import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
 import { db, storage } from '@/firebase'
@@ -393,9 +392,20 @@ export default {
     const isMilestonePast = (milestone) => {
       if (!milestone || !milestone.deadline) return false
       
-      const deadlineDate = milestone.deadline instanceof Date ? 
-        milestone.deadline : 
-        milestone.deadline.toDate()
+      let deadlineDate
+      if (milestone.deadline instanceof Date) {
+        deadlineDate = milestone.deadline
+      } else if (milestone.deadline && typeof milestone.deadline.toDate === 'function') {
+        deadlineDate = milestone.deadline.toDate()
+      } else {
+        // If deadline is not a Date or Firestore Timestamp, try to parse it
+        try {
+          deadlineDate = new Date(milestone.deadline)
+        } catch (e) {
+          console.error('Invalid deadline format:', milestone.deadline)
+          return false
+        }
+      }
       
       return new Date() > deadlineDate
     }
@@ -404,9 +414,20 @@ export default {
     const getDaysRemaining = (milestone) => {
       if (!milestone || !milestone.deadline) return 0
       
-      const deadlineDate = milestone.deadline instanceof Date ? 
-        milestone.deadline : 
-        milestone.deadline.toDate()
+      let deadlineDate
+      if (milestone.deadline instanceof Date) {
+        deadlineDate = milestone.deadline
+      } else if (milestone.deadline && typeof milestone.deadline.toDate === 'function') {
+        deadlineDate = milestone.deadline.toDate()
+      } else {
+        // If deadline is not a Date or Firestore Timestamp, try to parse it
+        try {
+          deadlineDate = new Date(milestone.deadline)
+        } catch (e) {
+          console.error('Invalid deadline format:', milestone.deadline)
+          return 0
+        }
+      }
       
       const now = new Date()
       
@@ -479,28 +500,34 @@ export default {
 
     // Function to fetch the upcoming milestone
     const fetchUpcomingMilestone = async () => {
-      loading.value = true
+      console.log('Fetching upcoming milestone')
       error.value = null
 
       try {
         // Check if user is authenticated and has necessary data
         if (!userStore.isAuthenticated || !userStore.currentUser) {
+          console.log('Auth check: User not authenticated')
           error.value = 'User not authenticated'
           return
         }
 
         // Get user data
         const { school, major } = userStore.currentUser
+        console.log('User data:', { school, major })
         
         if (!school || !major) {
+          console.log('Missing school or major information')
           error.value = 'Missing school or major information'
           return
         }
         
         // Get latest academic year using the utility function
+        console.log('Getting latest academic year for school:', school)
         const academicYearData = await getLatestAcademicYear(school)
+        console.log('Academic year data:', academicYearData)
         
         if (!academicYearData || !academicYearData.yearId) {
+          console.log('Failed to determine academic year')
           error.value = 'Failed to determine academic year'
           return
         }
@@ -508,115 +535,377 @@ export default {
         const yearId = academicYearData.yearId
         
         // Get the majorDocId by querying the collection
+        console.log('Getting majorDocId for:', { school, yearId, major })
         const majorDocId = await getMajorDocId(school, yearId, major)
+        console.log('Found majorDocId:', majorDocId)
         
         if (!majorDocId) {
+          console.log('Major information not found')
           error.value = 'Major information not found'
           return
         }
         
-        // Fetch milestones for the user's major
-        const milestones = await getMilestones(school, yearId, major, majorDocId)
-        
-        if (milestones && milestones.length > 0) {
-          // Store all milestones
-          allMilestones.value = [...milestones]
-          
-          // Sort milestones by deadline
-          const sortedMilestones = [...milestones].sort((a, b) => {
-            const dateA = a.deadline instanceof Date ? a.deadline : a.deadline.toDate()
-            const dateB = b.deadline instanceof Date ? b.deadline : b.deadline.toDate()
-            return dateA - dateB
-          })
-          
-          // Find the first upcoming milestone (deadline is in the future)
-          const now = new Date()
-          upcomingMilestone.value = sortedMilestones.find(milestone => {
-            const deadlineDate = milestone.deadline instanceof Date ? 
-              milestone.deadline : 
-              milestone.deadline.toDate()
-            return deadlineDate > now
-          })
-          
-          // If no upcoming milestone, use the most recent one
-          if (!upcomingMilestone.value && sortedMilestones.length > 0) {
-            upcomingMilestone.value = sortedMilestones[sortedMilestones.length - 1]
-          }
-          
-          // Store milestone data in the local storage
-          const storeMilestoneData = () => {
-            try {
-              // Store data with user-specific key
-              const userKey = `${userStore.currentUser.uid}_milestones`
-              localStorage.setItem(userKey, JSON.stringify({
-                upcomingMilestone: upcomingMilestone.value,
-                allMilestones: allMilestones.value,
-                lastUpdated: new Date().getTime()
-              }))
-            } catch (err) {
-              console.error('Error storing milestone data:', err)
-            }
-          }
-
-          if (upcomingMilestone.value) {
-            storeMilestoneData()
-          }
-        }
+        // Get milestones directly from the majorDocId document
+        await fetchMilestonesFromMajorDoc(school, yearId, major, majorDocId)
       } catch (err) {
+        console.error('Error in fetchUpcomingMilestone:', err)
         error.value = `Failed to load milestone data: ${err.message}`
-      } finally {
         loading.value = false
       }
     }
 
-    // Function to fetch the student's assigned project
+    // New function to fetch milestones from the major document
+    const fetchMilestonesFromMajorDoc = async (school, yearId, major, majorDocId) => {
+      try {
+        console.log('Fetching milestones from major document')
+        
+        // Create a reference to the major document
+        const majorDocRef = doc(
+          db, 
+          'schools', school, 
+          'projects', yearId, 
+          major, majorDocId
+        )
+        
+        console.log('Major doc path:', majorDocRef.path)
+        
+        // Set up real-time listener for the major document
+        if (unsubscribeMilestones.value) {
+          unsubscribeMilestones.value()
+        }
+        
+        unsubscribeMilestones.value = onSnapshot(majorDocRef, 
+          (docSnapshot) => {
+            console.log('Major doc snapshot received')
+            if (docSnapshot.exists()) {
+              const docData = docSnapshot.data()
+              console.log('Major doc data:', docData)
+              
+              // Check if the milestones array exists
+              if (docData.milestones && Array.isArray(docData.milestones)) {
+                console.log('Found milestones array with length:', docData.milestones.length)
+                // Process the milestones array
+                processMilestones(docData.milestones)
+              } else {
+                console.log('No milestones array found in document')
+                error.value = 'No milestones found'
+              }
+            } else {
+              console.log('Major document does not exist')
+              error.value = 'Major document not found'
+            }
+            loading.value = false
+          },
+          (error) => {
+            console.error('Error in major doc listener:', error)
+            error.value = `Error listening to major document: ${error.message}`
+            loading.value = false
+          }
+        )
+      } catch (err) {
+        console.error('Error fetching milestones from major doc:', err)
+        error.value = `Failed to fetch milestones: ${err.message}`
+        loading.value = false
+      }
+    }
+
+    // New function to check localStorage for cached milestone data
+    const checkCachedMilestones = () => {
+      try {
+        if (!userStore.currentUser || !userStore.currentUser.uid) {
+          console.log('Cache check: No user data available')
+          return false
+        }
+        
+        const userKey = `${userStore.currentUser.uid}_milestones`
+        console.log('Cache check: Looking for cached milestones with key', userKey)
+        const cachedData = localStorage.getItem(userKey)
+        
+        if (cachedData) {
+          console.log('Cache check: Found cached data')
+          const parsedData = JSON.parse(cachedData)
+          const lastUpdated = parsedData.lastUpdated
+          const now = new Date().getTime()
+          
+          // Check if cache is reasonably fresh (less than 30 minutes old)
+          if (now - lastUpdated < 30 * 60 * 1000) {
+            console.log('Cache check: Using cached milestone data', parsedData)
+            
+            // Convert serialized Timestamp objects back to proper date format
+            if (parsedData.upcomingMilestone && parsedData.upcomingMilestone.deadline) {
+              if (parsedData.upcomingMilestone.deadline.seconds) {
+                // Convert seconds/nanoseconds to Date object
+                const seconds = parsedData.upcomingMilestone.deadline.seconds
+                const nanoseconds = parsedData.upcomingMilestone.deadline.nanoseconds || 0
+                parsedData.upcomingMilestone.deadline = new Date(seconds * 1000 + nanoseconds / 1000000)
+              } else {
+                // Try to parse as date string
+                parsedData.upcomingMilestone.deadline = new Date(parsedData.upcomingMilestone.deadline)
+              }
+            }
+            
+            // Also convert all milestones' deadlines
+            if (parsedData.allMilestones && Array.isArray(parsedData.allMilestones)) {
+              parsedData.allMilestones.forEach(milestone => {
+                if (milestone.deadline) {
+                  if (milestone.deadline.seconds) {
+                    // Convert from Firestore timestamp format
+                    const seconds = milestone.deadline.seconds
+                    const nanoseconds = milestone.deadline.nanoseconds || 0
+                    milestone.deadline = new Date(seconds * 1000 + nanoseconds / 1000000)
+                  } else {
+                    // Try to parse as date string
+                    milestone.deadline = new Date(milestone.deadline)
+                  }
+                }
+              })
+            }
+            
+            upcomingMilestone.value = parsedData.upcomingMilestone
+            allMilestones.value = parsedData.allMilestones
+            return true // Cache hit
+          }
+        }
+      } catch (err) {
+        console.error('Error reading cached milestone data:', err)
+      }
+      return false // Cache miss
+    }
+
+    // New function to store milestone data in localStorage
+    const storeMilestoneData = () => {
+      try {
+        if (!userStore.currentUser || !userStore.currentUser.uid) return
+        
+        // Create a deep copy to avoid modifying the original data
+        const upcomingMilestoneData = upcomingMilestone.value ? JSON.parse(JSON.stringify(upcomingMilestone.value)) : null
+        const allMilestonesData = allMilestones.value ? JSON.parse(JSON.stringify(allMilestones.value)) : []
+        
+        // Store data with user-specific key
+        const userKey = `${userStore.currentUser.uid}_milestones`
+        localStorage.setItem(userKey, JSON.stringify({
+          upcomingMilestone: upcomingMilestoneData,
+          allMilestones: allMilestonesData,
+          lastUpdated: new Date().getTime()
+        }))
+      } catch (err) {
+        console.error('Error storing milestone data:', err)
+      }
+    }
+
+    // New unsubscribe function for real-time listener
+    const unsubscribeMilestones = ref(null)
+
+    // New function to process milestone data
+    const processMilestones = (milestones) => {
+      console.log('Processing milestones, count:', milestones?.length || 0)
+      if (!milestones || milestones.length === 0) {
+        console.log('No milestones to process')
+        return
+      }
+      
+      // Store all milestones
+      allMilestones.value = [...milestones]
+      
+      // Sort milestones by deadline
+      const sortedMilestones = [...milestones].sort((a, b) => {
+        let dateA, dateB
+        
+        // Parse dateA
+        if (a.deadline instanceof Date) {
+          dateA = a.deadline
+        } else if (a.deadline && typeof a.deadline.toDate === 'function') {
+          dateA = a.deadline.toDate()
+        } else {
+          try {
+            dateA = new Date(a.deadline)
+          } catch (e) {
+            dateA = new Date(0) // Default to epoch if invalid
+          }
+        }
+        
+        // Parse dateB
+        if (b.deadline instanceof Date) {
+          dateB = b.deadline
+        } else if (b.deadline && typeof b.deadline.toDate === 'function') {
+          dateB = b.deadline.toDate()
+        } else {
+          try {
+            dateB = new Date(b.deadline)
+          } catch (e) {
+            dateB = new Date(0) // Default to epoch if invalid
+          }
+        }
+        
+        return dateA - dateB
+      })
+      
+      console.log('Sorted milestones:', sortedMilestones)
+      
+      // Find the first upcoming milestone (deadline is in the future)
+      const now = new Date()
+      console.log('Current date for comparison:', now)
+      
+      upcomingMilestone.value = sortedMilestones.find(milestone => {
+        let deadlineDate
+        if (milestone.deadline instanceof Date) {
+          deadlineDate = milestone.deadline
+        } else if (milestone.deadline && typeof milestone.deadline.toDate === 'function') {
+          deadlineDate = milestone.deadline.toDate()
+        } else {
+          try {
+            deadlineDate = new Date(milestone.deadline)
+          } catch (e) {
+            return false
+          }
+        }
+        
+        console.log('Comparing date:', milestone.description, deadlineDate, 'vs now:', now, 'Result:', deadlineDate > now)
+        return deadlineDate > now
+      })
+      
+      console.log('Found upcoming milestone:', upcomingMilestone.value)
+      
+      // If no upcoming milestone, use the most recent one
+      if (!upcomingMilestone.value && sortedMilestones.length > 0) {
+        upcomingMilestone.value = sortedMilestones[sortedMilestones.length - 1]
+        console.log('No upcoming milestone found, using most recent:', upcomingMilestone.value)
+      }
+      
+      // Update the localStorage cache with fresh data
+      storeMilestoneData()
+    }
+
+    // New function to check localStorage for cached project data
+    const checkCachedProject = () => {
+      try {
+        console.log('[DEBUG] Starting checkCachedProject');
+        if (!userStore.currentUser || !userStore.currentUser.uid) {
+          console.log('[DEBUG] Project cache check: No user data available');
+          return false;
+        }
+        
+        const userKey = `${userStore.currentUser.uid}_project`;
+        console.log('[DEBUG] Project cache check: Looking for cached project with key', userKey);
+        const cachedData = localStorage.getItem(userKey);
+        
+        if (cachedData) {
+          console.log('[DEBUG] Project cache check: Found cached data');
+          const parsedData = JSON.parse(cachedData);
+          const lastUpdated = parsedData.lastUpdated;
+          const now = new Date().getTime();
+          
+          // Check if cache is reasonably fresh (less than 1 hour old)
+          if (now - lastUpdated < 60 * 60 * 1000) {
+            console.log('[DEBUG] Project cache check: Using cached project data', parsedData.assignedProject);
+            assignedProject.value = parsedData.assignedProject;
+            // Mark that loading is complete since we're using cached data
+            projectLoading.value = false;
+            return true; // Cache hit
+          } else {
+            console.log('[DEBUG] Project cache check: Cached data is stale', {
+              lastUpdated, 
+              now, 
+              ageInMinutes: Math.round((now - lastUpdated) / (60 * 1000))
+            });
+          }
+        } else {
+          console.log('[DEBUG] Project cache check: No cached data found');
+        }
+      } catch (err) {
+        console.error('[DEBUG] Error reading cached project data:', err);
+      }
+      return false; // Cache miss
+    };
+
+    // New function to store project data in localStorage
+    const storeProjectData = () => {
+      try {
+        if (!userStore.currentUser || !userStore.currentUser.uid || !assignedProject.value) return;
+        
+        // Create a deep copy to avoid modifying the original data
+        const projectData = JSON.parse(JSON.stringify(assignedProject.value));
+        
+        // Store data with user-specific key
+        const userKey = `${userStore.currentUser.uid}_project`;
+        localStorage.setItem(userKey, JSON.stringify({
+          assignedProject: projectData,
+          lastUpdated: new Date().getTime()
+        }));
+        
+        console.log('Project data cached with key:', userKey);
+      } catch (err) {
+        console.error('Error storing project data:', err);
+      }
+    };
+
+    // Modify fetchAssignedProject to cache the data
     const fetchAssignedProject = async () => {
-      projectLoading.value = true
-      projectError.value = null
+      console.log('[DEBUG] Starting fetchAssignedProject');
+      projectLoading.value = true;
+      projectError.value = null;
 
       try {
         // Check if user is authenticated and has necessary data
         if (!userStore.isAuthenticated || !userStore.currentUser) {
-          projectError.value = 'User not authenticated'
-          return
+          console.log('[DEBUG] fetchAssignedProject: User not authenticated');
+          projectError.value = 'User not authenticated';
+          projectLoading.value = false;
+          return;
         }
 
-        const { school, uid: studentId } = userStore.currentUser
+        const { school, uid: studentId } = userStore.currentUser;
+        console.log('[DEBUG] fetchAssignedProject: User data', { school, studentId });
         
         if (!school || !studentId) {
-          projectError.value = 'Missing user information'
-          return
+          console.log('[DEBUG] fetchAssignedProject: Missing user information');
+          projectError.value = 'Missing user information';
+          projectLoading.value = false;
+          return;
         }
         
         // Get latest academic year
-        const academicYearData = await getLatestAcademicYear(school)
+        console.log('[DEBUG] fetchAssignedProject: Getting latest academic year');
+        const academicYearData = await getLatestAcademicYear(school);
+        console.log('[DEBUG] fetchAssignedProject: Academic year data', academicYearData);
+        
         if (!academicYearData || !academicYearData.yearId) {
-          projectError.value = 'Failed to determine academic year'
-          return
+          console.log('[DEBUG] fetchAssignedProject: Failed to determine academic year');
+          projectError.value = 'Failed to determine academic year';
+          projectLoading.value = false;
+          return;
         }
         
-        const yearId = academicYearData.yearId
+        const yearId = academicYearData.yearId;
         
         // Query the student's bids to find an accepted bid
-        const studentBidsRef = collection(db, 'schools', school, 'studentBids', studentId, 'bids')
-        const acceptedBidQuery = query(studentBidsRef, where('status', '==', 'accepted'))
-        const acceptedBidSnapshot = await getDocs(acceptedBidQuery)
+        console.log('[DEBUG] fetchAssignedProject: Querying accepted bids');
+        const studentBidsRef = collection(db, 'schools', school, 'studentBids', studentId, 'bids');
+        const acceptedBidQuery = query(studentBidsRef, where('status', '==', 'accepted'));
+        const acceptedBidSnapshot = await getDocs(acceptedBidQuery);
         
         if (acceptedBidSnapshot.empty) {
           // No accepted bids found
-          return
+          console.log('[DEBUG] fetchAssignedProject: No accepted bids found');
+          projectLoading.value = false;
+          return;
         }
         
         // Get the first accepted bid
-        const acceptedBid = acceptedBidSnapshot.docs[0].data()
-        const { projectId, majorId, majorDocId } = acceptedBid
+        const acceptedBid = acceptedBidSnapshot.docs[0].data();
+        console.log('[DEBUG] fetchAssignedProject: Found accepted bid', acceptedBid);
+        
+        const { projectId, majorId, majorDocId } = acceptedBid;
         
         if (!projectId || !majorId || !majorDocId) {
-          projectError.value = 'Invalid bid data'
-          return
+          console.log('[DEBUG] fetchAssignedProject: Invalid bid data', { projectId, majorId, majorDocId });
+          projectError.value = 'Invalid bid data';
+          projectLoading.value = false;
+          return;
         }
         
         // Get the project document
+        console.log('[DEBUG] fetchAssignedProject: Getting project document');
         const projectRef = doc(
           db, 
           'schools', 
@@ -627,47 +916,65 @@ export default {
           majorDocId, 
           'projectsPerYear', 
           projectId
-        )
+        );
         
-        const projectDoc = await getDoc(projectRef)
+        console.log('[DEBUG] fetchAssignedProject: Project path', projectRef.path);
+        const projectDoc = await getDoc(projectRef);
         
         if (!projectDoc.exists()) {
-          projectError.value = 'Project not found'
-          return
+          console.log('[DEBUG] fetchAssignedProject: Project not found');
+          projectError.value = 'Project not found';
+          projectLoading.value = false;
+          return;
         }
         
         // Get project data
-        const projectData = projectDoc.data()
+        const projectData = projectDoc.data();
+        console.log('[DEBUG] fetchAssignedProject: Project data retrieved', projectData);
         
         // If there's a lecturer ID, get their name
         if (projectData.userId) {
           try {
-            const lecturerRef = doc(db, 'schools', school, 'users', projectData.userId)
-            const lecturerDoc = await getDoc(lecturerRef)
+            console.log('[DEBUG] fetchAssignedProject: Getting lecturer info');
+            const lecturerRef = doc(db, 'schools', school, 'users', projectData.userId);
+            const lecturerDoc = await getDoc(lecturerRef);
             
             if (lecturerDoc.exists()) {
-              projectData.lecturerName = lecturerDoc.data().name
+              projectData.lecturerName = lecturerDoc.data().name;
+              console.log('[DEBUG] fetchAssignedProject: Found lecturer name', projectData.lecturerName);
             }
           } catch (err) {
+            console.log('[DEBUG] fetchAssignedProject: Error getting lecturer info', err);
             // If we can't get the lecturer name, just continue
           }
         }
         
         // Set the assigned project with additional metadata needed for the details window
+        console.log('[DEBUG] fetchAssignedProject: Setting assigned project');
         assignedProject.value = {
           ...projectData,
           id: projectId,
           majorDocId: majorDocId,
           major: majorId,
           year: yearId
-        }
+        };
+        console.log('[DEBUG] fetchAssignedProject: Assigned project set', assignedProject.value);
+
+        // Cache the project data
+        storeProjectData();
+        
+        // Set up the listener for submissions
+        console.log('[DEBUG] fetchAssignedProject: Setting up submissions listener');
+        fetchPreviousSubmissions();
         
       } catch (err) {
-        projectError.value = `Failed to load project data: ${err.message}`
+        console.error('[DEBUG] fetchAssignedProject: Error', err);
+        projectError.value = `Failed to load project data: ${err.message}`;
       } finally {
-        projectLoading.value = false
+        console.log('[DEBUG] fetchAssignedProject: Complete, setting projectLoading = false');
+        projectLoading.value = false;
       }
-    }
+    };
 
     // Function to open project details window
     const openProjectDetailsWindow = async () => {
@@ -725,7 +1032,14 @@ export default {
       
       try {
         // Convert from timestamp if needed
-        const dateObj = date instanceof Date ? date : date.toDate()
+        let dateObj
+        if (date instanceof Date) {
+          dateObj = date
+        } else if (date && typeof date.toDate === 'function') {
+          dateObj = date.toDate()
+        } else {
+          dateObj = new Date(date)
+        }
         
         return dateObj.toLocaleString('en-US', {
           year: 'numeric', 
@@ -827,7 +1141,16 @@ export default {
         // Find the index of the upcoming milestone in the original milestones array
         const milestoneIndex = allMilestones.value.findIndex(m => 
           m.description === upcomingMilestone.value.description && 
-          m.deadline.isEqual(upcomingMilestone.value.deadline)
+          (m.deadline && upcomingMilestone.value.deadline && 
+            // Check if isEqual method exists (Firestore Timestamp)
+            (typeof m.deadline.isEqual === 'function' 
+              ? m.deadline.isEqual(upcomingMilestone.value.deadline)
+              // Otherwise compare as Date objects or timestamps
+              : (m.deadline instanceof Date && upcomingMilestone.value.deadline instanceof Date)
+                ? m.deadline.getTime() === upcomingMilestone.value.deadline.getTime()
+                : String(m.deadline) === String(upcomingMilestone.value.deadline)
+            )
+          )
         )
 
         // Add submission record to Firestore with milestone index
@@ -960,7 +1283,22 @@ export default {
               id: doc.id,
               ...doc.data()
             }))
-            .sort((a, b) => b.submittedAt.toDate() - a.submittedAt.toDate())
+            .sort((a, b) => {
+              // Handle different date formats safely
+              const dateA = a.submittedAt instanceof Date 
+                ? a.submittedAt 
+                : (typeof a.submittedAt?.toDate === 'function' 
+                  ? a.submittedAt.toDate() 
+                  : new Date(a.submittedAt))
+              
+              const dateB = b.submittedAt instanceof Date 
+                ? b.submittedAt 
+                : (typeof b.submittedAt?.toDate === 'function' 
+                  ? b.submittedAt.toDate() 
+                  : new Date(b.submittedAt))
+              
+              return dateB - dateA
+            })
         }, (error) => {
           console.error('Error in submissions listener:', error)
         })
@@ -986,14 +1324,56 @@ export default {
 
     // Fetch data when component is mounted
     onMounted(() => {
+      console.log('===== Dashboard component mounted =====')
+      console.log('userStore.initialized:', userStore.initialized)
+      console.log('userStore.currentUser:', userStore.currentUser ? userStore.currentUser.uid : 'null')
+      
+      const initializeDashboard = async () => {
+        loading.value = true
+        
+        // Try to load from cache first
+        const hasCachedMilestones = checkCachedMilestones()
+        console.log('Has cached milestones:', hasCachedMilestones)
+        
+        // Try to load project data from cache
+        const hasCachedProject = checkCachedProject()
+        console.log('Has cached project:', hasCachedProject)
+        
+        if (hasCachedMilestones || hasCachedProject) {
+          // We have cached data, so reduce the loading perception
+          loading.value = false
+        }
+        
+        // Always fetch the fresh data to setup real-time listener
+        await fetchUpcomingMilestone()
+        
+        // Only fetch project data if not cached
+        if (!hasCachedProject) {
+          console.log('No cached project data, fetching from server')
+          await fetchAssignedProject()
+        } else if (assignedProject.value) {
+          // If project is cached and exists, set up submissions listener
+          console.log('Using cached project data, setting up submissions listener')
+          await fetchPreviousSubmissions()
+        }
+      }
+
       if (userStore.initialized) {
-        fetchUpcomingMilestone()
-        fetchAssignedProject()
+        initializeDashboard()
       } else {
-        userStore.initializeAuth().then(() => {
-          fetchUpcomingMilestone()
-          fetchAssignedProject()
-        }).catch(err => {
+        console.log('User store not initialized, setting up watcher')
+        // Wait for user store to be initialized
+        const unsubscribe = watch(() => userStore.initialized, async (initialized) => {
+          console.log('User store initialized changed to:', initialized)
+          if (initialized) {
+            await initializeDashboard()
+            unsubscribe()
+          }
+        })
+        
+        // Also try to initialize auth (in case it's not already in progress)
+        userStore.initializeAuth().catch(err => {
+          console.error('Failed to initialize auth:', err)
           error.value = 'Failed to initialize user data'
           loading.value = false
           projectLoading.value = false
@@ -1001,9 +1381,108 @@ export default {
       }
     })
 
+    // Add watcher for currentUser changes (e.g., after login)
+    const isInitialMount = ref(true);
+    const userWatcher = watch(() => userStore.currentUser, (newUser, oldUser) => {
+      console.log('User watcher triggered:');
+      console.log('- newUser:', newUser ? { uid: newUser.uid } : 'null');
+      console.log('- oldUser:', oldUser ? { uid: oldUser.uid } : 'null');
+      console.log('- isInitialMount:', isInitialMount.value);
+      
+      // Store UIDs for comparison
+      const newUid = newUser ? newUser.uid : null;
+      const oldUid = oldUser ? oldUser.uid : null;
+      
+      // Only process changes if it's a real login/logout event (not just component re-render)
+      const isRealLoginEvent = newUid && !oldUid && !isInitialMount.value;  // New login - oldUser was null, not initial mount
+      const isUserChanged = newUid && oldUid && newUid !== oldUid;  // Different user logged in
+      const isRealLogoutEvent = !newUid && oldUid;  // Logout - newUser is null
+      const isComponentRerender = (newUid && (newUid === oldUid)) || (newUid && isInitialMount.value);  // Same user or initial mount with user
+      
+      console.log('Event type:', { 
+        isRealLoginEvent, 
+        isUserChanged,
+        isRealLogoutEvent, 
+        isComponentRerender 
+      });
+      
+      // Set initial mount to false after first execution
+      if (isInitialMount.value) {
+        isInitialMount.value = false;
+        console.log('Initial mount complete, future triggers will be treated as real events');
+      }
+      
+      if (isRealLoginEvent || isUserChanged) {
+        // New user logged in or user changed
+        console.log('Real login/user change detected for user:', newUid);
+        loading.value = true;
+        error.value = null;
+        
+        // Clear cached data to force fresh load
+        if (newUid) {
+          const milestoneKey = `${newUid}_milestones`;
+          const projectKey = `${newUid}_project`;
+          console.log('Clearing cached data for keys:', milestoneKey, projectKey);
+          localStorage.removeItem(milestoneKey);
+          localStorage.removeItem(projectKey);
+        }
+        
+        // Fetch fresh data
+        fetchUpcomingMilestone();
+        fetchAssignedProject();
+      } else if (isRealLogoutEvent) {
+        // User logged out, clear data
+        console.log('Real logout detected, clearing data');
+        upcomingMilestone.value = null;
+        allMilestones.value = [];
+        assignedProject.value = null;
+        previousSubmissions.value = [];
+      } else if (isComponentRerender) {
+        // This is just a component re-render with the same user
+        console.log('Component re-render with same user:', newUid);
+        console.log('Loading data without clearing cache');
+        loading.value = true;
+        
+        // Try to use cached milestone data first
+        const hasCachedMilestones = checkCachedMilestones();
+        console.log('Has cached milestones for re-render:', hasCachedMilestones);
+        
+        // Try to use cached project data
+        const hasCachedProject = checkCachedProject();
+        console.log('Has cached project for re-render:', hasCachedProject);
+        
+        if (!hasCachedMilestones) {
+          console.log('No cached milestone data available, fetching fresh data');
+          // Only fetch fresh milestone data if no cached data is available
+          fetchUpcomingMilestone();
+        }
+        
+        if (!hasCachedProject) {
+          console.log('No cached project data available, fetching fresh data');
+          // Only fetch fresh project data if no cached data is available
+          fetchAssignedProject();
+        } else if (assignedProject.value) {
+          // If project is cached and exists, ensure submissions listener is set up
+          console.log('Using cached project data, ensuring submissions listener');
+          fetchPreviousSubmissions();
+        }
+      } else {
+        console.log('Unhandled user watcher case - this should not happen');
+      }
+    }, { immediate: true, deep: true });
+
     onBeforeUnmount(() => {
+      // Clean up all listeners
       if (unsubscribeSubmissions.value) {
         unsubscribeSubmissions.value()
+      }
+      if (unsubscribeMilestones.value) {
+        unsubscribeMilestones.value()
+      }
+      
+      // Clean up user watcher
+      if (userWatcher) {
+        userWatcher()
       }
     })
 
