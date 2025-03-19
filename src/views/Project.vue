@@ -3275,8 +3275,8 @@ const fetchBasicSettings = async () => {
       return
     }
 
-    // Clear project settings but not project data (will be loaded per tab)
-    projectSettings.value = null
+    // Don't clear project settings until we have new data
+    // projectSettings.value = null  <-- Remove this line
     
     // Get all available majors
     const projectsRef = doc(db, 'schools', schoolId, 'projects', yearData.yearId)
@@ -3322,6 +3322,7 @@ const fetchBasicSettings = async () => {
       selectedMajor.value = null;
       selectedMilestoneViewMajor.value = null;
       userMajors.value = [];
+      projectSettings.value = null;  // Only set to null if no majors found
       return;
     }
     
@@ -3330,6 +3331,7 @@ const fetchBasicSettings = async () => {
     console.log("available majors for milestone display", userMajors.value);
     
     if (!selectedMajor.value) {
+      projectSettings.value = null;  // Only set to null if no major selected
       return;
     }
     
@@ -3356,6 +3358,7 @@ const fetchBasicSettings = async () => {
       }
     } else {
       console.warn(`No settings found for major ${majorToUse} in academic year ${yearData.yearId}`);
+      projectSettings.value = null;
     }
     
     // Try to load settings from first project major if needed
