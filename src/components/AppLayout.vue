@@ -4,7 +4,7 @@
     <NavBar />
     
     <!-- Main Content -->
-    <div class="flex-1 overflow-auto">
+    <div ref="mainContent" class="flex-1 overflow-auto">
       <!-- Top Bar -->
       <div class="bg-white shadow-sm p-4 flex justify-between items-center">
         <h1 class="text-2xl font-semibold">{{ currentPageTitle }}</h1>
@@ -25,7 +25,7 @@
 </template>
 
 <script>
-import { computed } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/userStore'
 import NavBar from './NavBar.vue'
@@ -37,6 +37,7 @@ export default {
   setup() {
     const route = useRoute()
     const userStore = useUserStore()
+    const mainContent = ref(null)
 
     // All possible menu items with their titles
     const allMenuItems = [
@@ -68,9 +69,17 @@ export default {
     // Get current user for display
     const currentUser = computed(() => userStore.currentUser)
 
+    // Watch for route changes to scroll to top
+    watch(() => route.path, () => {
+      if (mainContent.value) {
+        mainContent.value.scrollTop = 0
+      }
+    })
+
     return {
       currentPageTitle,
-      currentUser
+      currentUser,
+      mainContent
     }
   }
 }

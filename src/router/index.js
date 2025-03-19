@@ -109,6 +109,10 @@ const router = createRouter({
     //   component: () => import('../views/NotFoundView.vue') // Optional 404 page
     // }
   ],
+  scrollBehavior() {
+    // Always scroll to top when changing routes
+    return { top: 0 }
+  }
 })
 
 // Navigation guards
