@@ -31,10 +31,8 @@
       </div>
 
       <!-- Existing Settings List -->
-      <div v-else-if="!showNewSettingsForm" class="bg-white rounded-lg shadow-lg p-8">
-        <h2 class="text-2xl font-semibold text-gray-900 mb-6">Existing Project Settings</h2>
+      <div v-else-if="!showNewSettingsForm" class="space-y-6" >      
         
-        <div class="space-y-6">
           <div v-for="setting in existingSettings" :key="setting.academicYear" class="border rounded-lg p-6">
             <div class="flex justify-between items-center mb-4">
               <h3 class="text-xl font-medium text-gray-900">Academic Year: 20{{ setting.academicYear.slice(0,2) }}/20{{ setting.academicYear.slice(2) }}</h3>
@@ -132,7 +130,7 @@
               </div>
             </div>
           </div>
-        </div>
+        
         
         <!-- Load Previous Years Button -->
         <div v-if="!allYearsLoaded && existingSettings.length > 0" class="mt-6 flex justify-center">
