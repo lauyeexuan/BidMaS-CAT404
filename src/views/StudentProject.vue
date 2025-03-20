@@ -1608,15 +1608,22 @@ const openProjectDetailsWindow = async (project) => {
         if (majorDoc.exists()) {
           const majorData = majorDoc.data();
           if (majorData.headers && typeof majorData.headers === 'object') {
+            console.log('headers found');
             // Update the window with headers if available
             if (windowInstance && windowInstance.updateData) {
               windowInstance.updateData({ headers: majorData.headers });
+              console.log('window instance update');
+            }else{
+              console.log('window instance not found');
             }
           }
         }
       } catch (error) {
         console.error('Error fetching headers:', error);
       }
+    }
+    else {
+      console.log('no headers found');
     }
   } catch (error) {
     console.error('Error opening project details window:', error);

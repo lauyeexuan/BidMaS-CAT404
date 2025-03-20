@@ -29,21 +29,14 @@ export const createProjectDetailsWindow = (props) => {
   // Process project fields
   const projectFields = {};
   if (Object.keys(headers).length > 0) {
+    console.log('headers exist', headers);
     // CASE 1: When headers exist
     for (const [key, value] of Object.entries(project)) {
       if (headers[key] && key !== 'Title' && key !== 'Description') {
         projectFields[key] = value;
       }
     }
-  } else {
-    // CASE 2: When no headers
-    const excludedFields = ['id', 'userId', 'isAssigned', 'createdAt', 'Title', 'major', 'Description', 'majorDocId'];
-    for (const [key, value] of Object.entries(project)) {
-      if (!excludedFields.includes(key)) {
-        projectFields[key] = value;
-      }
-    }
-  }
+  } 
   
   // Helper function to format field names
   const formatFieldName = (key) => {
@@ -87,83 +80,117 @@ export const createProjectDetailsWindow = (props) => {
     return value;
   };
   
-  // Generate fields HTML
-  let fieldsHtml = '';
-  for (const [key, value] of Object.entries(projectFields)) {
-    fieldsHtml += `
-      <div class="border border-gray-200 rounded-md p-4 bg-gray-50">
-        <h3 class="text-sm font-medium text-gray-500 mb-1">${formatFieldName(key)}</h3>
-        <div class="text-gray-900">${formatFieldValue(value)}</div>
-      </div>
-    `;
-  }
-  
-  // Get color classes
-  const bgClass = majorColorClass?.bg || 'bg-blue-100';
-  const textClass = majorColorClass?.text || 'text-blue-800';
-  
-  // Create HTML content
-  const htmlContent = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>${project.Title} - Project Details</title>
-      <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    </head>
-    <body class="bg-gray-50">
-      <div class="min-h-screen p-8">
-        <div class="max-w-5xl mx-auto bg-white rounded-lg shadow-lg p-6">
-          <!-- Project Header -->
-          <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900">${project.Title}</h1>
-            <div class="mt-2 flex items-center">
-              <span class="px-2.5 py-0.5 rounded-full text-xs font-medium ${bgClass} ${textClass}">
-                ${project.major}
-              </span>
-              <span class="mx-2 text-gray-300">•</span>
-              <span class="text-sm text-gray-500">Created by ${creatorName}</span>
+  // Function to generate HTML content
+  const generateHtml = (projectData, fields, headerData) => {
+    // Generate fields HTML
+    let fieldsHtml = '';
+    for (const [key, value] of Object.entries(fields)) {
+      fieldsHtml += `
+        <div class="border border-gray-200 rounded-md p-4 bg-gray-50">
+          <h3 class="text-sm font-medium text-gray-500 mb-1">${formatFieldName(key)}</h3>
+          <div class="text-gray-900">${formatFieldValue(value)}</div>
+        </div>
+      `;
+    }
+    
+    // Get color classes
+    const bgClass = majorColorClass?.bg || 'bg-blue-100';
+    const textClass = majorColorClass?.text || 'text-blue-800';
+    
+    // Create HTML content
+    return `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${projectData.Title} - Project Details</title>
+        <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+      </head>
+      <body class="bg-gray-50">
+        <div class="min-h-screen p-8">
+          <div class="max-w-5xl mx-auto bg-white rounded-lg shadow-lg p-6">
+            <!-- Project Header -->
+            <div class="mb-8">
+              <h1 class="text-3xl font-bold text-gray-900">${projectData.Title}</h1>
+              <div class="mt-2 flex items-center">
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-medium ${bgClass} ${textClass}">
+                  ${projectData.major}
+                </span>
+                <span class="mx-2 text-gray-300">•</span>
+                <span class="text-sm text-gray-500">Created by ${creatorName}</span>
+              </div>
+            </div>
+
+            <!-- Project Description -->
+            <div class="mb-8">
+              <h2 class="text-xl font-semibold text-gray-900 mb-2">Description</h2>
+              ${projectData.Description 
+                ? `<div class="text-gray-700 whitespace-pre-line">${projectData.Description}</div>`
+                : `<div class="text-gray-500 italic">No description provided</div>`
+              }
+            </div>
+
+            <!-- Project Details Fields -->
+            <div>
+              <h2 class="text-xl font-semibold text-gray-900 mb-4">Project Details</h2>
+              ${Object.keys(fields).length > 0 ? 
+                `<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  ${fieldsHtml}
+                </div>` : 
+                `<div class="text-gray-500 italic">No additional details available</div>`
+              }
+            </div>
+
+            <!-- Close Print Button -->
+            <div class="mt-10 flex justify-end">
+              <button
+                onclick="window.close()"
+                class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
+              >
+                Close
+              </button>
             </div>
           </div>
-
-          <!-- Project Description -->
-          <div class="mb-8">
-            <h2 class="text-xl font-semibold text-gray-900 mb-2">Description</h2>
-            ${project.Description 
-              ? `<div class="text-gray-700 whitespace-pre-line">${project.Description}</div>`
-              : `<div class="text-gray-500 italic">No description provided</div>`
-            }
-          </div>
-
-          <!-- Project Details Fields -->
-          <div>
-            <h2 class="text-xl font-semibold text-gray-900 mb-4">Project Details</h2>
-            ${Object.keys(projectFields).length > 0 ? 
-              `<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                ${fieldsHtml}
-              </div>` : 
-              `<div class="text-gray-500 italic">No additional details available</div>`
-            }
-          </div>
-
-          <!-- Close Print Button -->
-          <div class="mt-10 flex justify-end">
-            <button
-              onclick="window.close()"
-              class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
-            >
-              Close
-            </button>
-          </div>
         </div>
-      </div>
-    </body>
-    </html>
-  `;
-  
-  // Write the HTML to the new window
-  newWindow.document.open();
-  newWindow.document.write(htmlContent);
-  newWindow.document.close();
+      </body>
+      </html>
+    `;
+  };
+
+  // Write initial HTML
+  const writeContent = (projectData, fields, headerData) => {
+    newWindow.document.open();
+    newWindow.document.write(generateHtml(projectData, fields, headerData));
+    newWindow.document.close();
+  };
+
+  // Write initial content
+  writeContent(project, projectFields, headers);
+
+  // Return window instance with updateData method
+  return {
+    window: newWindow,
+    updateData: (newData) => {
+      const updatedHeaders = newData.headers || headers;
+      const updatedFields = {};
+      
+      if (Object.keys(updatedHeaders).length > 0) {
+        for (const [key, value] of Object.entries(project)) {
+          if (updatedHeaders[key] && key !== 'Title' && key !== 'Description') {
+            updatedFields[key] = value;
+          }
+        }
+      } else {
+        const excludedFields = ['id', 'userId', 'isAssigned', 'createdAt', 'Title', 'major', 'Description', 'majorDocId'];
+        for (const [key, value] of Object.entries(project)) {
+          if (!excludedFields.includes(key)) {
+            updatedFields[key] = value;
+          }
+        }
+      }
+      
+      writeContent(project, updatedFields, updatedHeaders);
+    }
+  };
 }; 
