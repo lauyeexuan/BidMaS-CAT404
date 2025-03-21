@@ -185,7 +185,7 @@
                     Cancel
                   </button>
                   <button 
-                    @click="getRecommendations"
+                    @click="getProjectRecommendations"
                     class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center gap-2"
                   >
                     <span>Get Recommendations</span>
@@ -1796,16 +1796,15 @@ const getProjectRecommendations = async () => {
     }
 
     isLoadingRecommendations.value = true
+    console.log("Finding projects that match your interests: " + tags.value.join(', '))
     
-    // Prepare the projects data
-    const projectsData = projects.value
+    // Prepare the projects data - using only Title and Description fields
+    const projectsData = filteredProjects.value
       .filter(p => !p.placeholder)
       .map(p => ({
-        Title: p.Title,
-        Description: p.Description,
-        Skills: p.Skills,
-        Technologies: p.Technologies,
-        Requirements: p.Requirements
+        id: p.id,
+        Title: p.Title || '',
+        Description: p.Description || ''
       }))
 
     // Call the recommendation API using environment variable
@@ -1826,15 +1825,18 @@ const getProjectRecommendations = async () => {
 
     const { recommendations } = await response.json()
     
-    // Sort projects based on recommendations
-    projects.value = recommendations.map(rec => {
-      const originalProject = projects.value.find(p => p.Title === rec.Title)
-      return {
-        ...originalProject,
-        matchScore: rec.matchScore
-      }
+    // Get the top 3 recommendations to show in console
+    const top3Recommendations = recommendations
+      .sort((a, b) => b.matchScore - a.matchScore)
+      .slice(0, 3)
+    
+    // Log recommendations to console
+    console.log("🌟 Top 3 Recommended Projects:")
+    top3Recommendations.forEach((rec, index) => {
+      console.log(`${index + 1}. ${rec.Title} (Match score: ${(rec.matchScore * 100).toFixed(1)}%)`)
+      console.log(`   Description: ${rec.Description?.substring(0, 100)}...`)
     })
-
+    
     // Close the modal after successful recommendation
     showRecommendationModal.value = false
 
