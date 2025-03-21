@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 import { getStorage } from 'firebase/storage'
+import { getVertexAI, getGenerativeModel } from "firebase/vertexai";
 
 // Replace the placeholder values with your own from the config snippet
 const firebaseConfig = {
@@ -16,6 +17,12 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const firebaseApp = initializeApp(firebaseConfig)
+
+// Initialize the Vertex AI service
+const vertexAI = getVertexAI(firebaseApp);
+
+// Initialize the generative model with a model that supports your use case
+const model = getGenerativeModel(vertexAI, { model: "gemini-2.0-flash" });
 
 // Initialize Firestore
 const db = getFirestore(firebaseApp)
