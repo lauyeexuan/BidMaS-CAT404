@@ -15,6 +15,7 @@ dist
 dist-ssr
 coverage
 *.local
+test_fasttext.py
 
 /cypress/videos/
 /cypress/screenshots/
