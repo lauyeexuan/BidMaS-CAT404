@@ -31,3 +31,9 @@ test_fasttext.py
 *.sw?
 
 *.tsbuildinfo
+
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
