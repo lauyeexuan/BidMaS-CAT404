@@ -33,5 +33,5 @@ const auth = getAuth(firebaseApp)
 // Initialize Storage
 const storage = getStorage(firebaseApp)
 
-// Export the Firestore instance to use it elsewhere
-export { db, auth, storage }
+// Export the model along with other exports
+export { db, auth, storage, model }

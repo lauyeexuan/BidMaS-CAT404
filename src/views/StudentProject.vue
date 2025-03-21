@@ -96,19 +96,32 @@
               </div>
             </div>
             
-            <!-- Search Input -->
-            <div class="relative w-full max-w-md mb-6">
-              <input
-                v-model="searchQuery"
-                type="text"
-                placeholder="Search projects by title..."
-                class="w-full px-4 py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                @input="debounceSearch(searchQuery)"
-              />
-              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+            <div class="flex items-center gap-4">
+              <!-- Replace the Recommend Projects button with a chat button -->
+              <button
+                @click="openRecommendationChat"
+                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clip-rule="evenodd" />
                 </svg>
+                Project Assistant
+              </button>
+              
+              <!-- Existing search input -->
+              <div class="relative w-full max-w-md">
+                <input
+                  v-model="searchQuery"
+                  type="text"
+                  placeholder="Search projects by title..."
+                  class="w-full px-4 py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  @input="debounceSearch(searchQuery)"
+                />
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                  </svg>
+                </div>
               </div>
             </div>
           </div>
@@ -503,6 +516,14 @@
         </div>
       </div>
     </div>
+
+    <!-- Add the chat component at the end of the template -->
+    <ProjectRecommendationChat
+      ref="recommendationChat"
+      :model="model"
+      :projects="projects"
+      @view-project="openProjectDetailsWindow"
+    />
   </div>
 </template>
 
@@ -510,10 +531,11 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useUserStore } from '@/stores/userStore'
 import { useRouter } from 'vue-router'
-import { db } from '@/firebase'
+import { db, auth, storage, model } from '@/firebase'
 import { doc, collection, getDocs, getDoc, setDoc, deleteDoc, onSnapshot, query, where, limit } from 'firebase/firestore'
 import { getLatestAcademicYear, formatAcademicYear } from '@/utils/latestAcademicYear'
 import { createProjectDetailsWindow } from '@/utils/windowUtils'
+import ProjectRecommendationChat from '@/components/ProjectRecommendationChat.vue'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -645,6 +667,16 @@ const visibleRejectedBids = computed(() => {
   
   return [...currentRejected, ...referenceWithoutDuplicates]
 })
+
+// Add these refs after the existing refs
+const showRecommendModal = ref(false)
+const tagInput = ref('')
+
+// Modify the STORAGE_KEY constant to be user-specific
+const getStorageKey = computed(() => `student_interest_tags_${userStore.currentUser?.uid}`)
+
+// Modify the selectedTags ref to use the user-specific key
+const selectedTags = ref(JSON.parse(localStorage.getItem(getStorageKey.value) || '[]'))
 
 // Methods
 const fetchLatestAcademicYear = async () => {
@@ -1575,6 +1607,11 @@ const handleStartNewBids = async () => {
 
 const openProjectDetailsWindow = async (project) => {
   try {
+    if (!project || !project.id) {
+      console.error('Invalid project data:', project);
+      throw new Error('Invalid project data');
+    }
+
     // Get user name for creator
     let creatorName = getUserName(project.userId) || 'Unknown';
     
@@ -1582,9 +1619,38 @@ const openProjectDetailsWindow = async (project) => {
     const majorColorClass = getMajorColorClasses(project.major);
     const colorClasses = majorColorClass || { bg: 'bg-blue-100', text: 'text-blue-800' };
 
+    // Ensure we have all required properties before opening the window
+    const projectToDisplay = {
+      id: project.id,
+      Title: project.Title,
+      Description: project.Description || '',
+      Requirements: project.Requirements || '',
+      major: project.major,
+      userId: project.userId,
+      majorDocId: project.majorDocId
+    };
+    
+    // If majorDocId is missing, try to get it
+    if (!projectToDisplay.majorDocId && academicYearId.value) {
+      try {
+        const schoolId = userStore.currentUser.school;
+        const majorId = project.major;
+        if (schoolId && majorId) {
+          const majorRef = collection(db, 'schools', schoolId, 'projects', academicYearId.value, majorId);
+          const majorDocs = await getDocs(majorRef);
+          if (!majorDocs.empty) {
+            projectToDisplay.majorDocId = majorDocs.docs[0].id;
+          }
+        }
+      } catch (error) {
+        console.warn('Error getting majorDocId:', error);
+        // Continue anyway, we'll try to open the window without it
+      }
+    }
+
     // Open the project details window immediately with basic data
     const windowInstance = createProjectDetailsWindow({
-      project,
+      project: projectToDisplay,
       creatorName,
       headers: {},
       majorColorClass: colorClasses
@@ -1593,7 +1659,7 @@ const openProjectDetailsWindow = async (project) => {
     // Async fetch headers after window is already open
     const schoolId = userStore.currentUser.school;
     const majorId = project.major;
-    const majorDocId = project.majorDocId;
+    const majorDocId = projectToDisplay.majorDocId;
     const year = academicYearId.value;
     
     if (schoolId && year && majorId && majorDocId) {
@@ -1613,7 +1679,7 @@ const openProjectDetailsWindow = async (project) => {
             if (windowInstance && windowInstance.updateData) {
               windowInstance.updateData({ headers: majorData.headers });
               console.log('window instance update');
-            }else{
+            } else {
               console.log('window instance not found');
             }
           }
@@ -1621,15 +1687,14 @@ const openProjectDetailsWindow = async (project) => {
       } catch (error) {
         console.error('Error fetching headers:', error);
       }
-    }
-    else {
-      console.log('no headers found');
+    } else {
+      console.log('Missing data for headers fetch:', { schoolId, year, majorId, majorDocId });
     }
   } catch (error) {
     console.error('Error opening project details window:', error);
     alert('There was an error opening the project details. Please try again.');
   }
-}
+};
 
 // Add a watch to prefetch bids when tab changes
 watch(activeTab, (newTab, oldTab) => {
@@ -1698,6 +1763,24 @@ onUnmounted(() => {
     clearTimeout(searchDebounceTimeout.value)
   }
 })
+
+// Add ref for the chat component
+const recommendationChat = ref(null)
+
+// Add method to open chat
+const openRecommendationChat = () => {
+  recommendationChat.value?.open()
+}
+
+// Remove the old recommendation-related code:
+// - showRecommendModal
+// - tagInput
+// - selectedTags
+// - getStorageKey
+// - addTag
+// - removeTag
+// - clearTags
+// - getRecommendations
 </script>
 
 <style scoped>
