@@ -11,6 +11,7 @@ import FeedbackWrapper from '@/views/FeedbackWrapper.vue'
 import StudentFeedback from '@/views/StudentFeedback.vue'
 import LecturerFeedback from '@/views/LecturerFeedback.vue'
 import DataMigration from '@/components/DataMigration.vue'
+import AccountManagement from '@/views/AccountManagement.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -43,7 +44,7 @@ const router = createRouter({
     {
       path: '/account-management',
       name: 'account-management',
-      component: () => import('@/views/AccountManagement.vue'),
+      component: AccountManagement,
       meta: { 
         requiresAuth: true,
         requiresAdmin: true
