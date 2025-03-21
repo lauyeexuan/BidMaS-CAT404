@@ -4,6 +4,7 @@
     "description": "AI recommendation API for BidMaS project matching system",
     "type": "module",
     "scripts": {
+        "dev": "node server.js",
         "deploy": "vercel deploy --prod"
     },
     "dependencies": {

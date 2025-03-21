@@ -38,7 +38,6 @@ async function calculateSimilarities(interests, projects) {
     const results = [];
     for (const project of projects) {
       // Create project description embedding
-      // Use Title and Description or any other relevant fields
       const projectText = [
         project.Title || project.title || '',
         project.Description || project.description || '',
@@ -68,24 +67,20 @@ async function calculateSimilarities(interests, projects) {
   }
 }
 
-// Main handler for serverless function
+// Vercel serverless function handler
 export default async function handler(req, res) {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
-
   // Handle OPTIONS request (preflight)
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+    return res.status(200).end();
   }
   
   // Validate request method
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
+    return res.status(405).json({ error: 'Method not allowed' });
   }
   
   try {
@@ -94,10 +89,9 @@ export default async function handler(req, res) {
     
     // Validate input
     if (!interests || !projects || !Array.isArray(projects) || projects.length === 0) {
-      res.status(400).json({ 
+      return res.status(400).json({ 
         error: 'Bad request. Please provide valid interests and projects array'
       });
-      return;
     }
     
     // Calculate and return recommendations
@@ -105,14 +99,14 @@ export default async function handler(req, res) {
     const recommendations = await calculateSimilarities(interests, projects);
     const processingTime = Date.now() - startTime;
     
-    res.status(200).json({
+    return res.status(200).json({
       recommendations,
       processingTime,
       count: recommendations.length
     });
   } catch (error) {
     console.error('Error in recommendation API:', error);
-    res.status(500).json({ 
+    return res.status(500).json({ 
       error: 'Internal server error', 
       message: error.message
     });
