@@ -100,7 +100,7 @@
               <!-- Update the Project Assistant button -->
               <button
                 @click="openRecommendationChat"
-                class="px-5 py-2.5 bg-gradient-to-r from-[#FF6F61] to-[#FF8B82] text-white rounded-lg hover:from-[#FF5C4D] hover:to-[#FF7A6E] transition-all duration-300 flex items-center gap-3 shadow-lg hover:shadow-xl hover:-translate-y-1 hover:scale-105 font-medium relative overflow-hidden group"
+                class="px-5 py-2.5 bg-gradient-to-r from-[#FF8B82] to-[#FFA59E] text-white rounded-lg hover:from-[#FFA59E] hover:to-[#FF8B82] transition-all duration-300 flex items-center gap-3 shadow-lg hover:shadow-xl hover:-translate-y-1 hover:scale-105 font-medium relative overflow-hidden group"
               >
                 <div class="absolute inset-0 bg-gradient-to-r from-white/30 to-yellow-100/20 blur-xl group-hover:opacity-75 transition-opacity opacity-0"></div>
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 relative transition-transform group-hover:scale-110" viewBox="0 0 20 20" fill="currentColor">
