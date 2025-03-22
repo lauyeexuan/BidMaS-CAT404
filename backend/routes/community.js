@@ -104,7 +104,7 @@ router.get('/posts/:postId', async (req, res) => {
 // POST - Add a comment to a post
 router.post('/posts/:postId/comments', async (req, res) => {
     try {
-        const { userId, user, text } = req.body;
+        const { userId, user, text, gifUrl } = req.body;
         const postId = req.params.postId;
 
         // First check if post exists
@@ -113,12 +113,18 @@ router.post('/posts/:postId/comments', async (req, res) => {
             return res.status(404).json({ message: 'Post not found' });
         }
 
+        // Validate that either text or gifUrl is provided
+        if (!text && !gifUrl) {
+            return res.status(400).json({ message: 'Comment must contain either text or a GIF' });
+        }
+
         // Create new comment
         const newComment = new Comment({
             postId,
             userId,
             user,
-            text
+            text,
+            gifUrl
         });
         const savedComment = await newComment.save();
 

@@ -153,11 +153,16 @@
                         @click="deleteComment(post._id, comment._id)"
                         class="text-red-500 hover:text-red-600"
                       >
-                        <i class="fas fa-trash-alt"></i>
+                        <i class="fa-solid fa-trash-can"></i>
                       </button>
                     </div>
                     
-                    <p class="mt-2 text-gray-800">{{ comment.text }}</p>
+                    <p v-if="comment.text" class="mt-2 text-gray-800">{{ comment.text }}</p>
+                    
+                    <!-- Comment GIF -->
+                    <div v-if="comment.gifUrl" class="mt-2">
+                      <img :src="comment.gifUrl" alt="Comment GIF" class="rounded-lg max-h-48 w-auto">
+                    </div>
                     
                     <!-- Comment Like Button -->
                     <button 
@@ -176,20 +181,83 @@
                 </div>
 
                 <!-- Add Comment Form - moved to look like caption level -->
-                <div class="flex gap-2 mt-auto pt-2 border-t">
-                  <input 
-                    v-model="post.newComment" 
-                    class="flex-1 p-2 border rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    placeholder="Write a comment..."
-                    @keyup.enter="addComment(post)"
-                  >
-                  <button 
-                    @click="addComment(post)"
-                    :disabled="!post.newComment?.trim()"
-                    class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg disabled:opacity-50"
-                  >
-                    Post
-                  </button>
+                <div class="flex flex-col gap-2 mt-auto pt-2 border-t">
+                  <!-- GIF Preview -->
+                  <div v-if="post.selectedGif" class="relative mb-2">
+                    <img :src="post.selectedGif.preview_url" alt="Selected GIF" class="rounded-lg max-h-32 w-auto">
+                    <button 
+                      @click="post.selectedGif = null"
+                      class="absolute top-1 right-1 text-red-500 hover:text-red-600 transition-colors"
+                    >
+                      <i class="fa-solid fa-circle-xmark text-lg"></i>
+                    </button>
+                  </div>
+
+                  <div class="flex gap-2">
+                    <div class="flex-1 relative">
+                      <input 
+                        v-model="post.newComment" 
+                        class="w-full p-2 pr-12 border rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        placeholder="Write a comment..."
+                        @keyup.enter="addComment(post)"
+                      >
+                      <button
+                        @click="openGifModal(post)"
+                        class="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-gray-100 rounded text-gray-600 hover:bg-gray-200 hover:text-blue-500 transition-colors"
+                        title="Add GIF"
+                      >
+                        <span class="text-sm font-bold">GIF</span>
+                      </button>
+                    </div>
+                    <button 
+                      @click="addComment(post)"
+                      :disabled="!post.newComment?.trim() && !post.selectedGif"
+                      class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg disabled:opacity-50 transition-colors"
+                    >
+                      <i class="fas fa-paper-plane"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- GIF Modal -->
+                <div v-if="post.showGifModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                  <div class="bg-white rounded-lg p-4 w-[480px] max-h-[80vh] flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                      <h3 class="text-lg font-semibold">Select a GIF</h3>
+                      <button 
+                        @click="post.showGifModal = false" 
+                        class="text-red-500 hover:text-red-600 transition-colors"
+                      >
+                        <i class="fa-solid fa-circle-xmark text-xl"></i>
+                      </button>
+                    </div>
+                    
+                    <div class="mb-4">
+                      <input 
+                        v-model="post.gifSearchQuery" 
+                        class="w-full p-2 border rounded-lg"
+                        placeholder="Search GIFs..."
+                        @input="debounceSearchGifs(post)"
+                      >
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto">
+                      <div v-if="post.loadingGifs" class="flex justify-center py-4">
+                        <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                      </div>
+                      
+                      <div v-else class="grid grid-cols-2 gap-2">
+                        <button
+                          v-for="gif in post.searchedGifs"
+                          :key="gif.id"
+                          @click="selectGif(post, gif)"
+                          class="relative group rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all"
+                        >
+                          <img :src="gif.preview_url" :alt="gif.title" class="w-full h-32 object-cover">
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -205,6 +273,10 @@ import { ref, onMounted } from 'vue';
 import { useUserStore } from '@/stores/userStore';
 import communityService from '@/services/community';
 
+// Tenor API configuration
+const TENOR_API_KEY = 'AIzaSyA1GgxJG9jYo1Yewu3i2j3ozBPXYmFVhhI'; // Replace with your Tenor API key
+const TENOR_API_URL = 'https://tenor.googleapis.com/v2';
+
 // State
 const userStore = useUserStore();
 const newPostText = ref('');
@@ -212,6 +284,92 @@ const selectedImage = ref(null);
 const selectedVideo = ref(null);
 const posts = ref([]);
 const loading = ref(true);
+
+// Initialize post-specific state
+const initializePostState = (post) => {
+  if (!post.newComment) post.newComment = '';
+  if (!post.showGifModal) post.showGifModal = false;
+  if (!post.gifSearchQuery) post.gifSearchQuery = '';
+  if (!post.searchedGifs) post.searchedGifs = [];
+  if (!post.loadingGifs) post.loadingGifs = false;
+  if (!post.selectedGif) post.selectedGif = null;
+};
+
+// GIF related functions
+const openGifModal = (post) => {
+  initializePostState(post);
+  post.showGifModal = true;
+  searchGifs(post);
+};
+
+const searchGifs = async (post) => {
+  try {
+    post.loadingGifs = true;
+    const query = post.gifSearchQuery || 'trending';
+    const response = await fetch(
+      `${TENOR_API_URL}/search?q=${encodeURIComponent(query)}&key=${TENOR_API_KEY}&client_key=my_test_app&limit=20`
+    );
+    const data = await response.json();
+    post.searchedGifs = data.results.map(gif => ({
+      id: gif.id,
+      preview_url: gif.media_formats.tinygif.url,
+      url: gif.media_formats.gif.url,
+      title: gif.title
+    }));
+  } catch (error) {
+    console.error('Error searching GIFs:', error);
+  } finally {
+    post.loadingGifs = false;
+  }
+};
+
+// Debounce function
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
+
+const debounceSearchGifs = debounce(searchGifs, 300);
+
+const selectGif = (post, gif) => {
+  post.selectedGif = gif;
+  post.showGifModal = false;
+};
+
+// Modified addComment function to include GIF
+const addComment = async (post) => {
+  try {
+    if (!post.newComment?.trim() && !post.selectedGif) return;
+    
+    const userId = userStore.currentUser.uid;
+    const userName = userStore.currentUser.name;
+    
+    await communityService.addComment(
+      post._id,
+      userId,
+      userName,
+      post.newComment.trim(),
+      post.selectedGif?.url // Add GIF URL to the comment
+    );
+    
+    // Clear comment input and selected GIF
+    post.newComment = '';
+    post.selectedGif = null;
+    
+    // Refresh posts to show new comment
+    const fetchedPosts = await communityService.getAllPosts();
+    posts.value = fetchedPosts;
+  } catch (error) {
+    console.error('Error adding comment:', error);
+  }
+};
 
 // Get user initials helper function
 const getUserInitials = (name) => {
@@ -334,32 +492,6 @@ const toggleCommentLike = async (postId, comment) => {
     posts.value = fetchedPosts;
   } catch (error) {
     console.error('Error toggling comment like:', error);
-  }
-};
-
-// Add comment
-const addComment = async (post) => {
-  try {
-    if (!post.newComment?.trim()) return;
-    
-    const userId = userStore.currentUser.uid;
-    const userName = userStore.currentUser.name;
-    
-    await communityService.addComment(
-      post._id,
-      userId,
-      userName,
-      post.newComment.trim()
-    );
-    
-    // Clear comment input
-    post.newComment = '';
-    
-    // Refresh posts to show new comment
-    const fetchedPosts = await communityService.getAllPosts();
-    posts.value = fetchedPosts;
-  } catch (error) {
-    console.error('Error adding comment:', error);
   }
 };
 

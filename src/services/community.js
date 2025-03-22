@@ -71,12 +71,13 @@ const communityService = {
     },
 
     // Add a comment to a post
-    addComment: async (postId, userId, user, text) => {
+    addComment: async (postId, userId, user, text, gifUrl) => {
         try {
             const response = await api.post(`/posts/${postId}/comments`, {
                 userId,
                 user,
-                text
+                text,
+                gifUrl
             });
             return response.data;
         } catch (error) {
