@@ -85,13 +85,63 @@ const communityService = {
         }
     },
 
-    // Like a post
-    likePost: async (postId) => {
+    // Delete a comment
+    deleteComment: async (postId, commentId, userId) => {
         try {
-            const response = await api.post(`/posts/${postId}/likes`);
+            const response = await api.delete(`/posts/${postId}/comments/${commentId}`, {
+                data: { userId }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error deleting comment:', error);
+            throw error;
+        }
+    },
+
+    // Like a post
+    likePost: async (postId, userId) => {
+        try {
+            const response = await api.post(`/posts/${postId}/likes`, { userId });
             return response.data;
         } catch (error) {
             console.error('Error liking post:', error);
+            throw error;
+        }
+    },
+
+    // Unlike a post
+    unlikePost: async (postId, userId) => {
+        try {
+            const response = await api.delete(`/posts/${postId}/likes`, {
+                data: { userId }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error unliking post:', error);
+            throw error;
+        }
+    },
+
+    // Like a comment
+    likeComment: async (postId, commentId, userId) => {
+        try {
+            const response = await api.post(`/posts/${postId}/comments/${commentId}/likes`, { userId });
+            return response.data;
+        } catch (error) {
+            console.error('Error liking comment:', error);
+            throw error;
+        }
+    },
+
+    // Unlike a comment
+    unlikeComment: async (postId, commentId, userId) => {
+        try {
+            const response = await api.delete(`/posts/${postId}/comments/${commentId}/likes`, {
+                data: { userId }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error unliking comment:', error);
             throw error;
         }
     }

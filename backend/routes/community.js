@@ -68,6 +68,7 @@ router.post('/posts', async (req, res) => {
             imageUrl,
             videoUrl,
             likes: 0,
+            likedBy: [],
             comments: []
         });
         
@@ -137,18 +138,152 @@ router.post('/posts/:postId/comments', async (req, res) => {
 // POST - Like a post
 router.post('/posts/:postId/likes', async (req, res) => {
     try {
+        const { userId } = req.body;
         const post = await Post.findById(req.params.postId);
         
         if (!post) {
             return res.status(404).json({ message: 'Post not found' });
         }
 
-        post.likes += 1;
-        const updatedPost = await post.save();
+        // Initialize likedBy array if it doesn't exist
+        if (!Array.isArray(post.likedBy)) {
+            post.likedBy = [];
+        }
+
+        // Check if user already liked the post
+        if (!post.likedBy.includes(userId)) {
+            post.likedBy.push(userId);
+            post.likes = post.likedBy.length; // Update likes count
+            await post.save();
+        }
+
+        const updatedPost = await Post.findById(post._id).populate('comments');
+        res.json(updatedPost);
+    } catch (err) {
+        console.error('Error in like post route:', err);
+        res.status(500).json({ message: 'Server error', error: err.message });
+    }
+});
+
+// DELETE - Unlike a post
+router.delete('/posts/:postId/likes', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        const post = await Post.findById(req.params.postId);
+        
+        if (!post) {
+            return res.status(404).json({ message: 'Post not found' });
+        }
+
+        // Initialize likedBy array if it doesn't exist
+        if (!Array.isArray(post.likedBy)) {
+            post.likedBy = [];
+        }
+
+        // Remove user from likedBy array
+        post.likedBy = post.likedBy.filter(id => id !== userId);
+        post.likes = post.likedBy.length; // Update likes count
+        await post.save();
+
+        const updatedPost = await Post.findById(post._id).populate('comments');
+        res.json(updatedPost);
+    } catch (err) {
+        console.error('Error in unlike post route:', err);
+        res.status(500).json({ message: 'Server error', error: err.message });
+    }
+});
+
+// DELETE - Delete a comment
+router.delete('/posts/:postId/comments/:commentId', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        const { postId, commentId } = req.params;
+
+        // Find the comment and check ownership
+        const comment = await Comment.findById(commentId);
+        if (!comment) {
+            return res.status(404).json({ message: 'Comment not found' });
+        }
+
+        if (comment.userId !== userId) {
+            return res.status(403).json({ message: 'Not authorized to delete this comment' });
+        }
+
+        // Delete the comment
+        await Comment.findByIdAndDelete(commentId);
+
+        // Remove comment reference from post
+        const post = await Post.findById(postId);
+        if (post) {
+            post.comments = post.comments.filter(id => id.toString() !== commentId);
+            await post.save();
+        }
+
+        const updatedPost = await Post.findById(postId).populate('comments');
         res.json(updatedPost);
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// POST - Like a comment
+router.post('/posts/:postId/comments/:commentId/likes', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        const { postId, commentId } = req.params;
+
+        const comment = await Comment.findById(commentId);
+        if (!comment) {
+            return res.status(404).json({ message: 'Comment not found' });
+        }
+
+        // Initialize likedBy array if it doesn't exist
+        if (!Array.isArray(comment.likedBy)) {
+            comment.likedBy = [];
+        }
+
+        // Check if user already liked the comment
+        if (!comment.likedBy.includes(userId)) {
+            comment.likedBy.push(userId);
+            comment.likes = comment.likedBy.length; // Update likes count
+            await comment.save();
+        }
+
+        const updatedPost = await Post.findById(postId).populate('comments');
+        res.json(updatedPost);
+    } catch (err) {
+        console.error('Error in like comment route:', err);
+        res.status(500).json({ message: 'Server error', error: err.message });
+    }
+});
+
+// DELETE - Unlike a comment
+router.delete('/posts/:postId/comments/:commentId/likes', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        const { postId, commentId } = req.params;
+
+        const comment = await Comment.findById(commentId);
+        if (!comment) {
+            return res.status(404).json({ message: 'Comment not found' });
+        }
+
+        // Initialize likedBy array if it doesn't exist
+        if (!Array.isArray(comment.likedBy)) {
+            comment.likedBy = [];
+        }
+
+        // Remove user from likedBy array
+        comment.likedBy = comment.likedBy.filter(id => id !== userId);
+        comment.likes = comment.likedBy.length; // Update likes count
+        await comment.save();
+
+        const updatedPost = await Post.findById(postId).populate('comments');
+        res.json(updatedPost);
+    } catch (err) {
+        console.error('Error in unlike comment route:', err);
+        res.status(500).json({ message: 'Server error', error: err.message });
     }
 });
 

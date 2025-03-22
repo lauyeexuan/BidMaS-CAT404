@@ -10,9 +10,11 @@ const PostSchema = new Schema({
   text: { type: String, required: true },
   imageUrl: { type: String }, // URL of the image in Firebase Storage
   videoUrl: { type: String }, // URL of the video in Firebase Storage
-  likes: { type: Number, default: 0 },
+  likes: { type: Number, default: 0 }, // Number of likes
+  likedBy: [{ type: String }], // Array of user IDs who liked the post
   comments: [{ type: Schema.Types.ObjectId, ref: 'Comment' }], // Reference to Comment model
-  createdAt: { type: Date, default: Date.now }
+}, {
+  timestamps: true
 });
 
 module.exports = mongoose.model('Post', PostSchema);

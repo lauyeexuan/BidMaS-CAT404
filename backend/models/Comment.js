@@ -10,7 +10,10 @@ const CommentSchema = new Schema({
   userId: { type: String, required: true }, // Reference to user ID
   user: { type: String, required: true }, // Store user's name
   text: { type: String, required: true },
-  createdAt: { type: Date, default: Date.now }
+  likes: { type: Number, default: 0 }, // Number of likes
+  likedBy: [{ type: String }] // Array of user IDs who liked the comment
+}, {
+  timestamps: true
 });
 
 module.exports = mongoose.model('Comment', CommentSchema);

@@ -75,47 +75,124 @@
 
       <div v-else class="space-y-6">
         <div v-for="post in posts" :key="post._id" class="bg-white rounded-lg shadow-md p-6 transition-shadow hover:shadow-lg">
-          <div class="flex items-center mb-4">
-            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-              <span class="text-blue-800 font-semibold">{{ getUserInitials(post.user) }}</span>
-            </div>
-            <div class="ml-4">
-              <h3 class="font-semibold">{{ post.user }}</h3>
-              <p class="text-sm text-gray-500">{{ formatDate(post.createdAt) }}</p>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-gray-800 whitespace-pre-wrap">{{ post.text }}</p>
-          </div>
+          <!-- Post and Comments Layout -->
+          <div class="flex gap-6">
+            <!-- Left side: Post Content -->
+            <div class="flex-1">
+              <div class="flex items-center mb-4">
+                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <span class="text-blue-800 font-semibold">{{ getUserInitials(post.user) }}</span>
+                </div>
+                <div class="ml-4">
+                  <h3 class="font-semibold">{{ post.user }}</h3>
+                  <p class="text-sm text-gray-500">{{ formatDate(post.createdAt) }}</p>
+                </div>
+              </div>
+              
+              <div class="mb-4">
+                <p class="text-gray-800 whitespace-pre-wrap">{{ post.text }}</p>
+              </div>
 
-          <!-- Media Content -->
-          <div v-if="post.imageUrl" class="mb-4">
-            <img :src="post.imageUrl" alt="Post image" class="rounded-lg max-h-96 w-auto">
-          </div>
-          <div v-if="post.videoUrl" class="mb-4">
-            <video 
-              :src="post.videoUrl" 
-              controls 
-              class="rounded-lg max-h-96 w-auto"
-            >
-              Your browser does not support the video tag.
-            </video>
-          </div>
+              <!-- Media Content -->
+              <div v-if="post.imageUrl" class="mb-4">
+                <img :src="post.imageUrl" alt="Post image" class="rounded-lg max-h-96 w-auto">
+              </div>
+              <div v-if="post.videoUrl" class="mb-4">
+                <video 
+                  :src="post.videoUrl" 
+                  controls 
+                  class="rounded-lg max-h-96 w-auto"
+                >
+                  Your browser does not support the video tag.
+                </video>
+              </div>
 
-          <div class="flex items-center space-x-4 text-gray-500">
-            <button 
-              @click="likePost(post._id)"
-              class="flex items-center hover:text-blue-500 transition-colors"
-              :class="{ 'text-blue-500': post.isLiked }"
-            >
-              <i class="fas fa-thumbs-up mr-2"></i>
-              <span>{{ post.likes }} {{ post.likes === 1 ? 'Like' : 'Likes' }}</span>
-            </button>
-            <button class="flex items-center hover:text-blue-500 transition-colors">
-              <i class="fas fa-comment mr-2"></i>
-              <span>{{ post.comments.length }} {{ post.comments.length === 1 ? 'Comment' : 'Comments' }}</span>
-            </button>
+              <div class="flex items-center space-x-4 text-gray-500">
+                <button 
+                  @click="togglePostLike(post)"
+                  class="flex items-center hover:text-pink-500 transition-colors"
+                  :class="{ 'text-pink-500': Array.isArray(post.likedBy) && post.likedBy.includes(userStore.currentUser.uid) }"
+                >
+                  <i class="fa-heart mr-2" :class="[
+                    Array.isArray(post.likedBy) && post.likedBy.includes(userStore.currentUser.uid) 
+                      ? 'fas text-pink-500' 
+                      : 'far'
+                  ]"></i>
+                  <span>{{ post.likes || 0 }} {{ post.likes === 1 ? 'Like' : 'Likes' }}</span>
+                </button>
+                <div class="flex items-center text-gray-500">
+                  <i class="fas fa-comment mr-2"></i>
+                  <span>{{ post.comments?.length || 0 }} {{ post.comments?.length === 1 ? 'Comment' : 'Comments' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right side: Comments Section - Always visible -->
+            <div class="w-96 border-l pl-6">
+              <div class="flex flex-col h-full">
+                <!-- Comments List -->
+                <div class="space-y-4 max-h-[600px] overflow-y-auto mb-4">
+                  <div v-if="post.comments && post.comments.length === 0" class="text-center py-4 text-gray-500">
+                    No comments yet. Be the first to comment!
+                  </div>
+                  <div v-for="comment in post.comments" :key="comment._id" class="bg-gray-50 rounded-lg p-4">
+                    <div class="flex justify-between items-start">
+                      <div class="flex items-center">
+                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span class="text-blue-800 font-semibold text-sm">{{ getUserInitials(comment.user) }}</span>
+                        </div>
+                        <div class="ml-2">
+                          <h4 class="font-semibold text-sm">{{ comment.user }}</h4>
+                          <p class="text-xs text-gray-500">{{ formatDate(comment.createdAt) }}</p>
+                        </div>
+                      </div>
+                      
+                      <!-- Delete Comment Button (only for comment owner) -->
+                      <button 
+                        v-if="comment.userId === userStore.currentUser.uid"
+                        @click="deleteComment(post._id, comment._id)"
+                        class="text-red-500 hover:text-red-600"
+                      >
+                        <i class="fas fa-trash-alt"></i>
+                      </button>
+                    </div>
+                    
+                    <p class="mt-2 text-gray-800">{{ comment.text }}</p>
+                    
+                    <!-- Comment Like Button -->
+                    <button 
+                      @click="toggleCommentLike(post._id, comment)"
+                      class="mt-2 text-sm flex items-center hover:text-pink-500 transition-colors"
+                      :class="{ 'text-pink-500': Array.isArray(comment.likedBy) && comment.likedBy.includes(userStore.currentUser.uid) }"
+                    >
+                      <i class="fa-heart mr-1" :class="[
+                        Array.isArray(comment.likedBy) && comment.likedBy.includes(userStore.currentUser.uid) 
+                          ? 'fas text-pink-500' 
+                          : 'far'
+                      ]"></i>
+                      <span>{{ comment.likes || 0 }}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Add Comment Form - moved to look like caption level -->
+                <div class="flex gap-2 mt-auto pt-2 border-t">
+                  <input 
+                    v-model="post.newComment" 
+                    class="flex-1 p-2 border rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    placeholder="Write a comment..."
+                    @keyup.enter="addComment(post)"
+                  >
+                  <button 
+                    @click="addComment(post)"
+                    :disabled="!post.newComment?.trim()"
+                    class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg disabled:opacity-50"
+                  >
+                    Post
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -220,15 +297,83 @@ const createPost = async () => {
   }
 };
 
-// Like post function
-const likePost = async (postId) => {
+// Toggle post like
+const togglePostLike = async (post) => {
   try {
-    await communityService.likePost(postId);
-    // Refresh posts to update like count
+    const userId = userStore.currentUser.uid;
+    const isLiked = Array.isArray(post.likedBy) && post.likedBy.includes(userId);
+    
+    if (isLiked) {
+      await communityService.unlikePost(post._id, userId);
+    } else {
+      await communityService.likePost(post._id, userId);
+    }
+    
+    // Refresh posts to update like status
     const fetchedPosts = await communityService.getAllPosts();
     posts.value = fetchedPosts;
   } catch (error) {
-    console.error('Error liking post:', error);
+    console.error('Error toggling post like:', error);
+  }
+};
+
+// Toggle comment like
+const toggleCommentLike = async (postId, comment) => {
+  try {
+    const userId = userStore.currentUser.uid;
+    const isLiked = Array.isArray(comment.likedBy) && comment.likedBy.includes(userId);
+    
+    if (isLiked) {
+      await communityService.unlikeComment(postId, comment._id, userId);
+    } else {
+      await communityService.likeComment(postId, comment._id, userId);
+    }
+    
+    // Refresh posts to update comment like status
+    const fetchedPosts = await communityService.getAllPosts();
+    posts.value = fetchedPosts;
+  } catch (error) {
+    console.error('Error toggling comment like:', error);
+  }
+};
+
+// Add comment
+const addComment = async (post) => {
+  try {
+    if (!post.newComment?.trim()) return;
+    
+    const userId = userStore.currentUser.uid;
+    const userName = userStore.currentUser.name;
+    
+    await communityService.addComment(
+      post._id,
+      userId,
+      userName,
+      post.newComment.trim()
+    );
+    
+    // Clear comment input
+    post.newComment = '';
+    
+    // Refresh posts to show new comment
+    const fetchedPosts = await communityService.getAllPosts();
+    posts.value = fetchedPosts;
+  } catch (error) {
+    console.error('Error adding comment:', error);
+  }
+};
+
+// Delete comment
+const deleteComment = async (postId, commentId) => {
+  try {
+    const userId = userStore.currentUser.uid;
+    await communityService.deleteComment(postId, commentId, userId);
+    
+    // Refresh posts to update comments
+    const fetchedPosts = await communityService.getAllPosts();
+    posts.value = fetchedPosts;
+  } catch (error) {
+    console.error('Error deleting comment:', error);
   }
 };
 
