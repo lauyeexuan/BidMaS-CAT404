@@ -330,4 +330,72 @@ router.delete('/posts/:postId/comments/:commentId/likes', async (req, res) => {
     }
 });
 
+// PUT - Edit a post
+router.put('/posts/:postId', async (req, res) => {
+    try {
+        const { userId, text } = req.body;
+        const postId = req.params.postId;
+        
+        // Find post and check ownership
+        const post = await Post.findById(postId);
+        if (!post) {
+            return res.status(404).json({ message: 'Post not found' });
+        }
+        
+        // Check if user is authorized to edit this post
+        if (post.userId !== userId) {
+            return res.status(403).json({ message: 'Not authorized to edit this post' });
+        }
+        
+        // Update the post text
+        post.text = text;
+        await post.save();
+        
+        const updatedPost = await Post.findById(postId).populate('comments');
+        
+        // Broadcast updated posts to all clients
+        const posts = await Post.find().populate('comments');
+        broadcastMessage('posts_updated', posts);
+        
+        res.json(updatedPost);
+    } catch (err) {
+        console.error('Error in edit post route:', err);
+        res.status(500).json({ message: 'Server error', error: err.message });
+    }
+});
+
+// DELETE - Delete a post
+router.delete('/posts/:postId', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        const postId = req.params.postId;
+        
+        // Find post and check ownership
+        const post = await Post.findById(postId);
+        if (!post) {
+            return res.status(404).json({ message: 'Post not found' });
+        }
+        
+        // Check if user is authorized to delete this post
+        if (post.userId !== userId) {
+            return res.status(403).json({ message: 'Not authorized to delete this post' });
+        }
+        
+        // Delete all comments associated with this post
+        await Comment.deleteMany({ postId: postId });
+        
+        // Delete the post
+        await Post.findByIdAndDelete(postId);
+        
+        // Broadcast updated posts to all clients
+        const posts = await Post.find().populate('comments');
+        broadcastMessage('posts_updated', posts);
+        
+        res.json({ message: 'Post deleted successfully' });
+    } catch (err) {
+        console.error('Error in delete post route:', err);
+        res.status(500).json({ message: 'Server error', error: err.message });
+    }
+});
+
 module.exports = router;

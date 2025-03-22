@@ -189,6 +189,33 @@ const communityService = {
             console.error('Error unliking comment:', error);
             throw error;
         }
+    },
+
+    // Edit a post
+    editPost: async (postId, userId, text) => {
+        try {
+            const response = await api.put(`/posts/${postId}`, {
+                userId,
+                text
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error editing post:', error);
+            throw error;
+        }
+    },
+
+    // Delete a post
+    deletePost: async (postId, userId) => {
+        try {
+            const response = await api.delete(`/posts/${postId}`, {
+                data: { userId }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error deleting post:', error);
+            throw error;
+        }
     }
 };
 
