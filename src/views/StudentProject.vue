@@ -97,15 +97,16 @@
             </div>
             
             <div class="flex items-center gap-4">
-              <!-- Replace the Recommend Projects button with a chat button -->
+              <!-- Update the Project Assistant button -->
               <button
                 @click="openRecommendationChat"
-                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+                class="px-5 py-2.5 bg-gradient-to-r from-[#FF6F61] to-[#FF8B82] text-white rounded-lg hover:from-[#FF5C4D] hover:to-[#FF7A6E] transition-all duration-300 flex items-center gap-3 shadow-lg hover:shadow-xl hover:-translate-y-1 hover:scale-105 font-medium relative overflow-hidden group"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <div class="absolute inset-0 bg-gradient-to-r from-white/30 to-yellow-100/20 blur-xl group-hover:opacity-75 transition-opacity opacity-0"></div>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 relative transition-transform group-hover:scale-110" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clip-rule="evenodd" />
                 </svg>
-                Project Assistant
+                <span class="relative text-base">Ask Gemini</span>
               </button>
               
               <!-- Existing search input -->
