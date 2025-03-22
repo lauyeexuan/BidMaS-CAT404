@@ -5,8 +5,8 @@
     ref="chatContainer"
     class="fixed top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 bg-white rounded-lg shadow-xl flex flex-col"
     :style="{ 
-      width: '560px',
-      height: '420px',
+      width: '660px',
+      height: '480px',
       zIndex: 50
     }"
   >
@@ -16,7 +16,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
           <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
         </svg>
-        <h3 class="text-white font-medium">Project Recommendations</h3>
+        <h3 class="text-white font-medium">Project Assistant</h3>
       </div>
       <button 
         @click="close"
@@ -30,6 +30,21 @@
 
     <!-- Chat Content -->
     <div class="flex-1 flex flex-col overflow-hidden">
+      <!-- Mode Indicator -->
+      <div v-if="chatMode !== 'welcome'" class="px-4 py-2 bg-gray-50 border-b flex items-center">
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-gray-600">Current Mode:</span>
+          <span 
+            class="px-2 py-1 rounded-full text-xs font-medium"
+            :class="chatMode === 'recommendations' 
+              ? 'bg-[#FFB347]/20 text-[#FFB347]' 
+              : 'bg-[#FF6F61]/20 text-[#FF6F61]'"
+          >
+            {{ chatMode === 'recommendations' ? 'Project Recommendations' : 'Project Analysis' }}
+          </span>
+        </div>
+      </div>
+
       <!-- Messages Container -->
       <div ref="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-4">
         <!-- Welcome Message -->
@@ -40,25 +55,43 @@
             </svg>
             <span>Hi, I'm Gemini! 👋</span>
           </div>
-          <p class="text-gray-600">I'm here to help you discover the perfect project based on your interests and skills.</p>
-          <p class="text-sm text-gray-500">Try entering tags like "NLP"  "Mobile app" or "Agile"</p>
+          <p class="text-gray-600">I'm here to help you discover and analyze projects. What would you like to do?</p>
+          <div class="flex justify-center gap-4 mt-4">
+            <button
+              @click="chatMode = 'recommendations'"
+              class="px-4 py-2 rounded-lg bg-gradient-to-r from-[#FFB347] to-[#FFCD94] text-white hover:from-[#FFA533] hover:to-[#FFB347] shadow-lg hover:shadow-xl transition-all duration-300 text-sm font-medium"
+            >
+              Find Project Recommendations
+            </button>
+            <button
+              @click="chatMode = 'analysis'"
+              class="px-4 py-2 rounded-lg bg-gradient-to-r from-[#FF6F61] to-[#FF8B82] text-white hover:from-[#FF5B4D] hover:to-[#FF7A6E] shadow-lg hover:shadow-xl transition-all duration-300 text-sm font-medium"
+            >
+              Project Analysis & Brainstorming
+            </button>
+          </div>
           <div class="text-xs text-gray-400 mt-2">Powered by Gemini 2.0 Flash</div>
         </div>
 
         <!-- Chat Messages -->
         <div v-for="(message, index) in messages" :key="index">
-          <!-- User Message - just show tags -->
+          <!-- User Message -->
           <div v-if="message.type === 'user'" class="flex justify-end mb-4">
-            <div class="flex flex-row-reverse flex-wrap gap-2">
+            <div v-if="message.tags" class="flex flex-row-reverse flex-wrap gap-2">
               <span v-for="tag in message.tags" :key="tag" 
                 class="inline-block px-3 py-1.5 rounded-full text-sm font-medium bg-[#F1F5E9] text-[#5B8A3C]"
               >
                 {{ tag }}
               </span>
             </div>
+            <div v-else-if="message.projectTitle" 
+              class="inline-block px-4 py-2 rounded-lg text-sm font-medium bg-[#F1F5E9] text-[#5B8A3C]"
+            >
+              Analyzing: {{ message.projectTitle }}
+            </div>
           </div>
 
-          <!-- Bot Message with Recommendations -->
+          <!-- Bot Message -->
           <div v-else class="bg-gray-100 rounded-lg p-3 max-w-[90%] mb-4">
             <div v-if="message.error" class="bg-red-50 p-3 rounded text-red-700 text-sm">
               {{ message.text }}
@@ -81,88 +114,159 @@
                 </div>
               </div>
             </div>
+            <div v-else-if="message.analysis" class="prose prose-sm max-w-none">
+              <div class="whitespace-pre-wrap text-gray-700 analysis-content" v-html="(message.analysis)"></div>
+            </div>
             <div v-else class="text-sm text-gray-700">
               No matching projects found for your interests. Try different tags.
             </div>
           </div>
         </div>
 
+        <!-- Mode Selection After Reply -->
+        <div v-if="messages.length > 0 && !isLoading" class="bg-gray-50 rounded-lg p-4 text-center">
+          <p class="text-sm text-gray-600 mb-3">Would you like to try something else?</p>
+          <div class="flex justify-center gap-3">
+            <button
+              @click="switchMode('recommendations')"
+              :class="[
+                'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300',
+                chatMode === 'recommendations'
+                  ? 'bg-gradient-to-r from-[#FFB347] to-[#FFCD94] text-white shadow-lg transform scale-105'
+                  : 'bg-white text-[#FFB347] border border-[#FFB347] hover:bg-[#FFB347] hover:text-white'
+              ]"
+            >
+              Find Project Recommendations
+            </button>
+            <button
+              @click="switchMode('analysis')"
+              :class="[
+                'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300',
+                chatMode === 'analysis'
+                  ? 'bg-gradient-to-r from-[#FF6F61] to-[#FF8B82] text-white shadow-lg transform scale-105'
+                  : 'bg-white text-[#FF6F61] border border-[#FF6F61] hover:bg-[#FF6F61] hover:text-white'
+              ]"
+            >
+              Analyze Project
+            </button>
+          </div>
+        </div>
+
         <!-- Loading Indicator -->
-        <div v-if="isLoading" class="flex justify-center">
-          <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-[#FF6F61]"></div>
+        <div v-if="isLoading" class="flex flex-col items-center justify-center gap-3 py-4">
+          <div class="flex items-center gap-2">
+            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-[#FF6F61]"></div>
+            <span class="text-[#FF6F61] font-medium">
+              {{ chatMode === 'analysis' ? 'Analyzing project with AI magic ✨' : 'Finding perfect matches' }}
+              <span v-if="chatMode === 'analysis'" class="text-sm text-gray-500">({{ loadingTimer }}s)</span>
+            </span>
+          </div>
+          <div v-if="chatMode === 'analysis'" class="text-sm text-gray-500 animate-pulse">
+            Reading project... Brainstorming ideas... Making coffee... ☕
+          </div>
         </div>
       </div>
 
       <!-- Input Area -->
-      <div class="p-4 border-t" :class="selectedTags.length === 0 ? 'py-2' : 'py-4'">
-        <div class="flex items-center gap-3 justify-between">
-          <!-- Clear All Button -->
-          <button 
-            :class="[
-              'text-xs transition-colors whitespace-nowrap',
-              selectedTags.length > 0 
-                ? 'text-[#E05252] hover:text-[#CC4444]' 
-                : 'text-gray-300 cursor-not-allowed'
-            ]"
-            @click="selectedTags.length > 0 && clearTags()"
-          >
-            Clear All
-          </button>
+      <div class="p-4 border-t">
+        <!-- Input Fields -->
+        <div v-if="!isLoading">
+          <!-- Recommendations Mode -->
+          <div v-if="chatMode === 'recommendations'" class="flex items-center gap-3 justify-between">
+            <!-- Existing recommendations input UI -->
+            <button 
+              :class="[
+                'text-xs transition-colors whitespace-nowrap',
+                selectedTags.length > 0 
+                  ? 'text-[#E05252] hover:text-[#CC4444]' 
+                  : 'text-gray-300 cursor-not-allowed'
+              ]"
+              @click="selectedTags.length > 0 && clearTags()"
+            >
+              Clear All
+            </button>
 
-          <!-- Tags and Input container -->
-          <div class="flex-1 max-w-[55%]">
-            <!-- Selected Tags - only show if there are tags -->
-            <div 
-              v-if="selectedTags.length > 0"
-              class="flex flex-wrap gap-2 mb-2 min-h-[28px]"
-            >
-              <span 
-                v-for="tag in selectedTags" 
-                :key="tag"
-                class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#F1F5E9] text-[#5B8A3C] shadow-sm"
+            <div class="flex-1 max-w-[55%]">
+              <div 
+                v-if="selectedTags.length > 0"
+                class="flex flex-wrap gap-2 mb-2 min-h-[28px]"
               >
-                {{ tag }}
-                <button
-                  type="button"
-                  class="ml-1 inline-flex items-center justify-center text-[#5B8A3C] hover:text-[#4A7230]"
-                  @click="removeTag(tag)"
+                <span 
+                  v-for="tag in selectedTags" 
+                  :key="tag"
+                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#F1F5E9] text-[#5B8A3C] shadow-sm"
                 >
-                  <svg class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                  </svg>
-                </button>
-              </span>
+                  {{ tag }}
+                  <button
+                    type="button"
+                    class="ml-1 inline-flex items-center justify-center text-[#5B8A3C] hover:text-[#4A7230]"
+                    @click="removeTag(tag)"
+                  >
+                    <svg class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                  </button>
+                </span>
+              </div>
+              
+              <input
+                v-model="tagInput"
+                type="text"
+                placeholder="Type and press Enter..."
+                class="w-full focus:outline-none text-sm border-b border-gray-200 focus:border-[#FF6F61] pb-0.5 transition-colors"
+                @keydown.enter.prevent="addTag"
+              >
             </div>
-            
-            <!-- Input Field -->
-            <input
-              v-model="tagInput"
-              type="text"
-              placeholder="Type and press Enter..."
-              class="w-full focus:outline-none text-sm border-b border-gray-200 focus:border-[#FF6F61] pb-0.5 transition-colors"
-              @keydown.enter.prevent="addTag"
+
+            <button 
+              :class="[
+                'px-4 py-2 rounded-lg transition-all duration-300 text-sm font-medium whitespace-nowrap shadow-lg flex items-center gap-2 overflow-hidden relative group',
+                selectedTags.length > 0 
+                  ? 'bg-gradient-to-r from-[#FFB347] to-[#FFCD94] text-white hover:from-[#FFA533] hover:to-[#FFB347] hover:shadow-xl transform hover:-translate-y-1 hover:scale-105' 
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              ]"
+              @click="selectedTags.length > 0 && getRecommendations()"
             >
+              <div class="absolute inset-0 bg-gradient-to-r from-white/40 to-transparent opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-300"></div>
+              <span class="relative font-semibold">Let's try</span>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 relative animate-pulse group-hover:animate-none" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
           </div>
 
-          <!-- Get Recommendations Button -->
-          <button 
-            :class="[
-              'px-4 py-2 rounded-lg transition-all duration-300 text-sm font-medium whitespace-nowrap shadow-lg flex items-center gap-2 overflow-hidden relative group',
-              selectedTags.length > 0 
-                ? 'bg-gradient-to-r from-[#FFB347] to-[#FFCD94] text-white hover:from-[#FFA533] hover:to-[#FFB347] hover:shadow-xl transform hover:-translate-y-1 hover:scale-105' 
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-            ]"
-            @click="selectedTags.length > 0 && getRecommendations()"
-          >
-            <!-- Glowing effect overlay -->
-            <div class="absolute inset-0 bg-gradient-to-r from-white/40 to-transparent opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-300"></div>
-            
-            <!-- Button content -->
-            <span class="relative font-semibold">Let's try</span>
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 relative animate-pulse group-hover:animate-none" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
-            </svg>
-          </button>
+          <!-- Analysis Mode -->
+          <div v-else-if="chatMode === 'analysis'" class="flex items-center gap-3">
+            <div class="flex-1">
+              <input
+                v-model="projectInput"
+                type="text"
+                list="project-list"
+                placeholder="Enter project title..."
+                class="w-full focus:outline-none text-sm border-b border-gray-200 focus:border-[#FF6F61] pb-0.5 transition-colors"
+                @keydown.enter.prevent="getProjectAnalysis"
+              >
+              <datalist id="project-list">
+                <option v-for="project in props.projects.filter(p => !p.placeholder && p.Title)" :key="project.id" :value="project.Title" />
+              </datalist>
+            </div>
+
+            <button 
+              :class="[
+                'px-4 py-2 rounded-lg transition-all duration-300 text-sm font-medium whitespace-nowrap shadow-lg flex items-center gap-2 overflow-hidden relative group',
+                projectInput 
+                  ? 'bg-gradient-to-r from-[#FF6F61] to-[#FF8B82] text-white hover:from-[#FF5B4D] hover:to-[#FF7A6E] hover:shadow-xl transform hover:-translate-y-1 hover:scale-105' 
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              ]"
+              @click="projectInput && getProjectAnalysis()"
+            >
+              <div class="absolute inset-0 bg-gradient-to-r from-white/40 to-transparent opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-300"></div>
+              <span class="relative font-semibold">Analyze Project</span>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 relative" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -193,12 +297,29 @@ const tagInput = ref('')
 const messages = ref([])
 const chatContainer = ref(null)
 const messagesContainer = ref(null)
+const chatMode = ref('welcome') // 'welcome' | 'recommendations' | 'analysis'
+const projectInput = ref('')
+const selectedProject = ref(null)
+const loadingTimer = ref(10) // Add timer ref
 
 // Storage key for tags
 const getStorageKey = computed(() => `student_interest_tags_${userStore.currentUser?.uid}`)
 
 // Initialize selectedTags from localStorage
 const selectedTags = ref(JSON.parse(localStorage.getItem(getStorageKey.value) || '[]'))
+
+// Add timer logic
+const startLoadingTimer = () => {
+  loadingTimer.value = 10
+  const timer = setInterval(() => {
+    if (loadingTimer.value > 0) {
+      loadingTimer.value--
+    } else {
+      clearInterval(timer)
+    }
+  }, 1000)
+  return timer
+}
 
 // Methods for tag management
 const addTag = () => {
@@ -403,6 +524,95 @@ Rules:
   }
 }
 
+// Add new getProjectAnalysis function
+const getProjectAnalysis = async () => {
+  if (!projectInput.value) return
+  
+  isLoading.value = true
+  const timer = startLoadingTimer() // Start the timer
+  const projectTitle = projectInput.value
+  
+  try {
+    const project = props.projects.find(p => 
+      p.Title.toLowerCase() === projectTitle.toLowerCase()
+    )
+    
+    if (!project) {
+      throw new Error('Project not found')
+    }
+
+    // Add user message showing selected project
+    messages.value.push({
+      type: 'user',
+      projectTitle: project.Title
+    })
+
+    // Clear input
+    projectInput.value = ''
+
+    // Create the analysis prompt
+    const prompt = `Analyze this project concisely:
+Title: ${project.Title}
+Description: ${project.Description || 'No description provided'}
+Major: ${project.major || 'Not specified'}
+
+Return a focused HTML analysis with this structure:
+<div class="text-xl font-bold text-[#FF6F61] mt-6 mb-4 border-b border-[#FF6F61]/20 pb-2">{Section Title}</div>
+<div class="text-lg font-semibold text-gray-700 mt-4 mb-3"><strong>{Subsection}</strong></div>
+<div class="ml-6 mb-2 flex items-start gap-2">
+  <span class="text-[#FFB168] mt-1.5">•</span>
+  <span class="flex-1 text-gray-600">{Point}</span>
+</div>
+
+Please analyze and provide:
+
+1. Technical Feasibility Analysis
+   - Required technical skills and technologies
+   - Potential technical challenges
+
+2. Innovative Enhancement Ideas
+   - Potential features and improvements
+   - Unique selling points
+
+3. Learning Opportunities
+   - Key skills to be gained
+   - Growth areas
+
+4. Risk Assessment
+   - Potential obstacles
+   - Mitigation strategies
+   - Critical success factors
+
+ Use the exact HTML structure provided
+ Keep each section focused and concise.2 to 3 points per subsection in each section
+ No markdown
+`
+
+    // Get AI response
+    const result = await props.model.generateContent(prompt)
+    const analysis = result.response.text()
+
+    // Add bot message with analysis (no need for formatting since AI returns formatted HTML)
+    messages.value.push({
+      type: 'bot',
+      analysis: analysis
+    })
+
+  } catch (error) {
+    messages.value.push({
+      type: 'bot',
+      error: true,
+      text: error.message === 'Project not found' 
+        ? 'Please enter a valid project title from the list.'
+        : 'Sorry, I encountered an error analyzing the project. Please try again.'
+    })
+  } finally {
+    clearInterval(timer) // Clear the timer
+    isLoading.value = false
+    loadingTimer.value = 10 // Reset timer
+  }
+}
+
 // UI Controls
 const open = () => {
   isVisible.value = true
@@ -427,6 +637,16 @@ defineExpose({
   open,
   close
 })
+
+// Add switchMode function in script
+const switchMode = (mode) => {
+  chatMode.value = mode
+  if (mode === 'recommendations') {
+    selectedTags.value = []
+  } else {
+    projectInput.value = ''
+  }
+}
 </script>
 
 <style scoped>
