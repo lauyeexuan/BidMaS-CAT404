@@ -11,7 +11,7 @@
     }"
   >
     <!-- Update header section -->
-    <div class="p-3 bg-blue-600 rounded-t-lg flex justify-between items-center">
+    <div class="p-3 bg-gradient-to-r from-[#FF6F61] to-[#FF8B82] rounded-t-lg flex justify-between items-center">
       <div class="flex items-center gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
           <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
@@ -39,19 +39,12 @@
         </div>
 
         <!-- Chat Messages -->
-        <div v-for="(message, index) in messages" :key="index" 
-          :class="[
-            'max-w-[90%] rounded-lg p-3',
-            message.type === 'user' 
-              ? 'bg-blue-100 text-blue-900 ml-auto' 
-              : 'bg-gray-100 text-gray-900'
-          ]"
-        >
-          <!-- User Message -->
-          <div v-if="message.type === 'user'" class="flex items-center gap-2">
-            <div class="space-x-1">
+        <div v-for="(message, index) in messages" :key="index">
+          <!-- User Message - just show tags -->
+          <div v-if="message.type === 'user'" class="flex justify-end mb-4">
+            <div class="flex flex-row-reverse flex-wrap gap-2">
               <span v-for="tag in message.tags" :key="tag" 
-                class="inline-block px-2 py-1 rounded-full text-xs font-medium bg-blue-200 text-blue-800"
+                class="inline-block px-3 py-1.5 rounded-full text-sm font-medium bg-[#F1F5E9] text-[#5B8A3C]"
               >
                 {{ tag }}
               </span>
@@ -59,7 +52,7 @@
           </div>
 
           <!-- Bot Message with Recommendations -->
-          <div v-else>
+          <div v-else class="bg-gray-100 rounded-lg p-3 max-w-[90%] mb-4">
             <div v-if="message.error" class="bg-red-50 p-3 rounded text-red-700 text-sm">
               {{ message.text }}
             </div>
@@ -70,7 +63,7 @@
                 @click="rec.project && $emit('view-project', rec.project)"
               >
                 <div class="flex items-center gap-2 mb-2">
-                  <span class="flex-shrink-0 w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold">
+                  <span class="flex-shrink-0 w-7 h-7 rounded-full bg-[#FFB168] text-white flex items-center justify-center text-sm font-bold">
                     {{ rec.ranking }}
                   </span>
                   <h4 class="font-medium text-base">{{ rec.title }}</h4>
@@ -89,7 +82,7 @@
 
         <!-- Loading Indicator -->
         <div v-if="isLoading" class="flex justify-center">
-          <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+          <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-[#FF6F61]"></div>
         </div>
       </div>
 
@@ -101,7 +94,7 @@
             :class="[
               'text-xs transition-colors whitespace-nowrap',
               selectedTags.length > 0 
-                ? 'text-red-600 hover:text-red-700' 
+                ? 'text-[#E05252] hover:text-[#CC4444]' 
                 : 'text-gray-300 cursor-not-allowed'
             ]"
             @click="selectedTags.length > 0 && clearTags()"
@@ -109,32 +102,34 @@
             Clear All
           </button>
 
-          <!-- Tags and Input container - reduced width -->
-          <div class="flex-1 max-w-[55%] flex flex-wrap gap-2 p-2 border rounded-md bg-gray-50 min-h-[40px]">
-            <!-- Selected Tags -->
-            <span 
-              v-for="tag in selectedTags" 
-              :key="tag"
-              class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-            >
-              {{ tag }}
-              <button
-                type="button"
-                class="ml-1 inline-flex items-center justify-center text-blue-400 hover:text-blue-500"
-                @click="removeTag(tag)"
+          <!-- Tags and Input container -->
+          <div class="flex-1 max-w-[55%]">
+            <!-- Selected Tags - above input -->
+            <div class="flex flex-wrap gap-2 mb-2 min-h-[28px]">
+              <span 
+                v-for="tag in selectedTags" 
+                :key="tag"
+                class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#F1F5E9] text-[#5B8A3C] shadow-sm"
               >
-                <svg class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                </svg>
-              </button>
-            </span>
+                {{ tag }}
+                <button
+                  type="button"
+                  class="ml-1 inline-flex items-center justify-center text-[#5B8A3C] hover:text-[#4A7230]"
+                  @click="removeTag(tag)"
+                >
+                  <svg class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+              </span>
+            </div>
             
-            <!-- Input Field -->
+            <!-- Input Field - below tags -->
             <input
               v-model="tagInput"
               type="text"
               placeholder="Type and press Enter..."
-              class="flex-1 min-w-[120px] bg-transparent focus:outline-none text-sm"
+              class="w-full focus:outline-none text-sm border-b border-gray-200 focus:border-[#FF6F61] pb-0.5 transition-colors"
               @keydown.enter.prevent="addTag"
             >
           </div>
@@ -142,15 +137,19 @@
           <!-- Get Recommendations Button -->
           <button 
             :class="[
-              'px-4 py-2 rounded-lg transition-all duration-200 text-sm font-medium whitespace-nowrap shadow-sm flex items-center gap-2',
+              'px-4 py-2 rounded-lg transition-all duration-300 text-sm font-medium whitespace-nowrap shadow-lg flex items-center gap-2 overflow-hidden relative group',
               selectedTags.length > 0 
-                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 hover:shadow-md transform hover:-translate-y-0.5' 
+                ? 'bg-gradient-to-r from-[#FFB347] to-[#FFCD94] text-white hover:from-[#FFA533] hover:to-[#FFB347] hover:shadow-xl transform hover:-translate-y-1 hover:scale-105' 
                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
             ]"
             @click="selectedTags.length > 0 && getRecommendations()"
           >
-            <span>Let's try</span>
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <!-- Glowing effect overlay -->
+            <div class="absolute inset-0 bg-gradient-to-r from-white/40 to-transparent opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-300"></div>
+            
+            <!-- Button content -->
+            <span class="relative font-semibold">Let's try</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 relative animate-pulse group-hover:animate-none" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
             </svg>
           </button>
@@ -218,12 +217,19 @@ const getRecommendations = async () => {
   
   isLoading.value = true
   
-  // Add user message
+  // Store tags before clearing them
+  const tagsToUse = [...selectedTags.value]
+  
+  // Add user message with the stored tags
   messages.value.push({
     type: 'user',
-    tags: [...selectedTags.value]
+    tags: tagsToUse
   })
 
+  // Clear the tags immediately
+  selectedTags.value = []
+  localStorage.removeItem(getStorageKey.value)
+  
   try {
     // Ensure we use all projects, not just paginated ones
     const allProjects = props.projects
@@ -239,7 +245,7 @@ const getRecommendations = async () => {
       }))
 
     // Create the prompt for the AI
-    const prompt = `Find projects that match these interests: ${selectedTags.value.join(', ')}
+    const prompt = `Find projects that match these interests: ${tagsToUse.join(', ')}
 
 Projects:
 ${JSON.stringify(projectsData, null, 2)}
