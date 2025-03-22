@@ -3,179 +3,146 @@
   <div 
     v-show="isVisible"
     ref="chatContainer"
-    class="fixed transform transition-all duration-300 ease-bounce"
-    :class="{
-      'top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 bg-white rounded-lg shadow-xl flex flex-col': isExpanded,
-      'bottom-4 right-4 w-14 h-14 rounded-full bg-blue-600 shadow-xl cursor-pointer hover:scale-110': !isExpanded
-    }"
+    class="fixed top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 bg-white rounded-lg shadow-xl flex flex-col"
     :style="{ 
-      transform: isExpanded ? `translate(-50%, -50%) translate(${position.x}px, ${position.y}px)` : `translate(${position.x}px, ${position.y}px)`,
-      width: isExpanded ? '560px' : '56px',
-      height: isExpanded ? '420px' : '56px',
+      width: '560px',
+      height: '420px',
       zIndex: 50
     }"
   >
-    <!-- Collapsed State - Circle Button -->
-    <div 
-      v-if="!isExpanded"
-      class="w-full h-full flex items-center justify-center text-white"
-      @click="toggleExpand"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
-        <path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clip-rule="evenodd" />
-      </svg>
+    <!-- Update header section -->
+    <div class="p-3 bg-blue-600 rounded-t-lg flex justify-between items-center">
+      <div class="flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+        </svg>
+        <h3 class="text-white font-medium">Project Recommendations</h3>
+      </div>
+      <button 
+        @click="close"
+        class="text-white hover:text-gray-200 transition-colors"
+      >
+        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+        </svg>
+      </button>
     </div>
 
-    <!-- Expanded State -->
-    <template v-else>
-      <!-- Chat Header -->
-      <div 
-        class="p-3 bg-blue-600 rounded-t-lg cursor-move flex justify-between items-center"
-        @mousedown="startDragging"
-        @touchstart="startDragging"
-      >
-        <div class="flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-          </svg>
-          <h3 class="text-white font-medium">Project Recommendations</h3>
+    <!-- Chat Content -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+      <!-- Messages Container -->
+      <div ref="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-4">
+        <!-- Welcome Message -->
+        <div v-if="messages.length === 0" class="text-center text-gray-500 mt-4">
+          <p>Enter your interests or skills to get personalized project recommendations.</p>
+          <p class="text-sm mt-2">Example: "html", "blockchain", "ai"</p>
         </div>
-        <div class="flex items-center gap-2">
-          <button 
-            @click="toggleExpand"
-            class="text-white hover:text-gray-200 transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd" />
-            </svg>
-          </button>
-          <button 
-            @click="close"
-            class="text-white hover:text-gray-200 transition-colors"
-          >
-            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-            </svg>
-          </button>
-        </div>
-      </div>
 
-      <!-- Chat Content -->
-      <div class="flex-1 flex flex-col overflow-hidden">
-        <!-- Messages Container -->
-        <div ref="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-4">
-          <!-- Welcome Message -->
-          <div v-if="messages.length === 0" class="text-center text-gray-500 mt-4">
-            <p>Enter your interests or skills to get personalized project recommendations.</p>
-            <p class="text-sm mt-2">Example: "html", "blockchain", "ai"</p>
+        <!-- Chat Messages -->
+        <div v-for="(message, index) in messages" :key="index" 
+          :class="[
+            'max-w-[90%] rounded-lg p-3',
+            message.type === 'user' 
+              ? 'bg-blue-100 text-blue-900 ml-auto' 
+              : 'bg-gray-100 text-gray-900'
+          ]"
+        >
+          <!-- User Message -->
+          <div v-if="message.type === 'user'" class="flex items-center gap-2">
+            <div class="space-x-1">
+              <span v-for="tag in message.tags" :key="tag" 
+                class="inline-block px-2 py-1 rounded-full text-xs font-medium bg-blue-200 text-blue-800"
+              >
+                {{ tag }}
+              </span>
+            </div>
           </div>
 
-          <!-- Chat Messages -->
-          <div v-for="(message, index) in messages" :key="index" 
-            :class="[
-              'max-w-[90%] rounded-lg p-3',
-              message.type === 'user' 
-                ? 'bg-blue-100 text-blue-900 ml-auto' 
-                : 'bg-gray-100 text-gray-900'
-            ]"
-          >
-            <!-- User Message -->
-            <div v-if="message.type === 'user'" class="flex items-center gap-2">
-              <div class="space-x-1">
-                <span v-for="tag in message.tags" :key="tag" 
-                  class="inline-block px-2 py-1 rounded-full text-xs font-medium bg-blue-200 text-blue-800"
-                >
-                  {{ tag }}
-                </span>
-              </div>
+          <!-- Bot Message with Recommendations -->
+          <div v-else>
+            <div v-if="message.error" class="bg-red-50 p-3 rounded text-red-700 text-sm">
+              {{ message.text }}
             </div>
-
-            <!-- Bot Message with Recommendations -->
-            <div v-else>
-              <div v-if="message.error" class="bg-red-50 p-3 rounded text-red-700 text-sm">
-                {{ message.text }}
-              </div>
-              <div v-else-if="message.recommendations && message.recommendations.length > 0">
-                <div v-for="rec in message.recommendations" :key="rec.title" 
-                  class="mb-3 last:mb-0 p-2 bg-white rounded hover:bg-gray-50 transition-colors"
-                  :class="rec.project ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'"
-                  @click="rec.project && $emit('view-project', rec.project)"
-                >
-                  <div class="flex items-center gap-2 mb-1">
-                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">
-                      {{ rec.ranking }}
-                    </span>
-                    <h4 class="font-medium text-sm">{{ rec.title }}</h4>
-                  </div>
-                  <p class="text-xs text-gray-600">{{ rec.reason }}</p>
-                  <div v-if="!rec.project" class="text-xs text-red-500 mt-1">
-                    This project is no longer available.
-                  </div>
+            <div v-else-if="message.recommendations && message.recommendations.length > 0">
+              <div v-for="rec in message.recommendations" :key="rec.title" 
+                class="mb-3 last:mb-0 p-2 bg-white rounded hover:bg-gray-50 transition-colors"
+                :class="rec.project ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'"
+                @click="rec.project && $emit('view-project', rec.project)"
+              >
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">
+                    {{ rec.ranking }}
+                  </span>
+                  <h4 class="font-medium text-sm">{{ rec.title }}</h4>
+                </div>
+                <p class="text-xs text-gray-600">{{ rec.reason }}</p>
+                <div v-if="!rec.project" class="text-xs text-red-500 mt-1">
+                  This project is no longer available.
                 </div>
               </div>
-              <div v-else class="text-sm text-gray-700">
-                No matching projects found for your interests. Try different tags.
-              </div>
+            </div>
+            <div v-else class="text-sm text-gray-700">
+              No matching projects found for your interests. Try different tags.
             </div>
           </div>
-
-          <!-- Loading Indicator -->
-          <div v-if="isLoading" class="flex justify-center">
-            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-          </div>
         </div>
 
-        <!-- Input Area -->
-        <div class="p-4 border-t">
-          <div class="flex flex-wrap gap-2 p-2 border rounded-md bg-gray-50 min-h-[45px]">
-            <!-- Selected Tags -->
-            <span 
-              v-for="tag in selectedTags" 
-              :key="tag"
-              class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-            >
-              {{ tag }}
-              <button
-                type="button"
-                class="ml-1 inline-flex items-center justify-center text-blue-400 hover:text-blue-500"
-                @click="removeTag(tag)"
-              >
-                <svg class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                </svg>
-              </button>
-            </span>
-            
-            <!-- Input Field -->
-            <input
-              v-model="tagInput"
-              type="text"
-              placeholder="Type and press Enter..."
-              class="flex-1 min-w-[120px] bg-transparent focus:outline-none text-sm"
-              @keydown.enter.prevent="addTag"
-            >
-          </div>
-
-          <!-- Action Buttons -->
-          <div class="flex justify-between mt-2">
-            <button 
-              v-if="selectedTags.length > 0"
-              @click="clearTags"
-              class="text-xs text-red-600 hover:text-red-700 transition-colors"
-            >
-              Clear All
-            </button>
-            <button 
-              v-if="selectedTags.length > 0"
-              @click="getRecommendations"
-              class="ml-auto px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
-            >
-              Get Recommendations
-            </button>
-          </div>
+        <!-- Loading Indicator -->
+        <div v-if="isLoading" class="flex justify-center">
+          <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
         </div>
       </div>
-    </template>
+
+      <!-- Input Area -->
+      <div class="p-4 border-t">
+        <div class="flex flex-wrap gap-2 p-2 border rounded-md bg-gray-50 min-h-[45px]">
+          <!-- Selected Tags -->
+          <span 
+            v-for="tag in selectedTags" 
+            :key="tag"
+            class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+          >
+            {{ tag }}
+            <button
+              type="button"
+              class="ml-1 inline-flex items-center justify-center text-blue-400 hover:text-blue-500"
+              @click="removeTag(tag)"
+            >
+              <svg class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
+          </span>
+          
+          <!-- Input Field -->
+          <input
+            v-model="tagInput"
+            type="text"
+            placeholder="Type and press Enter..."
+            class="flex-1 min-w-[120px] bg-transparent focus:outline-none text-sm"
+            @keydown.enter.prevent="addTag"
+          >
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex justify-between mt-2">
+          <button 
+            v-if="selectedTags.length > 0"
+            @click="clearTags"
+            class="text-xs text-red-600 hover:text-red-700 transition-colors"
+          >
+            Clear All
+          </button>
+          <button 
+            v-if="selectedTags.length > 0"
+            @click="getRecommendations"
+            class="ml-auto px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+          >
+            Get Recommendations
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -198,13 +165,9 @@ const emit = defineEmits(['view-project'])
 
 const userStore = useUserStore()
 const isVisible = ref(false)
-const isExpanded = ref(true)
 const isLoading = ref(false)
 const tagInput = ref('')
 const messages = ref([])
-const position = ref({ x: 0, y: 0 })
-const isDragging = ref(false)
-const dragOffset = ref({ x: 0, y: 0 })
 const chatContainer = ref(null)
 const messagesContainer = ref(null)
 
@@ -233,88 +196,6 @@ const clearTags = () => {
   selectedTags.value = []
   localStorage.removeItem(getStorageKey.value)
   messages.value = []
-}
-
-// Fix dragging functionality
-const startDragging = (event) => {
-  if (event.target.closest('button')) return
-  
-  isDragging.value = true
-  
-  // Get touch or mouse position
-  const clientX = event.touches ? event.touches[0].clientX : event.clientX
-  const clientY = event.touches ? event.touches[0].clientY : event.clientY
-  
-  const rect = chatContainer.value.getBoundingClientRect()
-  
-  // Store the initial offset from cursor to element corner
-  dragOffset.value = {
-    x: clientX - rect.left,
-    y: clientY - rect.top
-  }
-  
-  // Add event listeners with correct options
-  if (event.type === 'mousedown') {
-    document.addEventListener('mousemove', onDrag)
-    document.addEventListener('mouseup', stopDragging)
-  } else {
-    document.addEventListener('touchmove', onDrag, { passive: false })
-    document.addEventListener('touchend', stopDragging)
-  }
-  
-  // Prevent text selection during dragging
-  event.preventDefault()
-}
-
-const onDrag = (event) => {
-  if (!isDragging.value) return
-  
-  // Prevent default browser behavior
-  event.preventDefault()
-  
-  // Get current client position
-  const clientX = event.touches ? event.touches[0].clientX : event.clientX
-  const clientY = event.touches ? event.touches[0].clientY : event.clientY
-  
-  // Calculate new position
-  let newX = clientX - dragOffset.value.x
-  let newY = clientY - dragOffset.value.y
-  
-  // Get viewport dimensions
-  const viewportWidth = window.innerWidth
-  const viewportHeight = window.innerHeight
-  
-  // Get element dimensions
-  const rect = chatContainer.value.getBoundingClientRect()
-  const width = rect.width
-  const height = rect.height
-  
-  // Calculate strict boundaries to keep the element fully visible
-  const maxX = viewportWidth - width
-  const maxY = viewportHeight - height
-  
-  // Enforce boundaries
-  newX = Math.max(0, Math.min(newX, maxX))
-  newY = Math.max(0, Math.min(newY, maxY))
-  
-  // Update position value directly
-  position.value = { 
-    x: newX, 
-    y: newY 
-  }
-}
-
-const stopDragging = () => {
-  // Only clean up if we were actually dragging
-  if (!isDragging.value) return
-  
-  isDragging.value = false
-  
-  // Remove event listeners
-  document.removeEventListener('mousemove', onDrag)
-  document.removeEventListener('mouseup', stopDragging)
-  document.removeEventListener('touchmove', onDrag)
-  document.removeEventListener('touchend', stopDragging)
 }
 
 // Chat functionality
@@ -489,13 +370,8 @@ Rules:
 }
 
 // UI Controls
-const toggleExpand = () => {
-  isExpanded.value = !isExpanded.value
-}
-
 const open = () => {
   isVisible.value = true
-  isExpanded.value = true
 }
 
 const close = () => {
