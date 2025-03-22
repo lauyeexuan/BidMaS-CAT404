@@ -12,6 +12,7 @@ import StudentFeedback from '@/views/StudentFeedback.vue'
 import LecturerFeedback from '@/views/LecturerFeedback.vue'
 import DataMigration from '@/components/DataMigration.vue'
 import AccountManagement from '@/views/AccountManagement.vue'
+import Community from '@/views/Community.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -66,6 +67,12 @@ const router = createRouter({
       path: '/profile',
       name: 'profile',
       component: Profile,
+      meta: { requiresAuth: true } // Protected route accessible to all authenticated users
+    },
+    {
+      path: '/community',
+      name: 'community',
+      component: Community,
       meta: { requiresAuth: true } // Protected route accessible to all authenticated users
     },
     {
