@@ -94,7 +94,7 @@
       </div>
 
       <!-- Input Area -->
-      <div class="p-4 border-t">
+      <div class="p-4 border-t" :class="selectedTags.length === 0 ? 'py-2' : 'py-4'">
         <div class="flex items-center gap-3 justify-between">
           <!-- Clear All Button -->
           <button 
@@ -111,8 +111,11 @@
 
           <!-- Tags and Input container -->
           <div class="flex-1 max-w-[55%]">
-            <!-- Selected Tags - above input -->
-            <div class="flex flex-wrap gap-2 mb-2 min-h-[28px]">
+            <!-- Selected Tags - only show if there are tags -->
+            <div 
+              v-if="selectedTags.length > 0"
+              class="flex flex-wrap gap-2 mb-2 min-h-[28px]"
+            >
               <span 
                 v-for="tag in selectedTags" 
                 :key="tag"
@@ -131,7 +134,7 @@
               </span>
             </div>
             
-            <!-- Input Field - below tags -->
+            <!-- Input Field -->
             <input
               v-model="tagInput"
               type="text"
