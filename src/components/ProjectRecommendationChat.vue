@@ -203,6 +203,16 @@ const selectedTags = ref(JSON.parse(localStorage.getItem(getStorageKey.value) ||
 // Methods for tag management
 const addTag = () => {
   const tag = tagInput.value.trim().toLowerCase()
+  // Add validation for meaningful input
+  if (tag.length < 3 || /^\d+$/.test(tag) || /[^a-z0-9\s-]/.test(tag)) {
+    messages.value.push({
+      type: 'bot',
+      error: true,
+      text: 'Please enter meaningful tags related to your interests (e.g., "NLP", "Mobile app", "Machine learning", "Web development").'
+    })
+    tagInput.value = ''
+    return
+  }
   if (tag && !selectedTags.value.includes(tag)) {
     selectedTags.value.push(tag)
     localStorage.setItem(getStorageKey.value, JSON.stringify(selectedTags.value))
@@ -386,7 +396,7 @@ Rules:
     messages.value.push({
       type: 'bot',
       error: true,
-      text: 'Sorry, I encountered an error while getting recommendations. Please try again.'
+      text: 'I couldn\'t find relevant project matches. Try using more specific tags related to technologies, domains, or skills (e.g., "Python", "Web development", "Data science").'
     })
   } finally {
     isLoading.value = false
