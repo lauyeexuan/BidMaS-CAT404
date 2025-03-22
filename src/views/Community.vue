@@ -33,16 +33,16 @@
             @click="$refs.imageInput.click()"
             class="flex items-center px-3 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 hover:text-blue-500 transition-colors"
           >
-            <i class="fas fa-image mr-2"></i>
-            Add Image
+            <PhotoIcon class="h-5 w-5 mr-2" />
+            Image
           </button>
           
           <button 
             @click="$refs.videoInput.click()"
             class="flex items-center px-3 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 hover:text-blue-500 transition-colors"
           >
-            <i class="fas fa-video mr-2"></i>
-            Add Video
+            <VideoCameraIcon class="h-5 w-5 mr-2" />
+            Clip
           </button>
         </div>
 
@@ -57,7 +57,7 @@
             class="text-red-500 hover:text-red-600 transition-colors"
             title="Clear selected media"
           >
-            <i class="fa-solid fa-circle-xmark"></i>
+            <XCircleIcon class="h-5 w-5" />
           </button>
         </div>
 
@@ -66,7 +66,7 @@
           :disabled="!newPostText.trim()"
           class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg flex items-center disabled:opacity-50 transition-colors"
         >
-          <i class="fas fa-paper-plane mr-2"></i>
+          <PaperAirplaneIcon class="h-5 w-5 mr-2" />
           Create Post
         </button>
       </div>
@@ -153,16 +153,16 @@
                   class="flex items-center hover:text-pink-500 transition-colors"
                   :class="{ 'text-pink-500': Array.isArray(post.likedBy) && post.likedBy.includes(userStore.currentUser.uid) }"
                 >
-                  <i class="fa-heart mr-2" :class="[
-                    Array.isArray(post.likedBy) && post.likedBy.includes(userStore.currentUser.uid) 
-                      ? 'fas text-pink-500' 
-                      : 'far'
-                  ]"></i>
-                  <span>{{ post.likes || 0 }} {{ post.likes === 1 ? 'Like' : 'Likes' }}</span>
+                  <component
+                    :is="Array.isArray(post.likedBy) && post.likedBy.includes(userStore.currentUser.uid) ? HeartIconSolid : HeartIconOutline"
+                    class="h-5 w-5 mr-2"
+                    :class="{ 'text-pink-500': Array.isArray(post.likedBy) && post.likedBy.includes(userStore.currentUser.uid) }"
+                  />
+                  <span>{{ post.likes || 0 }} {{ post.likes <= 1 ? 'Like' : 'Likes' }}</span>
                 </button>
                 <div class="flex items-center text-gray-500">
-                  <i class="fas fa-comment mr-2"></i>
-                  <span>{{ post.comments?.length || 0 }} {{ post.comments?.length === 1 ? 'Comment' : 'Comments' }}</span>
+                  <ChatBubbleOvalLeftIcon class="h-5 w-5 mr-2" />
+                  <span>{{ post.comments?.length || 0 }} {{ post.comments?.length <= 1 ? 'Comment' : 'Comments' }}</span>
                 </div>
               </div>
             </div>
@@ -210,11 +210,11 @@
                       class="mt-2 text-sm flex items-center hover:text-pink-500 transition-colors"
                       :class="{ 'text-pink-500': Array.isArray(comment.likedBy) && comment.likedBy.includes(userStore.currentUser.uid) }"
                     >
-                      <i class="fa-heart mr-1" :class="[
-                        Array.isArray(comment.likedBy) && comment.likedBy.includes(userStore.currentUser.uid) 
-                          ? 'fas text-pink-500' 
-                          : 'far'
-                      ]"></i>
+                      <component
+                        :is="Array.isArray(comment.likedBy) && comment.likedBy.includes(userStore.currentUser.uid) ? HeartIconSolid : HeartIconOutline"
+                        class="h-4 w-4 mr-1"
+                        :class="{ 'text-pink-500': Array.isArray(comment.likedBy) && comment.likedBy.includes(userStore.currentUser.uid) }"
+                      />
                       <span>{{ comment.likes || 0 }}</span>
                     </button>
                   </div>
@@ -348,7 +348,18 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useUserStore } from '@/stores/userStore';
 import communityService from '@/services/community';
-import { EllipsisHorizontalIcon, PencilSquareIcon, TrashIcon } from '@heroicons/vue/24/outline';
+import { 
+  EllipsisHorizontalIcon, 
+  PencilSquareIcon, 
+  TrashIcon,
+  HeartIcon as HeartIconOutline,
+  ChatBubbleOvalLeftIcon,
+  PhotoIcon,
+  VideoCameraIcon,
+  PaperAirplaneIcon,
+  XCircleIcon
+} from '@heroicons/vue/24/outline';
+import { HeartIcon as HeartIconSolid } from '@heroicons/vue/24/solid';
 
 // Tenor API configuration
 const TENOR_API_KEY = 'AIzaSyA1GgxJG9jYo1Yewu3i2j3ozBPXYmFVhhI'; // Replace with your Tenor API key
