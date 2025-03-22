@@ -3,14 +3,15 @@
   <div 
     v-show="isVisible"
     ref="chatContainer"
-    class="fixed bottom-4 right-4 transform transition-all duration-300 ease-bounce"
+    class="fixed transform transition-all duration-300 ease-bounce"
     :class="{
-      'w-80 bg-white rounded-lg shadow-xl flex flex-col': isExpanded,
-      'w-14 h-14 rounded-full bg-blue-600 shadow-xl cursor-pointer hover:scale-110': !isExpanded
+      'top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 bg-white rounded-lg shadow-xl flex flex-col': isExpanded,
+      'bottom-4 right-4 w-14 h-14 rounded-full bg-blue-600 shadow-xl cursor-pointer hover:scale-110': !isExpanded
     }"
     :style="{ 
-      transform: `translate(${position.x}px, ${position.y}px)`,
-      height: isExpanded ? '480px' : '56px',
+      transform: isExpanded ? `translate(-50%, -50%) translate(${position.x}px, ${position.y}px)` : `translate(${position.x}px, ${position.y}px)`,
+      width: isExpanded ? '560px' : '56px',
+      height: isExpanded ? '420px' : '56px',
       zIndex: 50
     }"
   >
