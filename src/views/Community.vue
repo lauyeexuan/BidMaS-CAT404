@@ -269,7 +269,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useUserStore } from '@/stores/userStore';
 import communityService from '@/services/community';
 
@@ -284,6 +284,8 @@ const selectedImage = ref(null);
 const selectedVideo = ref(null);
 const posts = ref([]);
 const loading = ref(true);
+// Track WebSocket unsubscribe function
+let unsubscribePosts = null;
 
 // Initialize post-specific state
 const initializePostState = (post) => {
@@ -363,9 +365,7 @@ const addComment = async (post) => {
     post.newComment = '';
     post.selectedGif = null;
     
-    // Refresh posts to show new comment
-    const fetchedPosts = await communityService.getAllPosts();
-    posts.value = fetchedPosts;
+    // Note: No need to manually refresh posts here as WebSocket will handle it
   } catch (error) {
     console.error('Error adding comment:', error);
   }
@@ -382,15 +382,30 @@ const getUserInitials = (name) => {
     .substring(0, 2);
 };
 
-// Fetch posts on component mount
+// Initialize WebSocket and fetch posts on component mount
 onMounted(async () => {
   try {
-    const fetchedPosts = await communityService.getAllPosts();
-    posts.value = fetchedPosts;
+    // Initialize WebSocket connection
+    communityService.initWebSocket();
+    
+    // Subscribe to real-time posts updates
+    unsubscribePosts = communityService.subscribeToPosts((updatedPosts) => {
+      posts.value = updatedPosts;
+      loading.value = false;
+    });
+    
+    // Initial fetch of posts
+    await communityService.getAllPosts();
   } catch (error) {
-    console.error('Error fetching posts:', error);
-  } finally {
+    console.error('Error initializing community:', error);
     loading.value = false;
+  }
+});
+
+// Clean up WebSocket subscription when component is unmounted
+onUnmounted(() => {
+  if (unsubscribePosts) {
+    unsubscribePosts();
   }
 });
 
@@ -438,10 +453,6 @@ const createPost = async () => {
       selectedVideo.value
     );
 
-    // Refresh posts after creating new one
-    const fetchedPosts = await communityService.getAllPosts();
-    posts.value = fetchedPosts;
-
     // Reset form
     newPostText.value = '';
     selectedImage.value = null;
@@ -449,6 +460,8 @@ const createPost = async () => {
 
     // Show success message
     alert('Post created successfully!');
+    
+    // Note: No need to manually refresh posts here as WebSocket will handle it
   } catch (error) {
     console.error('Error creating post:', error);
     alert('Failed to create post. Please try again.');
@@ -467,9 +480,7 @@ const togglePostLike = async (post) => {
       await communityService.likePost(post._id, userId);
     }
     
-    // Refresh posts to update like status
-    const fetchedPosts = await communityService.getAllPosts();
-    posts.value = fetchedPosts;
+    // Note: No need to manually refresh posts here as WebSocket will handle it
   } catch (error) {
     console.error('Error toggling post like:', error);
   }
@@ -487,9 +498,7 @@ const toggleCommentLike = async (postId, comment) => {
       await communityService.likeComment(postId, comment._id, userId);
     }
     
-    // Refresh posts to update comment like status
-    const fetchedPosts = await communityService.getAllPosts();
-    posts.value = fetchedPosts;
+    // Note: No need to manually refresh posts here as WebSocket will handle it
   } catch (error) {
     console.error('Error toggling comment like:', error);
   }
@@ -501,9 +510,7 @@ const deleteComment = async (postId, commentId) => {
     const userId = userStore.currentUser.uid;
     await communityService.deleteComment(postId, commentId, userId);
     
-    // Refresh posts to update comments
-    const fetchedPosts = await communityService.getAllPosts();
-    posts.value = fetchedPosts;
+    // Note: No need to manually refresh posts here as WebSocket will handle it
   } catch (error) {
     console.error('Error deleting comment:', error);
   }

@@ -2,6 +2,7 @@
 // It would include functions for fetching posts, creating posts, adding comments, liking posts, etc. (using axios or fetch).
 
 import axios from 'axios';
+import websocketService from './websocket';
 
 // Create axios instance with base configuration
 const api = axios.create({
@@ -13,10 +14,53 @@ const api = axios.create({
 
 // Service object to handle all community-related API calls
 const communityService = {
+    // Store for posts data that can be updated by WebSocket
+    _postsData: [],
+    _postsListeners: [],
+    
+    // Method to get current posts data
+    getPosts: () => {
+        return communityService._postsData;
+    },
+    
+    // Subscribe to posts updates
+    subscribeToPosts: (callback) => {
+        communityService._postsListeners.push(callback);
+        // Immediately call with current data
+        callback(communityService._postsData);
+        
+        // Return unsubscribe function
+        return () => {
+            communityService._postsListeners = 
+                communityService._postsListeners.filter(cb => cb !== callback);
+        };
+    },
+    
+    // Update posts data and notify listeners
+    _updatePosts: (posts) => {
+        communityService._postsData = posts;
+        communityService._postsListeners.forEach(cb => cb(posts));
+    },
+    
+    // Initialize WebSocket connection and listeners
+    initWebSocket: () => {
+        websocketService.connect().then(() => {
+            console.log('WebSocket connected for community service');
+            
+            // Listen for posts updates
+            websocketService.on('posts_updated', (posts) => {
+                communityService._updatePosts(posts);
+            });
+        }).catch(error => {
+            console.error('WebSocket connection failed:', error);
+        });
+    },
+    
     // Fetch all posts
     getAllPosts: async () => {
         try {
             const response = await api.get('/posts');
+            communityService._updatePosts(response.data);
             return response.data;
         } catch (error) {
             console.error('Error fetching posts:', error);

@@ -12,6 +12,7 @@ const Comment = require('../models/Comment');
 const { storage } = require('../config/firebase');
 const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
 const mongoose = require('mongoose');
+const { broadcastMessage } = require('../server');
 
 // GET all posts
 router.get('/posts', async (req, res) => {
@@ -80,10 +81,14 @@ router.post('/posts', async (req, res) => {
         // Add this debug log
         console.log('Saved post:', savedPost);
         
+        // Broadcast new post to all clients
+        const posts = await Post.find().populate('comments');
+        broadcastMessage('posts_updated', posts);
+        
         res.status(201).json(savedPost);
     } catch (err) {
-        console.error('Detailed error:', err);
-        res.status(500).json({ message: 'Server error' });
+        console.error('Error in create post route:', err);
+        res.status(500).json({ message: 'Server error', error: err.message });
     }
 });
 
@@ -134,6 +139,11 @@ router.post('/posts/:postId/comments', async (req, res) => {
 
         // Return updated post with populated comments
         const updatedPost = await Post.findById(postId).populate('comments');
+        
+        // Broadcast updated posts to all clients
+        const posts = await Post.find().populate('comments');
+        broadcastMessage('posts_updated', posts);
+        
         res.status(201).json(updatedPost);
     } catch (err) {
         console.error(err);
@@ -145,25 +155,31 @@ router.post('/posts/:postId/comments', async (req, res) => {
 router.post('/posts/:postId/likes', async (req, res) => {
     try {
         const { userId } = req.body;
-        const post = await Post.findById(req.params.postId);
+        const postId = req.params.postId;
         
+        const post = await Post.findById(postId);
         if (!post) {
             return res.status(404).json({ message: 'Post not found' });
         }
-
+        
         // Initialize likedBy array if it doesn't exist
         if (!Array.isArray(post.likedBy)) {
             post.likedBy = [];
         }
-
+        
         // Check if user already liked the post
         if (!post.likedBy.includes(userId)) {
             post.likedBy.push(userId);
             post.likes = post.likedBy.length; // Update likes count
             await post.save();
         }
-
-        const updatedPost = await Post.findById(post._id).populate('comments');
+        
+        const updatedPost = await Post.findById(postId).populate('comments');
+        
+        // Broadcast updated posts to all clients
+        const posts = await Post.find().populate('comments');
+        broadcastMessage('posts_updated', posts);
+        
         res.json(updatedPost);
     } catch (err) {
         console.error('Error in like post route:', err);
@@ -175,12 +191,13 @@ router.post('/posts/:postId/likes', async (req, res) => {
 router.delete('/posts/:postId/likes', async (req, res) => {
     try {
         const { userId } = req.body;
-        const post = await Post.findById(req.params.postId);
+        const postId = req.params.postId;
         
+        const post = await Post.findById(postId);
         if (!post) {
             return res.status(404).json({ message: 'Post not found' });
         }
-
+        
         // Initialize likedBy array if it doesn't exist
         if (!Array.isArray(post.likedBy)) {
             post.likedBy = [];
@@ -192,6 +209,11 @@ router.delete('/posts/:postId/likes', async (req, res) => {
         await post.save();
 
         const updatedPost = await Post.findById(post._id).populate('comments');
+        
+        // Broadcast updated posts to all clients
+        const posts = await Post.find().populate('comments');
+        broadcastMessage('posts_updated', posts);
+        
         res.json(updatedPost);
     } catch (err) {
         console.error('Error in unlike post route:', err);
@@ -226,6 +248,11 @@ router.delete('/posts/:postId/comments/:commentId', async (req, res) => {
         }
 
         const updatedPost = await Post.findById(postId).populate('comments');
+        
+        // Broadcast updated posts to all clients
+        const posts = await Post.find().populate('comments');
+        broadcastMessage('posts_updated', posts);
+        
         res.json(updatedPost);
     } catch (err) {
         console.error(err);
@@ -257,6 +284,11 @@ router.post('/posts/:postId/comments/:commentId/likes', async (req, res) => {
         }
 
         const updatedPost = await Post.findById(postId).populate('comments');
+        
+        // Broadcast updated posts to all clients
+        const posts = await Post.find().populate('comments');
+        broadcastMessage('posts_updated', posts);
+        
         res.json(updatedPost);
     } catch (err) {
         console.error('Error in like comment route:', err);
@@ -269,23 +301,28 @@ router.delete('/posts/:postId/comments/:commentId/likes', async (req, res) => {
     try {
         const { userId } = req.body;
         const { postId, commentId } = req.params;
-
+        
         const comment = await Comment.findById(commentId);
         if (!comment) {
             return res.status(404).json({ message: 'Comment not found' });
         }
-
+        
         // Initialize likedBy array if it doesn't exist
         if (!Array.isArray(comment.likedBy)) {
             comment.likedBy = [];
         }
-
+        
         // Remove user from likedBy array
         comment.likedBy = comment.likedBy.filter(id => id !== userId);
         comment.likes = comment.likedBy.length; // Update likes count
         await comment.save();
-
+        
         const updatedPost = await Post.findById(postId).populate('comments');
+        
+        // Broadcast updated posts to all clients
+        const posts = await Post.find().populate('comments');
+        broadcastMessage('posts_updated', posts);
+        
         res.json(updatedPost);
     } catch (err) {
         console.error('Error in unlike comment route:', err);
