@@ -8,14 +8,11 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-venv/
-models/
 .DS_Store
 dist
 dist-ssr
 coverage
 *.local
-test_fasttext.py
 
 /cypress/videos/
 /cypress/screenshots/
@@ -31,9 +28,3 @@ test_fasttext.py
 *.sw?
 
 *.tsbuildinfo
-
-.env
-.env.local
-.env.*.local
-.env.development
-.env.production

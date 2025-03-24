@@ -113,91 +113,6 @@
             </div>
           </div>
 
-          <!-- Add test button -->
-          <button
-            @click="testApiUrl"
-            class="mb-4 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors mr-2"
-          >
-            Test API Connection
-          </button>
-
-          <!-- Add recommendation button and modal -->
-          <button
-            @click="showRecommendationModal = true"
-            class="mb-4 px-4 py-2 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors flex items-center gap-2"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-            </svg>
-            Recommendation
-          </button>
-
-          <!-- Recommendation Modal -->
-          <div v-if="showRecommendationModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
-              <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold text-gray-900">Project Recommendations</h3>
-                <button 
-                  @click="showRecommendationModal = false"
-                  class="text-gray-400 hover:text-gray-500"
-                >
-                  <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Your Interests</label>
-                  <div class="flex flex-wrap gap-2 mb-2">
-                    <span 
-                      v-for="(tag, index) in tags" 
-                      :key="index"
-                      class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm flex items-center"
-                    >
-                      {{ tag }}
-                      <button @click="removeTag(index)" class="ml-1 text-indigo-500 hover:text-indigo-700">×</button>
-                    </span>
-                  </div>
-                  <div class="flex gap-2">
-                    <input
-                      v-model="newTag"
-                      @keyup.enter="addTag"
-                      type="text"
-                      placeholder="Add your interests (e.g., AI, Web Development)..."
-                      class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                    <button
-                      @click="addTag"
-                      class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
-                    >
-                      Add
-                    </button>
-                  </div>
-                </div>
-
-                <div class="flex justify-end gap-3 mt-6">
-                  <button 
-                    @click="showRecommendationModal = false"
-                    class="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    @click="getProjectRecommendations"
-                    class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center gap-2"
-                  >
-                    <span>Get Recommendations</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
           <!-- Projects Table -->
           <div v-if="projects.length > 0" class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
@@ -340,6 +255,11 @@
                 </button>
               </div>
             </div>
+          </div>
+
+          <!-- No Projects Message -->
+          <div v-else class="text-center py-8 text-gray-500">
+            No projects available at this time.
           </div>
         </div>
       </div>
@@ -608,12 +528,6 @@ const searchDebounceTimeout = ref(null)
 const activeTab = ref('projects')
 const bidIconLoaded = ref(true)
 
-// Recommendation related refs
-const showRecommendationModal = ref(false)
-const isLoadingRecommendations = ref(false)
-const tags = ref([])
-const newTag = ref('')
-
 // Bid related refs
 const myBids = ref([])
 const loadingBids = ref(false)
@@ -731,9 +645,6 @@ const visibleRejectedBids = computed(() => {
   
   return [...currentRejected, ...referenceWithoutDuplicates]
 })
-
-// Add this near the top with other imports
-const API_URL = import.meta.env.VITE_API_URL;
 
 // Methods
 const fetchLatestAcademicYear = async () => {
@@ -1787,111 +1698,6 @@ onUnmounted(() => {
     clearTimeout(searchDebounceTimeout.value)
   }
 })
-
-const getProjectRecommendations = async () => {
-  try {
-    if (tags.value.length === 0) {
-      alert('Please add at least one interest first')
-      return
-    }
-
-    isLoadingRecommendations.value = true
-    console.log("Finding projects that match your interests: " + tags.value.join(', '))
-    
-    // Prepare the projects data - using only Title and Description fields
-    const projectsData = filteredProjects.value
-      .filter(p => !p.placeholder)
-      .map(p => ({
-        id: p.id,
-        Title: p.Title || '',
-        Description: p.Description || ''
-      }))
-
-    // Call the recommendation API using environment variable
-    const response = await fetch(`${API_URL}/api/recommend`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        interests: tags.value.join(', '),
-        projects: projectsData
-      })
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to get recommendations')
-    }
-
-    const { recommendations } = await response.json()
-    
-    // Get the top 3 recommendations to show in console
-    const top3Recommendations = recommendations
-      .sort((a, b) => b.matchScore - a.matchScore)
-      .slice(0, 3)
-    
-    // Log recommendations to console
-    console.log("🌟 Top 3 Recommended Projects:")
-    top3Recommendations.forEach((rec, index) => {
-      console.log(`${index + 1}. ${rec.Title} (Match score: ${(rec.matchScore * 100).toFixed(1)}%)`)
-      console.log(`   Description: ${rec.Description?.substring(0, 100)}...`)
-    })
-    
-    // Close the modal after successful recommendation
-    showRecommendationModal.value = false
-
-  } catch (error) {
-    console.error('Error getting recommendations:', error)
-    alert('Failed to get project recommendations. Please try again.')
-  } finally {
-    isLoadingRecommendations.value = false
-  }
-}
-
-const testApiUrl = async () => {
-  try {
-    console.log('Current API URL:', API_URL)
-    
-    // Test API connection
-    const response = await fetch(`${API_URL}/api/health`)
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    const data = await response.json()
-    console.log('API Health Check Response:', data)
-    
-    // Show success message
-    const successMessage = document.createElement('div')
-    successMessage.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg'
-    successMessage.textContent = `Successfully connected to API at ${API_URL}`
-    document.body.appendChild(successMessage)
-    
-    setTimeout(() => document.body.removeChild(successMessage), 5000)
-  } catch (error) {
-    console.error('API Test Error:', error)
-    
-    // Show error message
-    const errorMessage = document.createElement('div')
-    errorMessage.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg'
-    errorMessage.textContent = `Failed to connect to API at ${API_URL}: ${error.message}`
-    document.body.appendChild(errorMessage)
-    
-    setTimeout(() => document.body.removeChild(errorMessage), 5000)
-  }
-}
-
-// Add tag-related methods
-const addTag = () => {
-  const tag = newTag.value.trim()
-  if (tag && !tags.value.includes(tag)) {
-    tags.value.push(tag)
-    newTag.value = ''
-  }
-}
-
-const removeTag = (index) => {
-  tags.value.splice(index, 1)
-}
 </script>
 
 <style scoped>
