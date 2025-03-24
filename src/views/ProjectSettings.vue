@@ -736,7 +736,7 @@
 <script setup>
 import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
 import { db } from '@/firebase'
-import { doc, collection, setDoc, getDocs, query, getDoc, updateDoc, deleteDoc, Timestamp, where, limit } from 'firebase/firestore'
+import { doc, collection, setDoc, getDocs, query, getDoc, updateDoc, deleteDoc, Timestamp, where, limit, addDoc } from 'firebase/firestore'
 import { useUserStore } from '@/stores/userStore'
 import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
 
@@ -1332,6 +1332,109 @@ const removeHeader = (index) => {
   currentHeaders.value.splice(index, 1)
 }
 
+// Add this function after createNotification function
+const getAffectedUsers = async (schoolId, majorId) => {
+  try {
+    // Correct collection path: schools/{schoolId}/users
+    const usersRef = collection(db, 'schools', schoolId, 'users');
+    
+    // 1. Students - only those in the specific major
+    // 2. All others (lecturers, admins) - regardless of major
+    
+    // Students from the specific major
+    const studentQuery = query(usersRef, 
+      where('role', '==', 'student'),
+      where('major', '==', majorId)
+    );
+    
+    // All non-student users from this school (lecturers, admins, etc.)
+    const otherUsersQuery = query(usersRef, 
+      where('role', '!=', 'student')
+    );
+    
+    // Run queries in parallel for efficiency
+    const [studentSnapshot, otherUsersSnapshot] = await Promise.all([
+      getDocs(studentQuery),
+      getDocs(otherUsersQuery)
+    ]);
+    
+    // Combine all affected user IDs
+    const affectedUserIds = [
+      ...studentSnapshot.docs.map(doc => doc.id),
+      ...otherUsersSnapshot.docs.map(doc => doc.id)
+    ];
+    
+    // Remove duplicates (just in case)
+    return [...new Set(affectedUserIds)];
+  } catch (error) {
+    console.error('Error getting affected users:', error);
+    return [];
+  }
+};
+
+// Modify the createNotification function to incorporate the affected users
+const createNotification = async (academicYear, majorId, changeType, details) => {
+  try {
+    const schoolId = userStore.currentUser.school;
+    const notificationsRef = collection(db, 'schools', schoolId, 'notifications');
+    
+    // Get all affected users
+    const affectedUsers = await getAffectedUsers(schoolId, majorId);
+    
+    // Create the notification document
+    await addDoc(notificationsRef, {
+      type: "project_settings_change",
+      createdAt: Timestamp.now(),
+      readBy: {}, // Empty object to track which users have read this notification
+      academicYear,
+      majorId,
+      changeType,
+      details,
+      affectedUsers, // Now populated with actual user IDs
+    });
+  } catch (error) {
+    console.error('Error creating notification:', error);
+  }
+};
+
+// Add this helper function above the saveMilestones function
+const createMilestoneNotifications = async (academicYear, majorName, addedMilestones, removedMilestones, modifiedMilestones, originalMap) => {
+  // Create notifications for added milestones
+  if (addedMilestones.length > 0) {
+    await createNotification(
+      academicYear,
+      majorName,
+      'milestone_added',
+      `Added ${addedMilestones.length} new milestone(s): ${addedMilestones.map(m => 
+        `"${m.description}" (Due: ${formatDateForNotification(m.deadline)})`
+      ).join(', ')}`
+    );
+  }
+
+  // Create notifications for removed milestones
+  if (removedMilestones.length > 0) {
+    await createNotification(
+      academicYear,
+      majorName,
+      'milestone_removed',
+      `Removed ${removedMilestones.length} milestone(s): ${removedMilestones.map(m => m.description).join(', ')}`
+    );
+  }
+
+  // Create notifications for modified milestones
+  if (modifiedMilestones.length > 0) {
+    await createNotification(
+      academicYear,
+      majorName,
+      'milestone_modified',
+      `Modified deadline(s): ${modifiedMilestones.map(m => {
+        const oldDate = originalMap.get(m.description);
+        return `"${m.description}" from ${formatDateForNotification(oldDate.deadline)} to ${formatDateForNotification(m.deadline)}`;
+      }).join(', ')}`
+    );
+  }
+};
+
 const saveMilestones = async () => {
   try {
     // Check if Project Bidding Done milestone has a date
@@ -1339,6 +1442,24 @@ const saveMilestones = async () => {
     if (!biddingMilestone || !biddingMilestone.deadline) {
       showToast('Project Bidding Done milestone must have a deadline', 'error')
       return
+    }
+
+    // Get the original milestones for comparison
+    let originalMilestones = [];
+    if (currentMajor.value.docId) {
+      const majorRef = doc(
+        db, 
+        'schools', 
+        userStore.currentUser.school, 
+        'projects', 
+        currentMajor.value.academicYear, 
+        currentMajor.value.name, 
+        currentMajor.value.docId
+      );
+      const majorDoc = await getDoc(majorRef);
+      if (majorDoc.exists()) {
+        originalMilestones = majorDoc.data().milestones || [];
+      }
     }
     
     // Filter out empty milestones but keep required ones
@@ -1358,6 +1479,25 @@ const saveMilestones = async () => {
           completed: m.completed || false
         };
       });
+
+    // Use Maps for efficient change detection
+    const originalMap = new Map(originalMilestones.map(m => [m.description, m]));
+    const newMap = new Map(milestones.map(m => [m.description, m]));
+    
+    // Added: items in new map but not in original map
+    const addedMilestones = milestones.filter(m => !originalMap.has(m.description));
+    
+    // Removed: items in original map but not in new map
+    const removedMilestones = originalMilestones.filter(m => !newMap.has(m.description));
+    
+    // Modified: items in both maps but with different values
+    const modifiedMilestones = milestones.filter(m => {
+      const original = originalMap.get(m.description);
+      return original && 
+             original.deadline && 
+             m.deadline && 
+             original.deadline.seconds !== m.deadline.seconds;
+    });
 
     // If applying to all majors is checked for this academic year
     if (applyToAllMajorsMap.value[currentMajor.value.academicYear]) {
@@ -1383,12 +1523,36 @@ const saveMilestones = async () => {
           return setDoc(majorRef, { 
             ...existingData,
             milestones
-          })
-        })
+          });
+        });
         
         // Wait for all save operations to complete
-        await Promise.all(savePromises)
-        showToast('Project milestones saved to all majors successfully')
+        await Promise.all(savePromises);
+        
+        // Close the modal and start refreshing data immediately
+        showHeadersModal.value = false;
+        fetchSettings(); // No await - let it refresh in the background
+        
+        // Show success message
+        showToast('Project milestones saved to all majors successfully');
+        
+        // Create notifications in the background (non-blocking)
+        setTimeout(() => {
+          // Handle notifications after UI updates
+          currentSetting.majors.forEach(major => {
+            createMilestoneNotifications(
+              currentMajor.value.academicYear,
+              major.name,
+              addedMilestones,
+              removedMilestones,
+              modifiedMilestones,
+              originalMap
+            ).catch(error => {
+              console.error('Error creating notifications:', error);
+              // Notification errors won't affect the UI experience
+            });
+          });
+        }, 0);
       }
     } else {
       // Save milestones to just the current major
@@ -1406,16 +1570,34 @@ const saveMilestones = async () => {
       const majorDoc = await getDoc(majorRef)
       const existingData = majorDoc.exists() ? majorDoc.data() : { quota: currentMajor.value.quota || 0 }
 
-      // Update with milestones
+      // Update with milestones - this is critical, so we still await this
       await setDoc(majorRef, { 
         ...existingData,
         milestones
-      })
-      showToast('Project milestones saved successfully')
+      });
+
+      // Close the modal and start refreshing data immediately
+      showHeadersModal.value = false;
+      fetchSettings(); // No await - let it refresh in the background
+      
+      // Show success message
+      showToast('Project milestones saved successfully');
+      
+      // Create notifications in the background (non-blocking)
+      setTimeout(() => {
+        createMilestoneNotifications(
+          currentMajor.value.academicYear,
+          currentMajor.value.name,
+          addedMilestones,
+          removedMilestones,
+          modifiedMilestones,
+          originalMap
+        ).catch(error => {
+          console.error('Error creating notifications:', error);
+          // Notification errors won't affect the UI experience
+        });
+      }, 0);
     }
-    
-    showHeadersModal.value = false
-    await fetchSettings() // Refresh the data
   } catch (error) {
     console.error('Error saving milestones:', error)
     showToast('Failed to save project milestones', 'error')
@@ -1646,6 +1828,24 @@ const isConfigurationComplete = (major) => {
   
   return headersConfigured && milestonesConfigured;
 }
+
+// Create a helper function to format dates in a user-friendly way
+const formatDateForNotification = (timestamp) => {
+  if (!timestamp) return 'No date set';
+  
+  try {
+    const date = new Date(0);
+    date.setUTCSeconds(timestamp.seconds);
+    
+    return date.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  } catch (error) {
+    return 'Invalid date';
+  }
+};
 </script>
   
 <style scoped>
