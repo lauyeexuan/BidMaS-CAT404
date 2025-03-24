@@ -362,7 +362,7 @@ import {
 import { HeartIcon as HeartIconSolid } from '@heroicons/vue/24/solid';
 
 // Tenor API configuration
-const TENOR_API_KEY = process.env.VUE_APP_TENOR_API_KEY; // API key loaded from environment variables
+const TENOR_API_KEY = import.meta.env.VITE_TENOR_API_KEY; // API key loaded from environment variables
 const TENOR_API_URL = 'https://tenor.googleapis.com/v2';
 
 // State
