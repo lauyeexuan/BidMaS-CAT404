@@ -739,6 +739,7 @@ import { db } from '@/firebase'
 import { doc, collection, setDoc, getDocs, query, getDoc, updateDoc, deleteDoc, Timestamp, where, limit, addDoc } from 'firebase/firestore'
 import { useUserStore } from '@/stores/userStore'
 import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
+import notificationService from '@/services/notificationService'
 
 // Lazy load the modals using defineAsyncComponent
 const Dialog = defineAsyncComponent(() => import('@headlessui/vue').then(module => module.Dialog))
@@ -1332,109 +1333,6 @@ const removeHeader = (index) => {
   currentHeaders.value.splice(index, 1)
 }
 
-// Add this function after createNotification function
-const getAffectedUsers = async (schoolId, majorId) => {
-  try {
-    // Correct collection path: schools/{schoolId}/users
-    const usersRef = collection(db, 'schools', schoolId, 'users');
-    
-    // 1. Students - only those in the specific major
-    // 2. All others (lecturers, admins) - regardless of major
-    
-    // Students from the specific major
-    const studentQuery = query(usersRef, 
-      where('role', '==', 'student'),
-      where('major', '==', majorId)
-    );
-    
-    // All non-student users from this school (lecturers, admins, etc.)
-    const otherUsersQuery = query(usersRef, 
-      where('role', '!=', 'student')
-    );
-    
-    // Run queries in parallel for efficiency
-    const [studentSnapshot, otherUsersSnapshot] = await Promise.all([
-      getDocs(studentQuery),
-      getDocs(otherUsersQuery)
-    ]);
-    
-    // Combine all affected user IDs
-    const affectedUserIds = [
-      ...studentSnapshot.docs.map(doc => doc.id),
-      ...otherUsersSnapshot.docs.map(doc => doc.id)
-    ];
-    
-    // Remove duplicates (just in case)
-    return [...new Set(affectedUserIds)];
-  } catch (error) {
-    console.error('Error getting affected users:', error);
-    return [];
-  }
-};
-
-// Modify the createNotification function to incorporate the affected users
-const createNotification = async (academicYear, majorId, changeType, details) => {
-  try {
-    const schoolId = userStore.currentUser.school;
-    const notificationsRef = collection(db, 'schools', schoolId, 'notifications');
-    
-    // Get all affected users
-    const affectedUsers = await getAffectedUsers(schoolId, majorId);
-    
-    // Create the notification document
-    await addDoc(notificationsRef, {
-      type: "project_settings_change",
-      createdAt: Timestamp.now(),
-      readBy: {}, // Empty object to track which users have read this notification
-      academicYear,
-      majorId,
-      changeType,
-      details,
-      affectedUsers, // Now populated with actual user IDs
-    });
-  } catch (error) {
-    console.error('Error creating notification:', error);
-  }
-};
-
-// Add this helper function above the saveMilestones function
-const createMilestoneNotifications = async (academicYear, majorName, addedMilestones, removedMilestones, modifiedMilestones, originalMap) => {
-  // Create notifications for added milestones
-  if (addedMilestones.length > 0) {
-    await createNotification(
-      academicYear,
-      majorName,
-      'milestone_added',
-      `Added ${addedMilestones.length} new milestone(s): ${addedMilestones.map(m => 
-        `"${m.description}" (Due: ${formatDateForNotification(m.deadline)})`
-      ).join(', ')}`
-    );
-  }
-
-  // Create notifications for removed milestones
-  if (removedMilestones.length > 0) {
-    await createNotification(
-      academicYear,
-      majorName,
-      'milestone_removed',
-      `Removed ${removedMilestones.length} milestone(s): ${removedMilestones.map(m => m.description).join(', ')}`
-    );
-  }
-
-  // Create notifications for modified milestones
-  if (modifiedMilestones.length > 0) {
-    await createNotification(
-      academicYear,
-      majorName,
-      'milestone_modified',
-      `Modified deadline(s): ${modifiedMilestones.map(m => {
-        const oldDate = originalMap.get(m.description);
-        return `"${m.description}" from ${formatDateForNotification(oldDate.deadline)} to ${formatDateForNotification(m.deadline)}`;
-      }).join(', ')}`
-    );
-  }
-};
-
 const saveMilestones = async () => {
   try {
     // Check if Project Bidding Done milestone has a date
@@ -1540,17 +1438,15 @@ const saveMilestones = async () => {
         setTimeout(() => {
           // Handle notifications after UI updates
           currentSetting.majors.forEach(major => {
-            createMilestoneNotifications(
+            notificationService.processNotificationsAsync(
+              userStore.currentUser.school,
               currentMajor.value.academicYear,
               major.name,
               addedMilestones,
               removedMilestones,
               modifiedMilestones,
               originalMap
-            ).catch(error => {
-              console.error('Error creating notifications:', error);
-              // Notification errors won't affect the UI experience
-            });
+            );
           });
         }, 0);
       }
@@ -1585,17 +1481,15 @@ const saveMilestones = async () => {
       
       // Create notifications in the background (non-blocking)
       setTimeout(() => {
-        createMilestoneNotifications(
+        notificationService.processNotificationsAsync(
+          userStore.currentUser.school,
           currentMajor.value.academicYear,
           currentMajor.value.name,
           addedMilestones,
           removedMilestones,
           modifiedMilestones,
           originalMap
-        ).catch(error => {
-          console.error('Error creating notifications:', error);
-          // Notification errors won't affect the UI experience
-        });
+        );
       }, 0);
     }
   } catch (error) {
@@ -1646,6 +1540,20 @@ const saveHeaders = async () => {
         // Wait for all save operations to complete
         await Promise.all(savePromises)
         showToast('Project headers saved to all majors successfully')
+        
+        // Create header notifications asynchronously to avoid delays
+        setTimeout(() => {
+          currentSetting.majors.forEach(major => {
+            notificationService.createHeaderNotification(
+              userStore.currentUser.school,
+              currentMajor.value.academicYear,
+              major.name,
+              'updated'
+            ).catch(error => {
+              console.error('Error creating header notification:', error);
+            });
+          });
+        }, 0);
       }
     } else {
       // Save headers to just the current major
@@ -1669,6 +1577,16 @@ const saveHeaders = async () => {
         headers
       })
       showToast('Project headers saved successfully')
+      
+      // Create header notification asynchronously
+      setTimeout(() => {
+        notificationService.createHeaderNotification(
+          userStore.currentUser.school,
+          currentMajor.value.academicYear,
+          currentMajor.value.name,
+          'updated'
+        );
+      }, 0);
     }
     
     // Don't close modal, just switch to milestones tab if headers are saved successfully
@@ -1678,7 +1596,7 @@ const saveHeaders = async () => {
       showToast('Please configure project milestones next', 'success')
     } else {
       showHeadersModal.value = false
-      await fetchSettings() // Refresh the data
+      fetchSettings() // No await - refresh data in background
     }
   } catch (error) {
     console.error('Error saving headers:', error)
@@ -1828,24 +1746,6 @@ const isConfigurationComplete = (major) => {
   
   return headersConfigured && milestonesConfigured;
 }
-
-// Create a helper function to format dates in a user-friendly way
-const formatDateForNotification = (timestamp) => {
-  if (!timestamp) return 'No date set';
-  
-  try {
-    const date = new Date(0);
-    date.setUTCSeconds(timestamp.seconds);
-    
-    return date.toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  } catch (error) {
-    return 'Invalid date';
-  }
-};
 </script>
   
 <style scoped>
