@@ -1622,14 +1622,13 @@ const openProjectDetailsWindow = async (project) => {
 
     // Ensure we have all required properties before opening the window
     const projectToDisplay = {
-      id: project.id,
-      Title: project.Title,
+      ...project,  // Include all project fields
       Description: project.Description || '',
       Requirements: project.Requirements || '',
-      major: project.major,
-      userId: project.userId,
-      majorDocId: project.majorDocId
+      majorDocId: project.majorDocId || projectToDisplay.majorDocId
     };
+    
+    console.log('Project to display:', projectToDisplay);
     
     // If majorDocId is missing, try to get it
     if (!projectToDisplay.majorDocId && academicYearId.value) {
@@ -1649,48 +1648,50 @@ const openProjectDetailsWindow = async (project) => {
       }
     }
 
-    // Open the project details window immediately with basic data
-    const windowInstance = createProjectDetailsWindow({
-      project: projectToDisplay,
-      creatorName,
-      headers: {},
-      majorColorClass: colorClasses
-    });
-    
-    // Async fetch headers after window is already open
-    const schoolId = userStore.currentUser.school;
-    const majorId = project.major;
-    const majorDocId = projectToDisplay.majorDocId;
-    const year = academicYearId.value;
-    
-    if (schoolId && year && majorId && majorDocId) {
+    // Fetch headers from major document before opening window
+    let headers = {};
+    if (projectToDisplay.majorDocId && academicYearId.value) {
       try {
-        const majorDocRef = doc(db, 
-          'schools', schoolId, 
-          'projects', year, 
-          majorId, majorDocId
-        );
+        const schoolId = userStore.currentUser.school;
+        console.log('Fetching headers with path:', {
+          schoolId,
+          academicYear: academicYearId.value,
+          major: project.major,
+          majorDocId: projectToDisplay.majorDocId
+        });
         
-        const majorDoc = await getDoc(majorDocRef);
+        const majorRef = doc(db, 'schools', schoolId, 'projects', academicYearId.value, project.major, projectToDisplay.majorDocId);
+        const majorDoc = await getDoc(majorRef);
+        
+        console.log('Major document exists:', majorDoc.exists());
         if (majorDoc.exists()) {
           const majorData = majorDoc.data();
+          console.log('Major document data:', majorData);
           if (majorData.headers && typeof majorData.headers === 'object') {
-            console.log('headers found');
-            // Update the window with headers if available
-            if (windowInstance && windowInstance.updateData) {
-              windowInstance.updateData({ headers: majorData.headers });
-              console.log('window instance update');
-            } else {
-              console.log('window instance not found');
-            }
+            headers = majorData.headers;
+            console.log('Headers successfully fetched:', headers);
+          } else {
+            console.log('No headers found in major document or headers is not an object');
           }
         }
       } catch (error) {
         console.error('Error fetching headers:', error);
       }
     } else {
-      console.log('Missing data for headers fetch:', { schoolId, year, majorId, majorDocId });
+      console.log('Missing required data for headers fetch:', {
+        hasMajorDocId: !!projectToDisplay.majorDocId,
+        hasAcademicYear: !!academicYearId.value
+      });
     }
+
+    // Open the project details window with headers
+    console.log('Opening window with headers:', headers);
+    const windowInstance = createProjectDetailsWindow({
+      project: projectToDisplay,
+      creatorName,
+      headers,
+      majorColorClass: colorClasses
+    });
   } catch (error) {
     console.error('Error opening project details window:', error);
     alert('There was an error opening the project details. Please try again.');

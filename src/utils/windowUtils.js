@@ -29,14 +29,34 @@ export const createProjectDetailsWindow = (props) => {
   // Process project fields
   const projectFields = {};
   if (Object.keys(headers).length > 0) {
-    console.log('headers exist', headers);
+    console.log('Processing headers:', headers);
+    console.log('Project data:', project);
     // CASE 1: When headers exist
+    for (const [headerKey, headerConfig] of Object.entries(headers)) {
+      // Skip Title and Description as they are handled separately
+      if (headerKey === 'Title' || headerKey === 'Description') continue;
+      
+      // Check if the field exists in the project data
+      if (headerKey in project) {
+        console.log(`Field ${headerKey} exists in project with value:`, project[headerKey]);
+        projectFields[headerKey] = project[headerKey];
+      } else {
+        console.log(`Field ${headerKey} not found in project data`);
+        // If field doesn't exist in project, set it as empty
+        projectFields[headerKey] = '';
+      }
+    }
+  } else {
+    // CASE 2: When no headers exist, show all fields except excluded ones
+    const excludedFields = ['id', 'userId', 'isAssigned', 'createdAt', 'Title', 'major', 'Description', 'majorDocId'];
     for (const [key, value] of Object.entries(project)) {
-      if (headers[key] && key !== 'Title' && key !== 'Description') {
+      if (!excludedFields.includes(key)) {
         projectFields[key] = value;
       }
     }
-  } 
+  }
+  
+  console.log('Final processed project fields:', projectFields);
   
   // Helper function to format field names
   const formatFieldName = (key) => {
@@ -50,6 +70,7 @@ export const createProjectDetailsWindow = (props) => {
   
   // Helper function to format field values
   const formatFieldValue = (value) => {
+    console.log('Formatting value:', value);
     if (value === null || value === undefined) return 'Not specified';
     
     if (typeof value === 'boolean') {
