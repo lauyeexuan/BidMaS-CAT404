@@ -1203,6 +1203,32 @@ export default {
         setTimeout(() => {
           feedbackSuccess.value = '';
         }, 5000);
+
+        // Create notification after success message (only for new feedback)
+        if (!feedbackData.value.id) {
+          try {
+            const notificationsRef = collection(db, 'schools', userStore.currentUser.school, 'notifications')
+            const notificationData = {
+              type: 'submission_reviewed',
+              changeType: 'submission_reviewed',
+              affectedUsers: [selectedSubmission.value.submittedBy],
+              details: `Your submission for "${selectedSubmission.value.milestoneDescription}" milestone has been reviewed.`,
+              projectId: selectedSubmission.value.projectId,
+              majorId: selectedSubmission.value.majorId,
+              yearId: selectedSubmission.value.yearId,
+              reviewedBy: userStore.currentUser.uid,
+              reviewerName: userStore.currentUser.displayName || 'Your lecturer',
+              readBy: {},
+              createdAt: new Date()
+            }
+
+            await addDoc(notificationsRef, notificationData)
+          } catch (notificationError) {
+            // Just log the error but don't show to user since main functionality succeeded
+            console.error('Error creating notification:', notificationError)
+          }
+        }
+
       } catch (error) {
         console.error('Error saving feedback:', error)
         feedbackError.value = 'Failed to save feedback'
