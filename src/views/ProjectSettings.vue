@@ -498,8 +498,8 @@
                             <span v-if="milestone.required" class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Required</span>
                           </div>
                           
-                          <!-- Date display and edit for required milestone -->
-                          <div v-if="milestone.required" class="mt-3 flex items-center flex-wrap gap-2">
+                          <!-- Date input for all milestones -->
+                          <div class="mt-3 flex items-center flex-wrap gap-2">
                             <div class="flex items-center">
                               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
@@ -509,24 +509,16 @@
                                 v-model="milestone.deadline"
                                 @change="(e) => console.log('Date changed for', milestone.description, '- New value:', e.target.value, 'v-model value:', milestone.deadline)"
                                 class="ml-1 px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
-                                :class="{'border-red-500 bg-red-50': !milestone.deadline}"
+                                :class="{'border-red-500 bg-red-50': milestone.required && !milestone.deadline}"
                               >
-                              <span v-if="!milestone.deadline" class="ml-2 text-red-500 text-xs font-medium">
+                              <span v-if="milestone.required && !milestone.deadline" class="ml-2 text-red-500 text-xs font-medium">
                                 Date required
                               </span>
-                              <span v-else class="ml-2 text-xs text-gray-500">
+                              <span v-else-if="milestone.deadline" class="ml-2 text-xs text-gray-500">
                                 {{ formatDate(milestone.deadline) }}
                               </span>
                             </div>
                           </div>
-                          
-                          <!-- Regular date display for non-required milestones -->
-                          <p v-else class="text-sm text-gray-500 mt-1 flex items-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                              <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
-                            </svg>
-                            {{ formatDate(milestone.deadline) }}
-                          </p>
                         </div>
                         <button 
                           v-if="!milestone.required"
