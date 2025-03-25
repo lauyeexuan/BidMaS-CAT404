@@ -133,12 +133,16 @@ export const useUserStore = defineStore('user', () => {
       currentUser.value = null
       isAuthenticated.value = false
       
-      // Clear milestone data
+      // Clear all user data from localStorage
       if (userId) {
-        // Clear student milestone data
-        localStorage.removeItem(`${userId}_milestones`)
+        // Clear all items with this user's ID prefix
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith(`${userId}_`)) {
+            localStorage.removeItem(key);
+          }
+        });
         
-        // Clear lecturer milestone data (for all majors)
+        // Also clear lecturer-specific milestone data if applicable
         if (userRole === 'lecturer' && Array.isArray(userMajors)) {
           userMajors.forEach(majorId => {
             localStorage.removeItem(`${userId}_${majorId}_milestones`)

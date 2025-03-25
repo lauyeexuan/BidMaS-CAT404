@@ -1418,15 +1418,6 @@ export default {
         loading.value = true;
         error.value = null;
         
-        // Clear cached data to force fresh load
-        if (newUid) {
-          const milestoneKey = `${newUid}_milestones`;
-          const projectKey = `${newUid}_project`;
-          console.log('Clearing cached data for keys:', milestoneKey, projectKey);
-          localStorage.removeItem(milestoneKey);
-          localStorage.removeItem(projectKey);
-        }
-        
         // Fetch fresh data
         fetchUpcomingMilestone();
         fetchAssignedProject();
