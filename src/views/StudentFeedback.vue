@@ -252,10 +252,13 @@ export default {
         const q = query(feedbackRef, where('submissionId', 'in', submissionIds))
         const feedbackSnapshot = await getDocs(q)
 
-        feedbackList.value = feedbackSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }))
+        // Filter out draft feedback
+        feedbackList.value = feedbackSnapshot.docs
+          .map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }))
+          .filter(feedback => !feedback.isDraft) // Only include non-draft feedback
       } catch (error) {
         console.error('Error fetching feedback:', error)
       }

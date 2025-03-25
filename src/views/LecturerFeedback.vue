@@ -251,7 +251,15 @@
             <p v-if="feedbackError" class="text-red-600 text-sm">{{ feedbackError }}</p>
 
             <!-- Submit Button -->
-            <div class="flex justify-end">
+            <div class="flex justify-end gap-3">
+              <button
+                type="button"
+                @click="saveDraft"
+                class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50"
+                :disabled="feedbackLoading"
+              >
+                {{ feedbackLoading ? 'Saving...' : 'Save Draft' }}
+              </button>
               <button
                 type="submit"
                 class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
@@ -316,11 +324,13 @@
                     </div>
                     <span 
                       class="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
-                      :class="item.data.hasBeenReviewed ? 
-                        'bg-green-100 text-green-800' : 
-                        'bg-yellow-100 text-yellow-800'"
+                      :class="{
+                        'bg-green-100 text-green-800': item.data.hasBeenReviewed && !item.data.isDraft,
+                        'bg-yellow-100 text-yellow-800': !item.data.hasBeenReviewed,
+                        'bg-gray-100 text-gray-600': item.data.hasBeenReviewed && item.data.isDraft
+                      }"
                     >
-                      {{ item.data.hasBeenReviewed ? 'Reviewed' : 'Pending' }}
+                      {{ item.data.hasBeenReviewed ? (item.data.isDraft ? 'Draft' : 'Reviewed') : 'Pending' }}
                     </span>
                   </div>
 
@@ -584,7 +594,8 @@ export default {
       rating: 0,
       advice: '',
       attachment: null,
-      attachmentUrl: null
+      attachmentUrl: null,
+      isDraft: false
     })
 
     // Virtual list setup
@@ -819,6 +830,7 @@ export default {
             )
             const feedbackSnapshot = await getDocs(feedbackQuery)
             const hasBeenReviewed = !feedbackSnapshot.empty
+            const isDraft = hasBeenReviewed ? feedbackSnapshot.docs[0].data().isDraft : false
             
             return {
               id: doc.id,
@@ -827,6 +839,7 @@ export default {
               major: majorId,
               studentName,
               hasBeenReviewed,
+              isDraft,
               ...submissionData
             }
           })
@@ -1098,7 +1111,8 @@ export default {
             attachmentName: data.attachmentName || null,
             attachmentSize: data.attachmentSize || null,
             attachmentType: data.attachmentType || null,
-            attachmentPath: data.attachmentPath || null
+            attachmentPath: data.attachmentPath || null,
+            isDraft: data.isDraft || false
           }
         } else {
           // Reset form if no existing feedback
@@ -1111,7 +1125,8 @@ export default {
             attachmentName: null,
             attachmentSize: null,
             attachmentType: null,
-            attachmentPath: null
+            attachmentPath: null,
+            isDraft: false
           }
         }
       } catch (error) {
@@ -1143,20 +1158,17 @@ export default {
           comment: feedbackData.value.comment || '',
           rating: feedbackData.value.rating,
           advice: feedbackData.value.advice || '',
-          updatedAt: new Date()
+          updatedAt: new Date(),
+          isDraft: false
         }
 
         // Handle file attachment
         let attachmentData = null;
         
-        // Check if we have a new attachment
         if (feedbackData.value.attachment) {
-          // If there was a previous attachment, delete it
           if (feedbackData.value.attachmentPath) {
             await deleteAttachment(feedbackData.value.attachmentPath);
           }
-          
-          // Upload the new attachment
           attachmentData = await uploadAttachment();
           
           if (attachmentData) {
@@ -1167,7 +1179,6 @@ export default {
             feedbackPayload.attachmentPath = attachmentData.path;
           }
         } else if (feedbackData.value.attachmentUrl) {
-          // Keep existing attachment data
           feedbackPayload.attachmentUrl = feedbackData.value.attachmentUrl;
           feedbackPayload.attachmentName = feedbackData.value.attachmentName;
           feedbackPayload.attachmentSize = feedbackData.value.attachmentSize;
@@ -1176,10 +1187,8 @@ export default {
         }
 
         if (feedbackData.value.id) {
-          // Update existing feedback
           await updateDoc(doc(feedbackRef, feedbackData.value.id), feedbackPayload)
         } else {
-          // Create new feedback
           feedbackPayload.createdAt = new Date()
           await addDoc(feedbackRef, feedbackPayload)
         }
@@ -1232,6 +1241,75 @@ export default {
       } catch (error) {
         console.error('Error saving feedback:', error)
         feedbackError.value = 'Failed to save feedback'
+      } finally {
+        feedbackLoading.value = false
+      }
+    }
+
+    // Add saveDraft function
+    const saveDraft = async () => {
+      if (!selectedSubmission.value || !userStore.currentUser?.school) return
+
+      feedbackLoading.value = true
+      feedbackError.value = null
+      feedbackSuccess.value = ''
+
+      try {
+        const feedbackRef = collection(db, 'schools', userStore.currentUser.school, 'feedback')
+        const feedbackPayload = {
+          submissionId: selectedSubmission.value.id,
+          lecturerId: userStore.currentUser.uid,
+          studentId: selectedSubmission.value.submittedBy,
+          yearId: selectedSubmission.value.yearId,
+          majorId: selectedSubmission.value.majorId,
+          milestoneDescription: selectedSubmission.value.milestoneDescription,
+          projectId: selectedSubmission.value.projectId,
+          comment: feedbackData.value.comment || '',
+          rating: feedbackData.value.rating,
+          advice: feedbackData.value.advice || '',
+          updatedAt: new Date(),
+          isDraft: true
+        }
+
+        // Handle file attachment
+        let attachmentData = null;
+        
+        if (feedbackData.value.attachment) {
+          if (feedbackData.value.attachmentPath) {
+            await deleteAttachment(feedbackData.value.attachmentPath);
+          }
+          attachmentData = await uploadAttachment();
+          
+          if (attachmentData) {
+            feedbackPayload.attachmentUrl = attachmentData.url;
+            feedbackPayload.attachmentName = attachmentData.name;
+            feedbackPayload.attachmentSize = attachmentData.size;
+            feedbackPayload.attachmentType = attachmentData.type;
+            feedbackPayload.attachmentPath = attachmentData.path;
+          }
+        } else if (feedbackData.value.attachmentUrl) {
+          feedbackPayload.attachmentUrl = feedbackData.value.attachmentUrl;
+          feedbackPayload.attachmentName = feedbackData.value.attachmentName;
+          feedbackPayload.attachmentSize = feedbackData.value.attachmentSize;
+          feedbackPayload.attachmentType = feedbackData.value.attachmentType;
+          feedbackPayload.attachmentPath = feedbackData.value.attachmentPath;
+        }
+
+        if (feedbackData.value.id) {
+          await updateDoc(doc(feedbackRef, feedbackData.value.id), feedbackPayload)
+        } else {
+          feedbackPayload.createdAt = new Date()
+          await addDoc(feedbackRef, feedbackPayload)
+        }
+
+        feedbackSuccess.value = 'Draft saved successfully!'
+        setTimeout(() => {
+          feedbackSuccess.value = '';
+        }, 5000);
+
+      } catch (error) {
+        console.error('Error saving draft:', error)
+        feedbackError.value = 'Failed to save draft'
       } finally {
         feedbackLoading.value = false
       }
@@ -1313,6 +1391,7 @@ export default {
       feedbackData,
       handleSubmissionClick,
       saveFeedback,
+      saveDraft,
       returnToSubmissions,
       searchQuery,
       currentMilestoneSubmissionCount,
