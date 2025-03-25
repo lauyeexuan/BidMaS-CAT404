@@ -2,20 +2,20 @@
   <div class="flex h-full">
     <!-- Sidebar -->
     <aside 
-      class="bg-white shadow-md transition-all duration-300 overflow-hidden relative"
+      class="bg-gradient-to-b from-blue-50 to-gray-50 shadow-md transition-all duration-300 overflow-hidden relative rounded-r-2xl border-r border-blue-100"
       :class="{ 'w-64': isOpen, 'w-16': !isOpen }"
     >
       <div class="p-4 flex items-center justify-center">
         <div class="w-10 h-10 flex-shrink-0">
           <img src="/logo.png" alt="BidMaS Logo" class="h-full w-full object-contain" />
         </div>
-        <span v-if="isOpen" class="ml-2 font-semibold">BidMaS</span>
+        <span v-if="isOpen" class="ml-2 font-semibold text-blue-700">BidMaS</span>
       </div>
       
       <!-- Toggle button - positioned on the right edge -->
       <button 
         @click="toggleSidebar" 
-        class="absolute top-4 -right-3 bg-gray-100 text-gray-600 rounded-lg w-6 h-20 flex items-center justify-center shadow-md hover:bg-gray-200 transition-colors z-10 border border-gray-200"
+        class="absolute top-4 -right-3 bg-blue-100 text-blue-600 rounded-full w-6 h-20 flex items-center justify-center shadow-md hover:bg-blue-200 transition-colors z-10 border border-blue-200"
         aria-label="Toggle sidebar"
       >
         <i :class="isOpen ? 'fas fa-angle-double-left' : 'fas fa-angle-double-right'" class="text-sm"></i>
@@ -25,15 +25,15 @@
         <ul>
           <li v-for="item in filteredMenuItems" 
               :key="item.name" 
-              class="px-4 py-3 hover:bg-gray-100 transition-all duration-200" 
+              class="px-4 py-3 hover:bg-blue-100 transition-all duration-200 mx-2 my-1 rounded-xl" 
               :class="{
-                'bg-blue-100': isActiveRoute(item.route),
+                'bg-blue-200 text-blue-800': isActiveRoute(item.route),
                 'cursor-pointer': isMenuItemEnabled(item),
                 'cursor-not-allowed opacity-50': !isMenuItemEnabled(item)
               }"
               @click="navigateToRoute(item)">
             <div class="flex items-center" :class="{ 'justify-center': !isOpen }">
-              <span v-html="item.icon" :class="[isOpen ? 'w-6' : 'text-xl']" :title="!isOpen ? item.name : ''"></span>
+              <span v-html="item.icon" :class="[isOpen ? 'w-6' : 'text-xl', isActiveRoute(item.route) ? 'text-blue-700' : 'text-gray-600']" :title="!isOpen ? item.name : ''"></span>
               <span v-if="isOpen" class="ml-3">{{ item.name }}</span>
               
               <!-- Profile completion indicator for students -->
@@ -47,18 +47,29 @@
         </ul>
         
         <!-- Logout button at the bottom -->
-        <div class="mt-auto border-t pt-2">
-          <li 
-            class="px-4 py-3 hover:bg-red-100 cursor-pointer text-red-600 transition-all duration-200"
-            @click="handleLogout"
+        <div 
+          class="mt-auto px-4 py-4 cursor-pointer transition-all duration-200 bg-red-100 hover:bg-red-200 group flex items-center"
+          :class="{ 'justify-center': !isOpen }"
+          @click="handleLogout"
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            class="h-6 w-6 text-red-500 group-hover:text-red-600 transition-colors" 
+            viewBox="0 0 20 20" 
+            fill="currentColor"
           >
-            <div class="flex items-center" :class="{ 'justify-center': !isOpen }">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V7.414l-5-5H3zM2 4a2 2 0 012-2h6.586a1 1 0 01.707.293l5 5a1 1 0 01.293.707V16a2 2 0 01-2 2H4a2 2 0 01-2-2V4zm10.707 9.293a1 1 0 010 1.414l-3 3a1 1 0 01-1.414-1.414L9.586 15H5a1 1 0 110-2h4.586l-1.293-1.293a1 1 0 111.414-1.414l3 3z" clip-rule="evenodd" />
-              </svg>
-              <span v-if="isOpen" class="ml-3">Logout</span>
-            </div>
-          </li>
+            <path 
+              fill-rule="evenodd" 
+              d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V7.414l-5-5H3zM2 4a2 2 0 012-2h6.586a1 1 0 01.707.293l5 5a1 1 0 01.293.707V16a2 2 0 01-2 2H4a2 2 0 01-2-2V4zm10.707 9.293a1 1 0 010 1.414l-3 3a1 1 0 01-1.414-1.414L9.586 15H5a1 1 0 110-2h4.586l-1.293-1.293a1 1 0 111.414-1.414l3 3z" 
+              clip-rule="evenodd" 
+            />
+          </svg>
+          <span 
+            v-if="isOpen" 
+            class="ml-3 text-red-500 group-hover:text-red-600 text-lg transition-colors"
+          >
+            Logout
+          </span>
         </div>
       </nav>
     </aside>
@@ -110,7 +121,7 @@ export default {
         roles: ['student', 'lecturer']
       },
       { 
-        name: "Track Progress", 
+        name: "Progress", 
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
               </svg>`,
@@ -118,7 +129,7 @@ export default {
         roles: ['admin', 'student', 'lecturer']
       },
       { 
-        name: "Account Management", 
+        name: "Accounts", 
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
               </svg>`,
@@ -126,7 +137,7 @@ export default {
         roles: ['admin']
       },
       { 
-        name: "Project Setting", 
+        name: "Settings", 
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
               </svg>`,
@@ -159,7 +170,15 @@ export default {
 
     // Check if route is active
     const isActiveRoute = (routeName) => {
-      return route.name === routeName
+      // Check for exact name match
+      if (route.name === routeName) return true;
+      
+      // For feedback pages, check if the path starts with /feedback
+      if (routeName === 'feedback' && route.path.startsWith('/feedback')) {
+        return true;
+      }
+      
+      return false;
     }
     
     // Check if menu item should be enabled
