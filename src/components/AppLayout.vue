@@ -9,12 +9,37 @@
       <div class="bg-white shadow-sm p-4 flex justify-between items-center">
         <h1 class="text-2xl font-semibold">{{ currentPageTitle }}</h1>
         <div class="flex items-center gap-4">
+          <!-- Notification Badge -->
+          <NotificationBadge 
+            :school-id="userStore.currentUser?.school" 
+            @toggle-panel="toggleNotificationPanel" 
+          />
+          
           <div class="flex items-center gap-2">
-            <i class="fas fa-user-circle text-2xl"></i>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             <span>{{ currentUser?.name || 'User' }}</span>
           </div>
         </div>
       </div>
+      
+      <!-- Notification Panel -->
+      <NotificationsPanel 
+        :is-open="showNotificationPanel" 
+        :school-id="userStore.currentUser?.school"
+        @close="closeNotificationPanel" 
+        @animation-complete="notificationAnimationComplete"
+      />
+      
+      <!-- Background Overlay -->
+      <Transition name="fade">
+        <div 
+          v-if="showNotificationPanel" 
+          class="fixed inset-0 bg-black bg-opacity-50 z-40 backdrop-blur-sm"
+          @click="closeNotificationPanel"
+        ></div>
+      </Transition>
       
       <!-- Page Content -->
       <div class="p-6">
@@ -29,15 +54,61 @@ import { computed, ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/userStore'
 import NavBar from './NavBar.vue'
+import NotificationBadge from './NotificationBadge.vue'
+import NotificationsPanel from './NotificationsPanel.vue'
 
 export default {
   components: {
-    NavBar
+    NavBar,
+    NotificationBadge,
+    NotificationsPanel
   },
   setup() {
     const route = useRoute()
     const userStore = useUserStore()
     const mainContent = ref(null)
+    const showNotificationPanel = ref(false)
+    const isAnimatingOut = ref(false)
+
+    // Toggle notification panel
+    const toggleNotificationPanel = () => {
+      if (isAnimatingOut.value) return;
+      showNotificationPanel.value = !showNotificationPanel.value
+      
+      // Add body class to prevent scrolling when panel is open
+      if (showNotificationPanel.value) {
+        document.body.classList.add('overflow-hidden')
+      }
+    }
+    
+    // Close notification panel
+    const closeNotificationPanel = () => {
+      if (isAnimatingOut.value) return;
+      isAnimatingOut.value = true
+      showNotificationPanel.value = false
+    }
+    
+    // Handle animation complete
+    const notificationAnimationComplete = () => {
+      isAnimatingOut.value = false
+      document.body.classList.remove('overflow-hidden')
+    }
+
+    // Listen for escape key to close panel
+    onMounted(() => {
+      const handleEscKey = (event) => {
+        if (event.key === 'Escape' && showNotificationPanel.value) {
+          closeNotificationPanel()
+        }
+      }
+      
+      window.addEventListener('keydown', handleEscKey)
+      
+      // Clean up event listener
+      return () => {
+        window.removeEventListener('keydown', handleEscKey)
+      }
+    })
 
     // All possible menu items with their titles
     const allMenuItems = [
@@ -79,12 +150,27 @@ export default {
     return {
       currentPageTitle,
       currentUser,
-      mainContent
+      mainContent,
+      userStore,
+      showNotificationPanel,
+      isAnimatingOut,
+      toggleNotificationPanel,
+      closeNotificationPanel,
+      notificationAnimationComplete
     }
   }
 }
 </script>
 
 <style scoped>
-/* Add any layout-specific styles here */
+/* Fade transition for overlay */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
 </style> 

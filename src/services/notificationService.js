@@ -162,9 +162,9 @@ const createMilestoneNotifications = async (
       academicYear,
       majorName,
       'milestone_added',
-      `Added ${addedMilestones.length} new milestone(s): ${addedMilestones.map(m => 
+      `${addedMilestones.length} new milestone(s) added for ${majorName}:\n${addedMilestones.map(m => 
         formatMilestoneForNotification(m)
-      ).join(', ')}`
+      ).join('\n')}`
     );
   }
 
@@ -175,7 +175,7 @@ const createMilestoneNotifications = async (
       academicYear,
       majorName,
       'milestone_removed',
-      `Removed ${removedMilestones.length} milestone(s): ${removedMilestones.map(m => m.description).join(', ')}`
+      `${removedMilestones.length} milestone(s) removed for ${majorName}:\n${removedMilestones.map(m => m.description).join('\n')}`
     );
   }
 
@@ -186,10 +186,10 @@ const createMilestoneNotifications = async (
       academicYear,
       majorName,
       'milestone_modified',
-      `Modified deadline(s): ${modifiedMilestones.map(m => {
+      `Milestone deadlines updated for ${majorName}:\n${modifiedMilestones.map(m => {
         const original = originalMap.get(m.description);
         return formatMilestoneForNotification(m, original);
-      }).join(', ')}`
+      }).join('\n')}`
     );
   }
 };
