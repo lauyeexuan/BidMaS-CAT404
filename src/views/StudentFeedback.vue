@@ -171,11 +171,11 @@
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import { useUserStore } from '@/stores/userStore'
 import { getMilestoneData } from '@/utils/milestones'
 import { formatDate } from '@/utils/milestoneHelpers'
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore'
+import { collection, query, where, getDocs, Timestamp, onSnapshot } from 'firebase/firestore'
 import { db } from '@/firebase'
 
 export default {
@@ -186,6 +186,7 @@ export default {
     const submissions = ref([])
     const feedbackList = ref([])
     const selectedSubmission = ref(null)
+    const unsubscribers = ref([])
     
     // Helper function to safely format dates
     const safeFormatDate = (timestamp) => {
@@ -217,30 +218,37 @@ export default {
       selectedSubmission.value = submission
     }
     
-    const fetchSubmissions = async () => {
+    const setupSubmissionsListener = () => {
       if (!userStore.currentUser?.school || !userStore.currentUser?.uid) return
       
       try {
         const submissionsRef = collection(db, 'schools', userStore.currentUser.school, 'submissions')
         const q = query(submissionsRef, where('submittedBy', '==', userStore.currentUser.uid))
-        const querySnapshot = await getDocs(q)
         
-        submissions.value = querySnapshot.docs
-          .map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-            // Ensure submittedAt is a proper date object
-            submittedAt: doc.data().submittedAt instanceof Timestamp ? 
-              doc.data().submittedAt : 
-              Timestamp.fromDate(new Date(doc.data().submittedAt))
-          }))
-          .sort((a, b) => b.submittedAt.seconds - a.submittedAt.seconds)
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          submissions.value = snapshot.docs
+            .map(doc => ({
+              id: doc.id,
+              ...doc.data(),
+              submittedAt: doc.data().submittedAt instanceof Timestamp ? 
+                doc.data().submittedAt : 
+                Timestamp.fromDate(new Date(doc.data().submittedAt))
+            }))
+            .sort((a, b) => b.submittedAt.seconds - a.submittedAt.seconds)
+            
+          // After submissions are updated, setup feedback listener
+          setupFeedbackListener()
+        }, (error) => {
+          console.error('Error in submissions listener:', error)
+        })
+        
+        unsubscribers.value.push(unsubscribe)
       } catch (error) {
-        console.error('Error fetching submissions:', error)
+        console.error('Error setting up submissions listener:', error)
       }
     }
 
-    const fetchFeedback = async () => {
+    const setupFeedbackListener = () => {
       if (!userStore.currentUser?.school) return
 
       try {
@@ -250,17 +258,22 @@ export default {
         if (submissionIds.length === 0) return
 
         const q = query(feedbackRef, where('submissionId', 'in', submissionIds))
-        const feedbackSnapshot = await getDocs(q)
-
-        // Filter out draft feedback
-        feedbackList.value = feedbackSnapshot.docs
-          .map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }))
-          .filter(feedback => !feedback.isDraft) // Only include non-draft feedback
+        
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          // Filter out draft feedback
+          feedbackList.value = snapshot.docs
+            .map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }))
+            .filter(feedback => !feedback.isDraft)
+        }, (error) => {
+          console.error('Error in feedback listener:', error)
+        })
+        
+        unsubscribers.value.push(unsubscribe)
       } catch (error) {
-        console.error('Error fetching feedback:', error)
+        console.error('Error setting up feedback listener:', error)
       }
     }
     
@@ -273,15 +286,20 @@ export default {
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
     
-    onMounted(async () => {
+    onMounted(() => {
       if (userStore.currentUser) {
         const data = getMilestoneData(userStore.currentUser.uid)
         if (data) {
           milestoneData.value = data
         }
-        await fetchSubmissions()
-        await fetchFeedback()
+        setupSubmissionsListener()
       }
+    })
+
+    // Cleanup listeners when component unmounts
+    onUnmounted(() => {
+      unsubscribers.value.forEach(unsubscribe => unsubscribe())
+      unsubscribers.value = []
     })
 
     return {
