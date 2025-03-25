@@ -1265,7 +1265,7 @@ const openHeadersModal = async (major, academicYear) => {
       }
       
       // Set active tab based on configuration state
-      const hasConfiguredHeaders = currentHeaders.value.length > 1 // More than just Title
+      const hasConfiguredHeaders = currentHeaders.value.length > 2 // More than just Title and Description
       const hasConfiguredMilestones = currentMilestones.value.length > 1 && // More than just Project Bidding Done
                                      currentMilestones.value.find(m => m.description === 'Project Bidding Done')?.deadline
 
@@ -1283,12 +1283,21 @@ const openHeadersModal = async (major, academicYear) => {
       }
     } else {
       // For new/unconfigured majors, always start with headers tab
-      currentHeaders.value = [{
-        name: 'Title',
-        type: 'string',
-        values: null,
-        required: true
-      }]
+      // Always ensure both Title and Description are initialized
+      currentHeaders.value = [
+        {
+          name: 'Title',
+          type: 'string',
+          values: null,
+          required: true
+        },
+        {
+          name: 'Description',
+          type: 'string',
+          values: null,
+          required: true
+        }
+      ]
       currentMilestones.value = [{
         description: 'Project Bidding Done',
         deadline: '',
@@ -1418,18 +1427,23 @@ const saveMilestones = async () => {
           const existingData = majorDoc.exists() ? majorDoc.data() : { quota: major.quota || 0 }
 
           // Update with milestones
-          return setDoc(majorRef, { 
+          await setDoc(majorRef, { 
             ...existingData,
             milestones
           });
+
+          // Update local state immediately
+          const majorIndex = currentSetting.majors.findIndex(m => m.name === major.name)
+          if (majorIndex !== -1) {
+            currentSetting.majors[majorIndex].milestones = milestones
+          }
         });
         
         // Wait for all save operations to complete
         await Promise.all(savePromises);
         
-        // Close the modal and start refreshing data immediately
+        // Close the modal
         showHeadersModal.value = false;
-        fetchSettings(); // No await - let it refresh in the background
         
         // Show success message
         showToast('Project milestones saved to all majors successfully');
@@ -1466,15 +1480,23 @@ const saveMilestones = async () => {
       const majorDoc = await getDoc(majorRef)
       const existingData = majorDoc.exists() ? majorDoc.data() : { quota: currentMajor.value.quota || 0 }
 
-      // Update with milestones - this is critical, so we still await this
+      // Update with milestones
       await setDoc(majorRef, { 
         ...existingData,
         milestones
       });
 
-      // Close the modal and start refreshing data immediately
+      // Update local state immediately
+      const currentSetting = existingSettings.value.find(s => s.academicYear === currentMajor.value.academicYear)
+      if (currentSetting) {
+        const majorIndex = currentSetting.majors.findIndex(m => m.name === currentMajor.value.name)
+        if (majorIndex !== -1) {
+          currentSetting.majors[majorIndex].milestones = milestones
+        }
+      }
+
+      // Close the modal
       showHeadersModal.value = false;
-      fetchSettings(); // No await - let it refresh in the background
       
       // Show success message
       showToast('Project milestones saved successfully');
@@ -1496,7 +1518,7 @@ const saveMilestones = async () => {
     console.error('Error saving milestones:', error)
     showToast('Failed to save project milestones', 'error')
   }
-}
+};
 
 const saveHeaders = async () => {
   try {
@@ -1504,7 +1526,6 @@ const saveHeaders = async () => {
     const headers = {}
     currentHeaders.value.forEach(header => {
       headers[header.name] = {
-        // If type is 'label', save it as 'array' in Firestore
         type: header.type === 'label' ? 'array' : header.type,
         values: header.type === 'array' || header.type === 'label' ? header.values || [] : null
       }
@@ -1543,6 +1564,12 @@ const saveHeaders = async () => {
             ...existingData,
             headers
           })
+
+          // Update local state immediately
+          const majorIndex = currentSetting.majors.findIndex(m => m.name === major.name)
+          if (majorIndex !== -1) {
+            currentSetting.majors[majorIndex].headers = headers
+          }
 
           // Only create notification if there are new headers
           if (newHeaders.length > 0) {
@@ -1596,6 +1623,15 @@ const saveHeaders = async () => {
         headers
       })
 
+      // Update local state immediately
+      const currentSetting = existingSettings.value.find(s => s.academicYear === currentMajor.value.academicYear)
+      if (currentSetting) {
+        const majorIndex = currentSetting.majors.findIndex(m => m.name === currentMajor.value.name)
+        if (majorIndex !== -1) {
+          currentSetting.majors[majorIndex].headers = headers
+        }
+      }
+
       // Only create notification if there are new headers
       if (newHeaders.length > 0) {
         notificationService.createHeaderNotification(
@@ -1620,7 +1656,6 @@ const saveHeaders = async () => {
       showToast('Please configure project milestones next', 'success')
     } else {
       showHeadersModal.value = false
-      fetchSettings() // No await - refresh data in background
     }
   } catch (error) {
     console.error('Error saving headers:', error)
@@ -1668,10 +1703,17 @@ const handleDeleteConfirm = async () => {
       const data = projectDoc.data()
       const updatedMajors = data.majors.filter(m => m !== majorName)
       await updateDoc(projectRef, { majors: updatedMajors })
+
+      // Update local state immediately
+      const settingIndex = existingSettings.value.findIndex(s => s.academicYear === academicYear)
+      if (settingIndex !== -1) {
+        existingSettings.value[settingIndex].majors = existingSettings.value[settingIndex].majors.filter(
+          m => m.name !== majorName
+        )
+      }
     }
 
     showDeleteConfirmModal.value = false
-    await fetchSettings()
     showToast('Major field deleted successfully')
   } catch (error) {
     console.error('Error deleting major:', error)
@@ -1687,9 +1729,24 @@ const addMajorToExisting = async (academicYear) => {
     
     if (projectDoc.exists()) {
       const data = projectDoc.data();
+      
+      // Create major subcollection with quota only
+      const majorRef = collection(db, 'schools', schoolId, 'projects', academicYear, newMajorName.value);
+      // Let Firebase generate a document ID
+      const docRef = doc(majorRef);
+      const docId = docRef.id;
+      
+      // Save the document with quota only
+      await setDoc(docRef, {
+        quota: parseInt(newMajorQuota.value)
+      });
+      
       const newMajor = {
         name: newMajorName.value,
-        quota: parseInt(newMajorQuota.value)
+        quota: parseInt(newMajorQuota.value),
+        docId: docId, // Use the generated Firebase ID
+        headers: null,
+        milestones: null
       };
 
       // Update majors list in academic year document
@@ -1697,22 +1754,17 @@ const addMajorToExisting = async (academicYear) => {
         majors: [...data.majors, newMajor.name]
       });
 
-      // Create major subcollection with quota
-      const majorRef = collection(db, 'schools', schoolId, 'projects', academicYear, newMajor.name);
-      const docRef = doc(majorRef);
-      
-      // Save the document with quota only
-      await setDoc(docRef, {
-        quota: newMajor.quota
-      });
+      // Update local state immediately
+      const settingIndex = existingSettings.value.findIndex(s => s.academicYear === academicYear)
+      if (settingIndex !== -1) {
+        existingSettings.value[settingIndex].majors.push(newMajor)
+      }
 
       // Reset form
       newMajorName.value = '';
       newMajorQuota.value = 0;
       showAddMajorModal.value = false;
       
-      // Refresh settings
-      await fetchSettings(allYearsLoaded.value);
       showToast('New major field added successfully');
     }
   } catch (error) {
