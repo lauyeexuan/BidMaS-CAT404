@@ -91,12 +91,12 @@
                     <span 
                       :class="[
                         'text-xs px-2 py-1 rounded-full',
-                        major.docId && major.headers && Object.keys(major.headers).length > 0
+                        major.docId && major.headers && Object.keys(major.headers).length > 2
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-red-100 text-red-800'
                       ]"
                     >
-                      {{ major.docId && major.headers && Object.keys(major.headers).length > 0 ? 'Configured' : 'Not Configured' }}
+                      {{ major.docId && major.headers && Object.keys(major.headers).length > 2 ? 'Configured' : 'Not Configured' }}
                     </span>
                   </div>
                   <div class="flex items-center justify-between">
@@ -104,12 +104,12 @@
                     <span 
                       :class="[
                         'text-xs px-2 py-1 rounded-full',
-                        major.docId && major.milestones && major.milestones.length > 0
+                        major.docId && major.milestones && major.milestones.length > 1
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-red-100 text-red-800'
                       ]"
                     >
-                      {{ major.docId && major.milestones && major.milestones.length > 0 ? 'Configured' : 'Not Configured' }}
+                      {{ major.docId && major.milestones && major.milestones.length > 1 ? 'Configured' : 'Not Configured' }}
                     </span>
                   </div>
                 </div>
@@ -327,7 +327,7 @@
                     >
                       Project Milestones
                       <span 
-                        v-if="currentMilestones.length > 0 && currentMilestones.find(m => m.description === 'Project Bidding Done')?.deadline" 
+                        v-if="currentMilestones.length > 1 && currentMilestones.find(m => m.description === 'Project Bidding Done')?.deadline" 
                         class="inline-flex items-center justify-center w-5 h-5 text-xs font-semibold rounded-full bg-green-100 text-green-800"
                       >
                         ✓
