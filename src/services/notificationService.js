@@ -35,7 +35,7 @@ const getAffectedUsers = async (schoolId, majorId) => {
     const usersRef = collection(db, 'schools', schoolId, 'users');
     
     // 1. Students - only those in the specific major
-    // 2. All others (lecturers, admins) - regardless of major
+    // 2. Lecturers - regardless of major (excluding admins)
     
     // Students from the specific major
     const studentQuery = query(usersRef, 
@@ -43,27 +43,44 @@ const getAffectedUsers = async (schoolId, majorId) => {
       where('major', '==', majorId)
     );
     
-    // All non-student users from this school (lecturers, admins, etc.)
-    const otherUsersQuery = query(usersRef, 
-      where('role', '!=', 'student')
+    // Only lecturers (no admins)
+    const lecturerQuery = query(usersRef, 
+      where('role', '==', 'lecturer')
     );
     
     // Run queries in parallel for efficiency
-    const [studentSnapshot, otherUsersSnapshot] = await Promise.all([
+    const [studentSnapshot, lecturerSnapshot] = await Promise.all([
       getDocs(studentQuery),
-      getDocs(otherUsersQuery)
+      getDocs(lecturerQuery)
     ]);
     
     // Combine all affected user IDs
     const affectedUserIds = [
       ...studentSnapshot.docs.map(doc => doc.id),
-      ...otherUsersSnapshot.docs.map(doc => doc.id)
+      ...lecturerSnapshot.docs.map(doc => doc.id)
     ];
     
     // Remove duplicates (just in case)
     return [...new Set(affectedUserIds)];
   } catch (error) {
     console.error('Error getting affected users:', error);
+    return [];
+  }
+};
+
+/**
+ * Get only lecturer users from a school
+ * @param {string} schoolId - School ID
+ * @returns {Promise<Array>} Array of lecturer user IDs
+ */
+const getLecturerUsers = async (schoolId) => {
+  try {
+    const usersRef = collection(db, 'schools', schoolId, 'users');
+    const lecturerQuery = query(usersRef, where('role', '==', 'lecturer'));
+    const lecturerSnapshot = await getDocs(lecturerQuery);
+    return lecturerSnapshot.docs.map(doc => doc.id);
+  } catch (error) {
+    console.error('Error getting lecturer users:', error);
     return [];
   }
 };
@@ -183,16 +200,37 @@ const createMilestoneNotifications = async (
  * @param {string} academicYear - Academic year
  * @param {string} majorName - Major name
  * @param {string} action - Action performed (added, updated, removed)
+ * @param {Array} newHeaders - Array of new headers
  * @returns {Promise<void>}
  */
-const createHeaderNotification = async (schoolId, academicYear, majorName, action) => {
-  await createNotification(
-    schoolId,
-    academicYear,
-    majorName,
-    'header_modified',
-    `Project headers ${action} for ${majorName}`
-  );
+const createHeaderNotification = async (schoolId, academicYear, majorName, action, newHeaders) => {
+  try {
+    const notificationsRef = collection(db, 'schools', schoolId, 'notifications');
+    
+    // Get only lecturer users for header notifications
+    const affectedUsers = await getLecturerUsers(schoolId);
+    
+    // Format the header details for the notification
+    const headerDetails = newHeaders.map(header => {
+      let details = `${header.name}, `;
+      return details;
+    });
+
+    // Create the notification document
+    await addDoc(notificationsRef, {
+      type: "project_settings_change",
+      createdAt: Timestamp.now(),
+      readBy: {}, // Empty object to track which users have read this notification
+      academicYear,
+      majorId: majorName,
+      changeType: 'header_added',
+      details: `New project headers added for ${majorName}:\n${headerDetails.join('\n')}`,
+      affectedUsers, // Only lecturers will be notified
+      newHeaders // Store the full header data for reference
+    });
+  } catch (error) {
+    console.error('Error creating header notification:', error);
+  }
 };
 
 /**
@@ -236,5 +274,6 @@ export default {
   processNotificationsAsync,
   formatDateForNotification,
   formatMilestoneForNotification,
-  getAffectedUsers
+  getAffectedUsers,
+  getLecturerUsers
 }; 

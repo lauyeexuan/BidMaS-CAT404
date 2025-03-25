@@ -1529,31 +1529,42 @@ const saveHeaders = async () => {
           // Get existing document data
           const majorDoc = await getDoc(majorRef)
           const existingData = majorDoc.exists() ? majorDoc.data() : { quota: major.quota || 0 }
+          const existingHeaders = existingData.headers || {}
+
+          // Find new headers by comparing with existing headers
+          const newHeaders = Object.keys(headers).filter(headerName => 
+            !existingHeaders[headerName] && 
+            headerName !== 'Title' && 
+            headerName !== 'Description'
+          )
 
           // Update with headers
-          return setDoc(majorRef, { 
+          await setDoc(majorRef, { 
             ...existingData,
             headers
           })
+
+          // Only create notification if there are new headers
+          if (newHeaders.length > 0) {
+            notificationService.createHeaderNotification(
+              userStore.currentUser.school,
+              currentMajor.value.academicYear,
+              major.name,
+              'added',
+              newHeaders.map(name => ({
+                name,
+                type: headers[name].type,
+                values: headers[name].values
+              }))
+            ).catch(error => {
+              console.error('Error creating header notification:', error);
+            });
+          }
         })
 
         // Wait for all save operations to complete
         await Promise.all(savePromises)
         showToast('Project headers saved to all majors successfully')
-        
-        // Create header notifications asynchronously to avoid delays
-        setTimeout(() => {
-          currentSetting.majors.forEach(major => {
-            notificationService.createHeaderNotification(
-              userStore.currentUser.school,
-              currentMajor.value.academicYear,
-              major.name,
-              'updated'
-            ).catch(error => {
-              console.error('Error creating header notification:', error);
-            });
-          });
-        }, 0);
       }
     } else {
       // Save headers to just the current major
@@ -1570,27 +1581,40 @@ const saveHeaders = async () => {
       // Get existing document data
       const majorDoc = await getDoc(majorRef)
       const existingData = majorDoc.exists() ? majorDoc.data() : { quota: currentMajor.value.quota || 0 }
+      const existingHeaders = existingData.headers || {}
+
+      // Find new headers by comparing with existing headers
+      const newHeaders = Object.keys(headers).filter(headerName => 
+        !existingHeaders[headerName] && 
+        headerName !== 'Title' && 
+        headerName !== 'Description'
+      )
 
       // Update with headers
       await setDoc(majorRef, { 
         ...existingData,
         headers
       })
-      showToast('Project headers saved successfully')
-      
-      // Create header notification asynchronously
-      setTimeout(() => {
+
+      // Only create notification if there are new headers
+      if (newHeaders.length > 0) {
         notificationService.createHeaderNotification(
           userStore.currentUser.school,
           currentMajor.value.academicYear,
           currentMajor.value.name,
-          'updated'
+          'added',
+          newHeaders.map(name => ({
+            name,
+            type: headers[name].type,
+            values: headers[name].values
+          }))
         );
-      }, 0);
+      }
+
+      showToast('Project headers saved successfully')
     }
     
     // Don't close modal, just switch to milestones tab if headers are saved successfully
-    // This allows users to configure both headers and milestones in one session
     if (currentMilestones.value.length <= 1 || !currentMilestones.value.find(m => m.description === 'Project Bidding Done')?.deadline) {
       activeTab.value = 'milestones'
       showToast('Please configure project milestones next', 'success')
