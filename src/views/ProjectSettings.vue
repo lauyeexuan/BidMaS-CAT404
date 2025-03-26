@@ -118,13 +118,18 @@
                   <button 
                     @click="openHeadersModal(major, setting.academicYear)"
                     :class="[
-                      'w-full px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2',
+                      'w-full px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200',
                       isConfigurationComplete(major)
-                        ? 'text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
-                        : 'text-white bg-red-500 hover:bg-red-600 focus:ring-red-500 animate-pulse font-semibold'
+                        ? 'text-white bg-teal-500 hover:bg-teal-600 focus:ring-teal-400 shadow-sm hover:shadow'
+                        : 'text-white bg-rose-400 hover:bg-red-100 focus:ring-rose-400 font-semibold shadow-sm hover:shadow'
                     ]"
                   >
-                    {{ isConfigurationComplete(major) ? 'View Project Settings' : '⚠️ Incomplete Settings' }}
+                    <span class="flex items-center justify-center gap-2">
+                      <svg v-if="isConfigurationComplete(major)" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                      {{ isConfigurationComplete(major) ? 'View Project Settings' : '⚠️ Incomplete Settings' }}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -170,53 +175,93 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
           <!-- Academic Year Section -->
           <div>
-            <h2 class="text-2xl font-semibold text-gray-900 mb-6">Academic Year</h2>
-            <div>
-              <label for="academicYear" class="block mb-2 text-sm font-medium text-gray-900">Current Academic Year:</label>
-              <div class="flex items-center space-x-2">
-                <input 
-                  type="number" 
-                  id="academicYearStart" 
-                  v-model="academicYear.start" 
-                  min="2000"
-                  max="2100"
-                  @input="validateAcademicYear"
-                  class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-32 p-2.5"
-                  :class="{'border-red-500': yearError}"
-                  placeholder="2022"
-                >
-                <span class="text-gray-500">/</span>
-                <input 
-                  type="number" 
-                  id="academicYearEnd" 
-                  v-model="academicYear.end" 
-                  min="2000"
-                  max="2100"
-                  @input="validateAcademicYear"
-                  class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-32 p-2.5"
-                  :class="{'border-red-500': yearError}"
-                  placeholder="2023"
-                >
+            <label class="block mb-4 text-sm font-medium text-gray-900">Current Academic Year:</label>
+            
+            <!-- Modern Year Selector Component -->
+            <div class="relative w-48 mx-auto">
+              <!-- Year Display and Format -->
+              <div class="mb-3 text-center">
+                <span class="text-lg font-medium text-blue-600">{{ academicYear.start }}/{{ academicYear.end }}</span>
               </div>
-              <p class="mt-1 text-sm text-gray-500">Format: YYYY/YYYY (e.g., 2022/2023)</p>
+              
+              <!-- Vertical Year Selector -->
+              <div 
+                class="relative border border-gray-300 rounded-lg bg-white shadow-md overflow-hidden h-32 cursor-ns-resize hover:border-blue-300 transition-all"
+                @wheel="handleYearWheel"
+                @touchstart="handleTouchStart"
+                @touchmove="handleTouchMove"
+                @touchend="handleTouchEnd"
+              >
+                <!-- Gradient overlays for fading effect -->
+                <div class="absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-white to-transparent z-10 pointer-events-none"></div>
+                <div class="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-white to-transparent z-10 pointer-events-none"></div>
+                
+                <!-- Selection Indicator - Fixed at center of container -->
+                <div class="absolute inset-x-0 top-1/2 transform -translate-y-1/2 h-9 bg-blue-100 bg-opacity-50 border-y border-blue-200 pointer-events-none"></div>
+                
+                <!-- Year elements container -->
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                  <!-- Previous Year - Above selected -->
+                  <div class="py-2 w-full text-center text-gray-500 -translate-y-9 transition-all duration-200"
+                       :style="{ transform: `translateY(${-9 + yearSelectorOffset}px)` }">
+                    {{ selectedYear - 1 }}
+                  </div>
+                  
+                  <!-- Current Year - In the middle (aligned with highlight) -->
+                  <div class="py-2 w-full text-center text-lg font-bold text-blue-600 transition-all duration-200"
+                       :style="{ transform: `translateY(${0 + yearSelectorOffset}px)` }">
+                    {{ selectedYear }}
+                  </div>
+                  
+                  <!-- Next Year - Below selected -->
+                  <div class="py-2 w-full text-center text-gray-500 translate-y-9 transition-all duration-200"
+                       :style="{ transform: `translateY(${9 + yearSelectorOffset}px)` }">
+                    {{ selectedYear + 1 }}
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Year Range Information & Controls -->
+              <div class="mt-3 flex justify-between items-center">
+                <span class="text-xs text-gray-500">2000-2050</span>
+                <div class="flex gap-2">
+                  <button 
+                    @click="decrementYear" 
+                    class="p-1.5 rounded-full hover:bg-gray-100 text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-colors"
+                    :disabled="selectedYear <= MIN_YEAR"
+                    :class="{'opacity-50 cursor-not-allowed': selectedYear <= MIN_YEAR}"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                    </svg>
+                  </button>
+                  <button 
+                    @click="incrementYear" 
+                    class="p-1.5 rounded-full hover:bg-gray-100 text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-colors"
+                    :disabled="selectedYear >= MAX_YEAR"
+                    :class="{'opacity-50 cursor-not-allowed': selectedYear >= MAX_YEAR}"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
               <p v-if="yearError" class="mt-1 text-sm text-red-500">{{ yearError }}</p>
             </div>
           </div>
 
           <!-- Fields Configuration Section -->
           <div>
-            <h2 class="text-2xl font-semibold text-gray-900 mb-6">Configure Project Fields</h2>
-            <div>
-              <label for="numFields" class="block mb-2 text-sm font-medium text-gray-900">Number of Major Fields:</label>
-              <input 
-                type="number" 
-                id="numFields" 
-                v-model="numFields" 
-                min="1"
-                @change="updateFields"
-                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-              >
-            </div>
+            <label for="numFields" class="block mb-4 text-sm font-medium text-gray-900">Number of Major Fields:</label>
+            <input 
+              type="number" 
+              id="numFields" 
+              v-model="numFields" 
+              min="1"
+              @change="updateFields"
+              class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-24 p-2.5"
+            >
           </div>
         </div>
 
@@ -726,7 +771,7 @@
 </template>
   
 <script setup>
-import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, defineAsyncComponent, watch } from 'vue'
 import { db } from '@/firebase'
 import { doc, collection, setDoc, getDocs, query, getDoc, updateDoc, deleteDoc, Timestamp, where, limit, addDoc } from 'firebase/firestore'
 import { useUserStore } from '@/stores/userStore'
@@ -798,6 +843,93 @@ const activeTab = ref('headers')
 const currentMilestones = ref([])
 const newMilestone = ref({ description: '', deadline: '', completed: false })
 const milestoneCount = ref(0)
+
+// Year selector refs
+const selectedYear = ref(new Date().getFullYear());
+const yearSelectorOffset = ref(0);
+const touchStartY = ref(0);
+const MIN_YEAR = 2000;
+const MAX_YEAR = 2050;
+
+// Update academicYear whenever selectedYear changes
+watch(selectedYear, (newYear) => {
+  academicYear.value = {
+    start: newYear,
+    end: newYear + 1
+  };
+  validateAcademicYear();
+});
+
+// Load initial data and set up the component
+onMounted(() => {
+  // Fetch settings data
+  fetchSettings(false);
+  
+  // Initialize year selector with current year
+  const currentYear = new Date().getFullYear();
+  selectedYear.value = currentYear;
+  academicYear.value = {
+    start: currentYear,
+    end: currentYear + 1
+  };
+});
+
+// Year selector interaction methods
+const handleYearWheel = (event) => {
+  // Prevent default to avoid page scrolling
+  event.preventDefault();
+  
+  // Scroll up (negative deltaY) increases the year
+  // Scroll down (positive deltaY) decreases the year
+  if (event.deltaY < 0) {
+    incrementYear();
+  } else {
+    decrementYear();
+  }
+};
+
+const handleTouchStart = (event) => {
+  touchStartY.value = event.touches[0].clientY;
+};
+
+const handleTouchMove = (event) => {
+  const currentY = event.touches[0].clientY;
+  const diffY = currentY - touchStartY.value;
+  
+  // Create a dragging effect while moving
+  yearSelectorOffset.value = diffY * 0.5;
+};
+
+const handleTouchEnd = (event) => {
+  const currentY = event.changedTouches[0].clientY;
+  const diffY = currentY - touchStartY.value;
+  
+  // Reset the offset animation
+  yearSelectorOffset.value = 0;
+  
+  // If the swipe was significant enough, change the year
+  if (Math.abs(diffY) > 20) {
+    if (diffY > 0) {
+      // Swiped down, decrease year
+      decrementYear();
+    } else {
+      // Swiped up, increase year
+      incrementYear();
+    }
+  }
+};
+
+const incrementYear = () => {
+  if (selectedYear.value < MAX_YEAR) {
+    selectedYear.value++;
+  }
+};
+
+const decrementYear = () => {
+  if (selectedYear.value > MIN_YEAR) {
+    selectedYear.value--;
+  }
+};
 
 // Modified function to fetch only the most recent academic year initially
 const fetchSettings = async (fetchAll = false) => {
@@ -987,9 +1119,6 @@ const fetchSettings = async (fetchAll = false) => {
     loadingPreviousYears.value = false;
   }
 };
-
-// Load only the most recent academic year initially
-onMounted(() => fetchSettings(false));
 
 const academicYear = ref({
   start: '',
@@ -1657,10 +1786,18 @@ const saveHeaders = async () => {
 
 const editSetting = (setting) => {
   // Populate the form with existing setting data
+  const startYear = parseInt('20' + setting.academicYear.slice(0, 2));
+  const endYear = parseInt('20' + setting.academicYear.slice(2));
+  
+  // Set the selected year in the year selector
+  selectedYear.value = startYear;
+  
+  // This will be automatically updated by the watcher
   academicYear.value = {
-    start: parseInt('20' + setting.academicYear.slice(0, 2)),
-    end: parseInt('20' + setting.academicYear.slice(2))
+    start: startYear,
+    end: endYear
   }
+  
   numFields.value = setting.majors.length
   fields.value = setting.majors.map(major => ({
     name: major.name,
@@ -1803,13 +1940,13 @@ const isConfigurationComplete = (major) => {
   // Check if headers are configured
   const headersConfigured = major.docId && 
                            major.headers && 
-                           Object.keys(major.headers).length > 0;
+                           Object.keys(major.headers).length > 2;
   
   // Check if milestones are configured, including the required Project Bidding Done
   const milestonesConfigured = major.docId && 
                               major.milestones && 
                               Array.isArray(major.milestones) && 
-                              major.milestones.length > 0 &&
+                              major.milestones.length > 1 &&
                               major.milestones.some(m => m.description === 'Project Bidding Done');
   
   return headersConfigured && milestonesConfigured;
