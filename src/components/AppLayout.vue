@@ -1,12 +1,15 @@
 <template>
   <div class="flex h-screen bg-gray-100">
     <!-- Navigation Bar -->
-    <NavBar />
+    <NavBar @update:navState="updateNavbarState" />
     
     <!-- Main Content -->
-    <div ref="mainContent" class="flex-1 overflow-auto">
+    <div ref="mainContent" class="flex-1 overflow-auto relative">
       <!-- Top Bar -->
-      <div class="bg-white shadow-sm p-4 flex justify-between items-center">
+      <div 
+        class="bg-white shadow-sm p-4 flex justify-between items-center fixed top-0 right-0 z-10 transition-all duration-300"
+        :style="{ left: navbarWidth }"
+      >
         <h1 class="text-2xl font-semibold">{{ currentPageTitle }}</h1>
         <div class="flex items-center gap-4">
           <!-- Notification Badge -->
@@ -42,7 +45,7 @@
       </Transition>
       
       <!-- Page Content -->
-      <div class="p-6">
+      <div class="p-6 mt-[72px]">
         <slot></slot>
       </div>
     </div>
@@ -69,6 +72,17 @@ export default {
     const mainContent = ref(null)
     const showNotificationPanel = ref(false)
     const isAnimatingOut = ref(false)
+    const isNavbarOpen = ref(true)
+
+    // Computed property for navbar width
+    const navbarWidth = computed(() => {
+      return isNavbarOpen.value ? '256px' : '64px'
+    })
+
+    // Method to update navbar state
+    const updateNavbarState = (isOpen) => {
+      isNavbarOpen.value = isOpen
+    }
 
     // Toggle notification panel
     const toggleNotificationPanel = () => {
@@ -156,7 +170,9 @@ export default {
       isAnimatingOut,
       toggleNotificationPanel,
       closeNotificationPanel,
-      notificationAnimationComplete
+      notificationAnimationComplete,
+      navbarWidth,
+      updateNavbarState
     }
   }
 }
@@ -169,8 +185,11 @@ export default {
   transition: opacity 0.3s ease;
 }
 
-.fade-enter-from,
-.fade-leave-to {
+.fade-leave-to,
+.fade-enter-from {
   opacity: 0;
 }
+
+/* Add CSS variable for navbar width */
+
 </style> 

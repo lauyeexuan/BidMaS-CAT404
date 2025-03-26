@@ -77,12 +77,18 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/userStore'
 
 export default {
-  setup() {
+  props: {
+    navState: {
+      type: Boolean,
+      default: true
+    }
+  },
+  setup(props, { emit }) {
     const router = useRouter()
     const route = useRoute()
     const userStore = useUserStore()
@@ -91,7 +97,13 @@ export default {
     // Toggle sidebar
     const toggleSidebar = () => {
       isOpen.value = !isOpen.value
+      emit('update:navState', isOpen.value)  // Emit the new state
     }
+
+    // Watch for changes in isOpen
+    watch(isOpen, (newValue) => {
+      emit('update:navState', newValue)  // Emit whenever the state changes
+    })
 
     // All possible menu items with their role requirements
     const allMenuItems = [
