@@ -110,7 +110,10 @@
         testDate: savedDate || null,
         formattedTestDate: null,
         // Add a reactive property to force updates
-        testDateVersion: 0
+        testDateVersion: 0,
+        // Add a property to track when the test date was set
+        testDateSetTime: null,
+        testDateStartValue: null
       };
     },
     
@@ -195,20 +198,29 @@
           // Force update the test date manager
           testDateManager.setTestDate(newDate);
           
+          // Store the time when test date was set and the initial test date value
+          this.testDateSetTime = Date.now();
+          this.testDateStartValue = newDate.getTime();
+          
           // Increment version to trigger reactivity
           this.testDateVersion++;
           
           // Emit the change
           this.$emit('test-date-change', newDate);
           
-          // Update countdown
-          this.updateCountdown();
+          // Clear existing interval and restart countdown
+          if (this.countdownInterval) {
+            clearInterval(this.countdownInterval);
+          }
+          this.startCountdown();
         }
       },
       
       resetTestDate() {
         this.testDate = null;
         this.formattedTestDate = null;
+        this.testDateSetTime = null;
+        this.testDateStartValue = null;
         localStorage.removeItem('bidmas_test_date');
         
         // Reset test date manager
@@ -220,14 +232,27 @@
         // Emit the change
         this.$emit('test-date-change', null);
         
-        // Update countdown
-        this.updateCountdown();
+        // Clear existing interval and restart countdown
+        if (this.countdownInterval) {
+          clearInterval(this.countdownInterval);
+        }
+        this.startCountdown();
       },
 
       calculateTimeRemaining() {
         if (!this.milestone || !this.milestone.deadline) return null;
         
-        const now = this.testDate ? new Date(this.testDate) : new Date();
+        // Calculate current time with consideration for simulated time if test date is set
+        let now;
+        if (this.testDate && this.testDateSetTime) {
+          // Calculate elapsed time since the test date was set
+          const realElapsedMs = Date.now() - this.testDateSetTime;
+          // Add the elapsed time to the initial test date value
+          now = new Date(this.testDateStartValue + realElapsedMs);
+        } else {
+          now = new Date();
+        }
+        
         const deadline = this.milestone.deadline instanceof Date ? 
           this.milestone.deadline : 
           this.milestone.deadline.toDate();
@@ -249,26 +274,51 @@
       },
       
       startCountdown() {
+        // Clear any existing interval first
+        if (this.countdownInterval) {
+          clearInterval(this.countdownInterval);
+          this.countdownInterval = null;
+        }
+        
         if (this.showCountdown && !this.isDeadlinePassedComputed) {
+          // Update immediately
           this.updateCountdown();
-          this.countdownInterval = setInterval(this.updateCountdown, 1000);
+          // Then set interval for continuous updates
+          this.countdownInterval = setInterval(() => {
+            this.updateCountdown();
+          }, 1000);
         }
       },
       
       updateCountdown() {
         this.timeRemaining = this.calculateTimeRemaining();
         if (!this.timeRemaining) {
-          clearInterval(this.countdownInterval);
+          if (this.countdownInterval) {
+            clearInterval(this.countdownInterval);
+            this.countdownInterval = null;
+          }
         }
       }
     },
     
-    mounted() {
-      // Initialize with the saved date if available
+    created() {
+      // Initialize the date as early as possible
       if (this.testDate) {
         this.formattedTestDate = this.formatDateForInput(new Date(this.testDate));
+        // Initialize the testDateSetTime and testDateStartValue for existing test dates
+        this.testDateSetTime = Date.now();
+        this.testDateStartValue = new Date(this.testDate).getTime();
+      }
+    },
+    
+    mounted() {
+      // Clear any previous intervals that might have been left over
+      if (this.countdownInterval) {
+        clearInterval(this.countdownInterval);
+        this.countdownInterval = null;
       }
       
+      // Start the countdown timer
       this.startCountdown();
     },
     
@@ -282,9 +332,23 @@
       // Watch for milestone changes and update countdown
       milestone: {
         handler() {
-          this.updateCountdown();
+          if (this.countdownInterval) {
+            clearInterval(this.countdownInterval);
+            this.countdownInterval = null;
+          }
+          this.startCountdown();
         },
         deep: true
+      },
+      
+      // Watch for showCountdown changes
+      showCountdown(newVal) {
+        if (newVal) {
+          this.startCountdown();
+        } else if (this.countdownInterval) {
+          clearInterval(this.countdownInterval);
+          this.countdownInterval = null;
+        }
       },
       
       // Watch for testDate changes coming from other components
@@ -292,12 +356,24 @@
         handler(newVal) {
           if (newVal) {
             this.formattedTestDate = this.formatDateForInput(new Date(newVal));
+            // Initialize timing properties if they're not set
+            if (!this.testDateSetTime) {
+              this.testDateSetTime = Date.now();
+              this.testDateStartValue = new Date(newVal).getTime();
+            }
           } else {
             this.formattedTestDate = null;
+            this.testDateSetTime = null;
+            this.testDateStartValue = null;
           }
           // Increment version to trigger reactivity
           this.testDateVersion++;
-          this.updateCountdown();
+          
+          // Clear existing interval and restart countdown
+          if (this.countdownInterval) {
+            clearInterval(this.countdownInterval);
+          }
+          this.startCountdown();
         }
       }
     }
