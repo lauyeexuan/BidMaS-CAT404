@@ -177,6 +177,16 @@ export async function resolveProjectAssignments(
         });
       }
       
+      // Clear tentativeStudentIds for unassigned projects as well
+      for (const project of projects) {
+        // Skip projects that were already processed in the assigned projects loop
+        if (projectAssignments.has(project.id)) continue;
+        
+        transaction.update(project.docRef, {
+          tentativeStudentIds: [], // Clear tentative assignments for unassigned projects
+        });
+      }
+      
       // 6. Update all bids to show final status
       for (const bid of allBids) {
         const studentId = bid.studentId;
@@ -185,8 +195,7 @@ export async function resolveProjectAssignments(
         
         // Update bid in project's bids collection
         transaction.update(bid.docRef, {
-          finalStatus: isAssigned ? "accepted" : "rejected",
-          status: isAssigned ? "accepted" : "rejected"
+          finalStatus: isAssigned ? "accepted" : "rejected"
         });
         
         // NEW: Update bid in student's bids collection

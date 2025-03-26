@@ -1529,7 +1529,11 @@ const fetchSettings = async () => {
   }
 }
 
-// Replace the existing fetchUserProjects function with this optimized version
+// Add projectListeners ref to store unsubscribe functions for project listeners
+const projectListeners = ref(new Map())
+const myProjectsLoading = ref(false)
+
+// Modify fetchUserProjects to use real-time listeners instead of one-time fetches
 const fetchUserProjects = async (schoolId, userId, academicYearId) => {
   try {
     // Start loading state
@@ -1537,6 +1541,10 @@ const fetchUserProjects = async (schoolId, userId, academicYearId) => {
     
     // Clear existing projects
     projects.value = []
+    
+    // Clean up any existing listeners
+    projectListeners.value.forEach(unsubscribe => unsubscribe())
+    projectListeners.value.clear()
     
     // Create a map to track projects by ID to avoid duplicates
     const projectsMap = new Map()
@@ -1565,10 +1573,10 @@ const fetchUserProjects = async (schoolId, userId, academicYearId) => {
     // Step 2: Wait for all major document queries to complete
     const majorResults = await Promise.all(majorPromises)
     
-    // Step 3: Create an array of promises for fetching projects in parallel
-    const projectPromises = majorResults
+    // Step 3: Set up real-time listeners for each major's projects
+    majorResults
       .filter(result => result !== null)
-      .map(async ({ major, majorDocId }) => {
+      .forEach(({ major, majorDocId }) => {
         try {
           const projectsRef = collection(
             db, 
@@ -1583,91 +1591,114 @@ const fetchUserProjects = async (schoolId, userId, academicYearId) => {
           
           // Filter by userId
           const projectsQuery = query(projectsRef, where('userId', '==', userId))
-          const projectsDocs = await getDocs(projectsQuery)
           
-          return { major, majorDocId, projectsDocs }
+          // Create real-time listener
+          const unsubscribe = onSnapshot(projectsQuery, (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+              const projectId = change.doc.id
+              const projectData = change.doc.data()
+              
+              if (change.type === 'added' || change.type === 'modified') {
+                // Get existing project data if available
+                const existingProject = projectsMap.get(projectId)
+                
+                // Merge with new data
+                projectsMap.set(projectId, {
+                  id: projectId,
+                  major,
+                  hasBids: existingProject?.hasBids || false, // Keep existing hasBids value if present
+                  ...projectData
+                })
+                
+                // Check for bids (only for new projects)
+                if (change.type === 'added' || !existingProject?.hasBids) {
+                  checkProjectBids(schoolId, academicYearId, major, majorDocId, projectId, projectsMap);
+                }
+                
+                // Update the projects array
+                projects.value = Array.from(projectsMap.values())
+              } else if (change.type === 'removed') {
+                // Remove from map
+                projectsMap.delete(projectId)
+                
+                // Update the projects array
+                projects.value = Array.from(projectsMap.values())
+              }
+            })
+          }, (error) => {
+            console.error(`Error setting up real-time listener for ${major}:`, error)
+          })
+          
+          // Store unsubscribe function
+          const listenerKey = `${major}-${majorDocId}`
+          projectListeners.value.set(listenerKey, unsubscribe)
+          
         } catch (error) {
-          console.error(`Error fetching projects for major ${major}:`, error)
-          return null
+          console.error(`Error setting up projects listener for major ${major}:`, error)
         }
       })
     
-    // Step 4: Wait for all project queries to complete
-    const projectResults = await Promise.all(projectPromises)
-    
-    // Step 5: Process project documents and check for bids in parallel
-    const bidCheckPromises = []
-    
-    for (const result of projectResults) {
-      if (!result) continue
-      
-      const { major, majorDocId, projectsDocs } = result
-      
-      for (const doc of projectsDocs.docs) {
-        const projectId = doc.id
-        const projectData = doc.data()
-        
-        // Add to map first without bid information
-        if (!projectsMap.has(projectId)) {
-          projectsMap.set(projectId, {
-            id: projectId,
-            hasBids: false, // Default value, will update later
-            ...projectData
-          })
-          
-          // Create a promise to check for bids
-          const bidCheckPromise = (async () => {
-            try {
-              const bidsRef = collection(
-                db, 
-                'schools', 
-                schoolId, 
-                'projects', 
-                academicYearId, 
-                major, 
-                majorDocId,
-                'projectsPerYear',
-                projectId,
-                'bids'
-              )
-              
-              const bidsSnapshot = await getDocs(bidsRef)
-              const hasBids = !bidsSnapshot.empty
-              
-              // Update the hasBids property in the map
-              if (projectsMap.has(projectId)) {
-                const project = projectsMap.get(projectId)
-                project.hasBids = hasBids
-                projectsMap.set(projectId, project)
-              }
-            } catch (error) {
-              console.error(`Error checking bids for project ${projectId}:`, error)
-            }
-          })()
-          
-          bidCheckPromises.push(bidCheckPromise)
-        }
-      }
-    }
-    
-    // Step 6: Wait for all bid checks to complete
-    await Promise.all(bidCheckPromises)
-    
-    // Step 7: Convert map values to array
-    projects.value = Array.from(projectsMap.values())
-    
-    console.log('Parallel fetching complete - Total unique loaded projects:', projects.value.length)
-    console.log('Projects by major:', projects.value.reduce((acc, project) => {
-      acc[project.major] = (acc[project.major] || 0) + 1;
-      return acc;
-    }, {}))
+    // Initial loading is done
+    myProjectsLoading.value = false
   } catch (error) {
     console.error('Error fetching user projects:', error)
     showToast('Failed to load projects', 'error')
-  } finally {
     myProjectsLoading.value = false
   }
 }
+
+// Helper function to check for bids and set up bid listeners
+const checkProjectBids = async (schoolId, academicYearId, major, majorDocId, projectId, projectsMap) => {
+  try {
+    const bidsRef = collection(
+      db, 
+      'schools', 
+      schoolId, 
+      'projects', 
+      academicYearId, 
+      major, 
+      majorDocId,
+      'projectsPerYear',
+      projectId,
+      'bids'
+    )
+    
+    // Set up real-time listener for bids
+    const unsubscribe = onSnapshot(bidsRef, (snapshot) => {
+      const hasBids = !snapshot.empty
+      
+      // Update the hasBids property in the map if the project exists
+      if (projectsMap.has(projectId)) {
+        const project = projectsMap.get(projectId)
+        project.hasBids = hasBids
+        projectsMap.set(projectId, project)
+        
+        // Update the projects array to reflect changes
+        projects.value = Array.from(projectsMap.values())
+      }
+    }, (error) => {
+      console.error(`Error in bid listener for project ${projectId}:`, error)
+    })
+    
+    // Store the unsubscribe function
+    const listenerKey = `bids-${projectId}`
+    projectListeners.value.set(listenerKey, unsubscribe)
+    
+  } catch (error) {
+    console.error(`Error checking bids for project ${projectId}:`, error)
+  }
+}
+
+// Clean up listeners when component unmounts
+onBeforeUnmount(() => {
+  // Clear project listeners
+  projectListeners.value.forEach(unsubscribe => unsubscribe())
+  projectListeners.value.clear()
+  
+  // Clear any other listeners (from existing code)
+  bidListeners.value.forEach(unsubscribe => unsubscribe())
+  bidListeners.value.clear()
+})
 
 // Function to fetch projects (used after import and for refreshing)
 const fetchProjects = async () => {
@@ -3159,7 +3190,7 @@ watch(activeTab, async (newTab, oldTab) => {
 })
 
 // Add tab-specific loading states
-const myProjectsLoading = ref(false)
+
 const allProjectsLoading = ref(false)
 const bidsLoading = ref(false)
 
@@ -3898,6 +3929,7 @@ const rejectOtherBidsForStudent = async (schoolId, studentId, acceptedBidId, maj
         
         // Also update in project's collection if we have the project ID
         if (bidData.projectId) {
+          // Reference to the project bid document
           const projectBidRef = doc(
             db, 
             'schools', schoolId,
@@ -3907,7 +3939,17 @@ const rejectOtherBidsForStudent = async (schoolId, studentId, acceptedBidId, maj
             'bids', bidDoc.id
           )
           
+          // Reference to the project document
+          const projectRef = doc(
+            db, 
+            'schools', schoolId,
+            'projects', selectedAcademicYear.value,
+            majorId, majorDocId,
+            'projectsPerYear', bidData.projectId
+          )
+          
           try {
+            // Update the bid status
             const projectBidDoc = await getDoc(projectBidRef)
             if (projectBidDoc.exists()) {
               batch.update(projectBidRef, { 
@@ -3915,15 +3957,30 @@ const rejectOtherBidsForStudent = async (schoolId, studentId, acceptedBidId, maj
                 updatedAt: currentDate
               })
             }
+            
+            // Remove student from tentativeStudentIds array in the project document
+            const projectDoc = await getDoc(projectRef)
+            if (projectDoc.exists()) {
+              const projectData = projectDoc.data()
+              if (projectData.tentativeStudentIds && projectData.tentativeStudentIds.includes(studentId)) {
+                // Create a new array without this student ID
+                const updatedTentativeIds = projectData.tentativeStudentIds.filter(id => id !== studentId)
+                
+                // Update the project document
+                batch.update(projectRef, {
+                  tentativeStudentIds: updatedTentativeIds
+                })
+              }
+            }
           } catch (error) {
-            console.error('Error checking project bid document:', error)
+            console.error('Error checking project documents:', error)
           }
         }
       }
     }
     
     await batch.commit()
-    console.log(`Rejected all other bids for student ${studentId}`)
+    console.log(`Rejected all other bids for student ${studentId} and cleared tentative assignments`)
   } catch (error) {
     console.error('Error rejecting other bids:', error)
   }
