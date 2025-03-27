@@ -401,41 +401,45 @@
       <div class="bg-white p-4 rounded-lg shadow-md mb-4">
         <div class="flex justify-between items-center mb-3">
           <h2 class="text-sm font-medium text-gray-500">Current Milestone</h2>
-        <!-- Major Selection Tabs -->
-        <div class="flex space-x-2">
-          <button
-            v-for="major in userStore.currentUser?.major || []"
-            :key="major"
+          <!-- Major Selection Tabs -->
+          <div class="flex space-x-2">
+            <button
+              v-for="major in userStore.currentUser?.major || []"
+              :key="major"
               @click="currentDisplayMajor = major"
               class="px-2 py-1 text-xs rounded-full transition-colors"
               :class="currentDisplayMajor === major ? 
-              'bg-blue-100 text-blue-800 font-medium' : 
-              'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-          >
-            {{ major }}
-          </button>
+                'bg-blue-100 text-blue-800 font-medium' : 
+                'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+            >
+              {{ major }}
+            </button>
+          </div>
         </div>
-      </div>
-      
-      <div v-if="currentMilestoneData" class="relative">
-        <!-- Decorative element -->
-        <div class="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-full"></div>
         
-        <div class="pl-4">
-          <h3 class="text-lg font-semibold text-green-800 mb-1">
-            {{ currentMilestoneData.upcomingMilestone.description }}
-          </h3>
+        <div v-if="currentMilestoneData && currentMilestoneData.upcomingMilestone" class="relative">
+          <!-- Decorative element -->
+          <div class="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-full"></div>
+          
+          <div class="pl-4">
+            <h3 class="text-lg font-semibold text-green-800 mb-1">
+              {{ currentMilestoneData.upcomingMilestone.description }}
+            </h3>
             <div class="flex items-center text-gray-500 text-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <span>{{ formatDate(currentMilestoneData.upcomingMilestone.deadline) }}</span>
-          </div>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span>{{ formatDate(currentMilestoneData.upcomingMilestone.deadline) }}</span>
+            </div>
           </div>
         </div>
         
-        <div v-else class="text-center py-2">
+        <div v-else class="text-center py-4">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
           <p class="text-gray-500 text-sm">No milestone data available</p>
+          <p class="text-xs text-gray-400">Please check the selected major or try again later</p>
         </div>
       </div>
       
@@ -547,6 +551,9 @@
                     'bg-gray-100 text-gray-600 hover:bg-gray-200'"
                 >
                   {{ milestone.description }}
+                  <span v-if="milestone.deadline" class="block text-xs text-gray-500">
+                    Due: {{ formatDate(milestone.deadline) }}
+                  </span>
                 </button>
               </div>
             </div>
@@ -703,26 +710,6 @@ export default {
         </div>
       `
     }
-
-    // Computed property for current milestone data
-    const currentMilestoneData = computed(() => {
-      if (!currentDisplayMajor.value) return null;
-      return milestoneDataMap.value[currentDisplayMajor.value] || null;
-    })
-
-    // Computed property for available milestones in the selected major
-    const availableMilestones = computed(() => {
-      if (!selectedMajor.value || !milestoneDataMap.value[selectedMajor.value]) return [];
-      return milestoneDataMap.value[selectedMajor.value].allMilestones || [];
-    })
-
-    // Computed property for filter description
-    const getFilterDescription = computed(() => {
-      const parts = [];
-      if (selectedMajor.value) parts.push(`for ${selectedMajor.value}`);
-      if (selectedMilestoneFilter.value) parts.push(`- ${selectedMilestoneFilter.value.description}`);
-      return parts.length ? parts.join(' ') : '';
-    })
 
     // Function to handle major selection
     const handleMajorSelect = (major) => {
@@ -956,17 +943,22 @@ export default {
     
     onMounted(() => {
       if (userStore.currentUser?.major) {
-        const majors = userStore.currentUser.major
+        const majors = userStore.currentUser.major;
+        console.log('User majors:', majors); // Debug log
+        
         // Set initial major for milestone display
         if (majors.length > 0) {
-          currentDisplayMajor.value = majors[0]
+          currentDisplayMajor.value = majors[0];
+          console.log('Set initial display major to:', majors[0]); // Debug log
         }
+        
         // Load data for all majors
         majors.forEach(majorId => {
-          loadMilestoneData(majorId)
-        })
+          loadMilestoneData(majorId);
+        });
+        
         // Initial submissions fetch
-        fetchSubmissions()
+        fetchSubmissions();
       }
 
       // Add intersection observer for infinite scroll
@@ -1004,11 +996,55 @@ export default {
     // Function to load milestone data for a specific major
     const loadMilestoneData = (majorId) => {
       if (!userStore.currentUser?.uid) return;
-      const data = getMilestoneData(userStore.currentUser.uid, majorId)
+      
+      console.log('Loading milestone data for major:', majorId); // Debug log
+      const data = getMilestoneData(userStore.currentUser.uid, majorId);
+      console.log('Loaded milestone data:', data); // Debug log
+      
       if (data) {
-        milestoneDataMap.value[majorId] = data
+        milestoneDataMap.value[majorId] = data;
+      } else {
+        console.warn(`No milestone data found for major: ${majorId}`);
       }
     }
+
+    // Computed property for current milestone data
+    const currentMilestoneData = computed(() => {
+      if (!currentDisplayMajor.value || !milestoneDataMap.value) {
+        console.log('No current display major or milestone map'); // Debug log
+        return null;
+      }
+      const data = milestoneDataMap.value[currentDisplayMajor.value];
+      console.log('Current milestone data:', data); // Debug log
+      return data || null;
+    });
+
+    // Computed property for available milestones
+    const availableMilestones = computed(() => {
+      if (!selectedMajor.value || !milestoneDataMap.value[selectedMajor.value]) {
+        console.log('No selected major or milestone data for major'); // Debug log
+        return [];
+      }
+      const milestones = milestoneDataMap.value[selectedMajor.value].allMilestones || [];
+      console.log('Available milestones:', milestones); // Debug log
+      return milestones;
+    });
+
+    // Computed property for filter description
+    const getFilterDescription = computed(() => {
+      const parts = [];
+      if (selectedMajor.value) parts.push(`for ${selectedMajor.value}`);
+      if (selectedMilestoneFilter.value) parts.push(`- ${selectedMilestoneFilter.value.description}`);
+      return parts.length ? parts.join(' ') : '';
+    });
+
+    // Watch for changes in currentDisplayMajor
+    watch(currentDisplayMajor, (newMajor) => {
+      if (newMajor) {
+        console.log('Current display major changed to:', newMajor); // Debug log
+        loadMilestoneData(newMajor);
+      }
+    });
 
     // Add click handler for submission card
     const handleSubmissionClick = (submission) => {
@@ -1351,10 +1387,11 @@ export default {
 
     // Modified computed properties for submission counts
     const currentMilestoneSubmissionCount = computed(() => {
-      if (!currentMilestoneData.value?.upcomingMilestone?.description || !currentDisplayMajor.value) return 0;
+      if (!currentMilestoneData.value?.upcomingMilestone?.description || !currentDisplayMajor.value) {
+        return 0;
+      }
       const currentMilestoneDesc = currentMilestoneData.value.upcomingMilestone.description;
       
-      // Count submissions only for the current milestone of the displayed major using allSubmissions
       return allSubmissions.value.filter(submission => 
         submission.milestoneDescription === currentMilestoneDesc &&
         submission.major === currentDisplayMajor.value
@@ -1362,10 +1399,11 @@ export default {
     });
 
     const currentMilestoneReviewedCount = computed(() => {
-      if (!currentMilestoneData.value?.upcomingMilestone?.description || !currentDisplayMajor.value) return 0;
+      if (!currentMilestoneData.value?.upcomingMilestone?.description || !currentDisplayMajor.value) {
+        return 0;
+      }
       const currentMilestoneDesc = currentMilestoneData.value.upcomingMilestone.description;
       
-      // Count reviewed submissions only for the current milestone of the displayed major using allSubmissions
       return allSubmissions.value.filter(submission => 
         submission.milestoneDescription === currentMilestoneDesc &&
         submission.major === currentDisplayMajor.value &&

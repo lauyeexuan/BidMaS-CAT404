@@ -329,7 +329,7 @@
   </template>
   
   <script>
-  import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
+  import { ref, onMounted, computed, watch, onUnmounted, shallowRef } from 'vue'
   import { useUserStore } from '@/stores/userStore'
   import { getMilestones } from '@/utils/milestones'
   import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
@@ -341,14 +341,195 @@
     setup() {
       const userStore = useUserStore()
       const upcomingMilestone = ref(null)
-      const allMilestones = ref([])
+      const allMilestones = shallowRef({})
       const loading = ref(true)
       const error = ref(null)
       const showAllMilestones = ref(false)
       const lecturerMajors = ref([])
       const selectedMajor = ref(null)
-      const milestoneUnsubscribers = ref([]) // Store unsubscribe functions
-      
+      const milestoneUnsubscribers = ref([])
+
+      // Cache timeout in milliseconds (5 minutes)
+      const CACHE_TIMEOUT = 5 * 60 * 1000
+
+      // Modify storeMilestoneData for better caching
+      const storeMilestoneData = (majorId, majorMilestones) => {
+        try {
+          if (!userStore.currentUser?.uid) return;
+          
+          // Find upcoming milestone for this major
+          const now = new Date();
+          const sortedMilestones = [...majorMilestones].sort((a, b) => {
+            const dateA = a.deadline instanceof Date ? a.deadline : a.deadline.toDate();
+            const dateB = b.deadline instanceof Date ? b.deadline : b.deadline.toDate();
+            return dateA - dateB;
+          });
+          
+          const upcomingMilestone = sortedMilestones.find(milestone => {
+            const deadlineDate = milestone.deadline instanceof Date ? 
+              milestone.deadline : 
+              milestone.deadline.toDate();
+            return deadlineDate > now;
+          }) || sortedMilestones[sortedMilestones.length - 1];
+
+          // Create user and major specific key
+          const userMajorKey = `${userStore.currentUser.uid}_${majorId}_milestones`;
+          
+          localStorage.setItem(userMajorKey, JSON.stringify({
+            upcomingMilestone,
+            allMilestones: majorMilestones,
+            lastUpdated: new Date().getTime()
+          }));
+        } catch (err) {
+          console.error('Error storing milestone data:', err);
+        }
+      }
+
+      // Function to get cached milestones
+      const getCachedMilestones = (majorId) => {
+        try {
+          const userMajorKey = `${userStore.currentUser?.uid}_${majorId}_milestones`
+          const cached = localStorage.getItem(userMajorKey)
+          if (cached) {
+            const data = JSON.parse(cached)
+            // Check if cache is still valid (less than 5 minutes old)
+            if (Date.now() - data.lastUpdated < CACHE_TIMEOUT) {
+              console.log(`Using cached milestones for ${majorId}`)
+              return data.milestones
+            }
+          }
+          return null
+        } catch {
+          return null
+        }
+      }
+
+      // Optimize the computed properties
+      const filteredMilestones = computed(() => {
+        if (!selectedMajor.value) return []
+        return allMilestones.value[selectedMajor.value] || []
+      })
+
+      // Optimize currentUpcomingMilestone computation
+      const currentUpcomingMilestone = computed(() => {
+        const milestones = filteredMilestones.value
+        if (!milestones.length) {
+          console.log('No filtered milestones available')
+          return null
+        }
+
+        const now = new Date()
+        // Since list is small, use simple loop
+        let upcoming = null
+        let mostRecent = milestones[0]
+
+        for (const milestone of milestones) {
+          const deadline = milestone.deadline instanceof Date ? 
+            milestone.deadline : new Date(milestone.deadline)
+          
+          // Track most recent milestone
+          if (!mostRecent || deadline > mostRecent.deadline) {
+            mostRecent = milestone
+          }
+
+          // Find first upcoming milestone
+          if (deadline > now && (!upcoming || deadline < upcoming.deadline)) {
+            upcoming = milestone
+          }
+        }
+
+        return upcoming || mostRecent
+      })
+
+      // Function to set up real-time milestone listeners for a major
+      const setupMilestoneListener = async (school, yearId, majorId, majorDocId) => {
+        try {
+          // Get reference to the major document that contains the milestones array
+          const majorRef = doc(
+            db,
+            'schools', school,
+            'projects', yearId,
+            majorId, majorDocId
+          )
+
+          console.log(`Setting up milestone listener for major ${majorId}`)
+
+          // First try to get cached data
+          const cachedData = getCachedMilestones(majorId)
+          if (cachedData) {
+            // Update state with cached data immediately
+            allMilestones.value = {
+              ...allMilestones.value,
+              [majorId]: cachedData
+            }
+          }
+
+          let updateTimeout
+          // Create the listener on the document
+          const unsubscribe = onSnapshot(majorRef, (docSnapshot) => {
+            if (!docSnapshot.exists()) {
+              console.log(`No document found for major ${majorId}`)
+              return
+            }
+
+            // Debounce updates to prevent rapid re-renders
+            clearTimeout(updateTimeout)
+            updateTimeout = setTimeout(() => {
+              const data = docSnapshot.data()
+              // Get the milestones array from the document
+              const milestones = data.milestones || []
+              
+              // Transform the milestones data
+              const updatedMilestones = milestones.map((milestone, index) => {
+                // Ensure deadline is properly handled using our helper function
+                const deadline = getDateFromDeadline(milestone.deadline)
+                
+                return {
+                  ...milestone,
+                  id: `${majorId}_milestone_${index}`, // Create a unique ID
+                  major: majorId,
+                  deadline: deadline // Ensure deadline is a Date object
+                }
+              })
+
+              console.log(`Received ${updatedMilestones.length} milestones for ${majorId}:`, 
+                updatedMilestones.map(m => ({
+                  description: m.description,
+                  deadline: m.deadline,
+                  major: m.major
+                }))
+              )
+
+              // Direct assignment to avoid unnecessary array operations
+              allMilestones.value = {
+                ...allMilestones.value,
+                [majorId]: updatedMilestones
+              }
+
+              // Log the current state after update
+              console.log(`Total milestones after update: ${updatedMilestones.length}`)
+              console.log(`Current selected major: ${selectedMajor.value}`)
+              console.log(`Filtered milestones for current major:`, 
+                filteredMilestones.value
+              )
+
+              // Store in cache with timestamp
+              storeMilestoneData(majorId, updatedMilestones)
+            }, 100) // 100ms debounce
+          }, (err) => {
+            console.error(`Error in milestone listener for ${majorId}:`, err)
+            error.value = `Error receiving milestone updates: ${err.message}`
+          })
+
+          // Store the unsubscribe function
+          milestoneUnsubscribers.value.push(unsubscribe)
+          console.log(`Successfully set up listener for major ${majorId}`)
+        } catch (err) {
+          console.error(`Error setting up milestone listener for ${majorId}:`, err)
+          error.value = `Failed to set up milestone updates: ${err.message}`
+        }
+      }
+
       // Assigned project data
       const projectLoading = ref(true)
       const projectError = ref(null)
@@ -371,16 +552,6 @@
       // Add a flag to track initial load
       const initialLoadDone = ref(false)
   
-      // Computed property to filter milestones based on selected major
-      const filteredMilestones = computed(() => {
-        if (!allMilestones.value) return []
-        if (!selectedMajor.value) return []
-        
-        return allMilestones.value.filter(milestone => 
-          milestone.major === selectedMajor.value
-        )
-      })
-
       // Single watcher for selectedMajor that handles both initial load and subsequent changes
       watch(selectedMajor, async (newMajor, oldMajor) => {
         if (!newMajor) return;
@@ -393,43 +564,6 @@
         console.log('Selected major changed to:', newMajor);
         await fetchSubmissionStats(newMajor);
       });
-
-      // Computed property for the upcoming milestone, filtered by selected major
-      const currentUpcomingMilestone = computed(() => {
-        if (!filteredMilestones.value || filteredMilestones.value.length === 0) {
-          console.log('No filtered milestones available')
-          return null
-        }
-        
-        console.log('Computing current upcoming milestone...')
-        console.log('Filtered milestones:', filteredMilestones.value)
-        
-        const now = new Date()
-        const sortedMilestones = [...filteredMilestones.value].sort((a, b) => {
-          // Ensure we're working with Date objects
-          const dateA = a.deadline instanceof Date ? a.deadline : new Date(a.deadline)
-          const dateB = b.deadline instanceof Date ? b.deadline : new Date(b.deadline)
-          return dateA - dateB
-        })
-        
-        // Find the first upcoming milestone for the selected major
-        const upcoming = sortedMilestones.find(milestone => {
-          const deadlineDate = milestone.deadline instanceof Date ? 
-            milestone.deadline : new Date(milestone.deadline)
-          return deadlineDate > now
-        })
-        
-        if (upcoming) {
-          console.log('Found upcoming milestone:', upcoming)
-        } else if (sortedMilestones.length > 0) {
-          console.log('No upcoming milestones, using most recent:', sortedMilestones[sortedMilestones.length - 1])
-        } else {
-          console.log('No milestones found at all')
-        }
-        
-        // If no upcoming milestone, use the most recent one
-        return upcoming || (sortedMilestones.length > 0 ? sortedMilestones[sortedMilestones.length - 1] : null)
-      })
 
       // Computed property to filter out the current milestone from the list
       const otherMilestones = computed(() => {
@@ -454,21 +588,39 @@
       const isMilestonePast = (milestone) => {
         if (!milestone || !milestone.deadline) return false
         
-        const deadlineDate = milestone.deadline instanceof Date ? 
-          milestone.deadline : 
-          milestone.deadline.toDate()
+        // Safely convert deadline to Date object
+        const deadlineDate = getDateFromDeadline(milestone.deadline)
         
         return new Date() > deadlineDate
+      }
+      
+      // Helper function to safely convert various deadline formats to Date
+      const getDateFromDeadline = (deadline) => {
+        if (!deadline) return new Date()
+        
+        // If already a Date object
+        if (deadline instanceof Date) return deadline
+        
+        // If it's a Firestore Timestamp with toDate method
+        if (deadline.toDate && typeof deadline.toDate === 'function') {
+          return deadline.toDate()
+        }
+        
+        // If it's an ISO string or timestamp number
+        try {
+          return new Date(deadline)
+        } catch (e) {
+          console.error('Invalid date format:', deadline)
+          return new Date()
+        }
       }
       
       // Function to calculate days remaining until deadline
       const getDaysRemaining = (milestone) => {
         if (!milestone || !milestone.deadline) return 0
         
-        const deadlineDate = milestone.deadline instanceof Date ? 
-          milestone.deadline : 
-          milestone.deadline.toDate()
-        
+        // Safely convert deadline to Date object
+        const deadlineDate = getDateFromDeadline(milestone.deadline)
         const now = new Date()
         
         // If deadline has passed, return 0
@@ -723,78 +875,6 @@
         }
       };
       
-      // Function to set up real-time milestone listeners for a major
-      const setupMilestoneListener = async (school, yearId, majorId, majorDocId) => {
-        try {
-          // Get reference to the major document that contains the milestones array
-          const majorRef = doc(
-            db,
-            'schools', school,
-            'projects', yearId,
-            majorId, majorDocId
-          )
-
-          console.log(`Setting up milestone listener for major ${majorId}`)
-
-          // Create the listener on the document
-          const unsubscribe = onSnapshot(majorRef, (docSnapshot) => {
-            if (!docSnapshot.exists()) {
-              console.log(`No document found for major ${majorId}`)
-              return
-            }
-
-            const data = docSnapshot.data()
-            // Get the milestones array from the document
-            const milestones = data.milestones || []
-            
-            // Transform the milestones data
-            const updatedMilestones = milestones.map((milestone, index) => {
-              // Ensure deadline is properly handled
-              const deadline = milestone.deadline?.toDate ? milestone.deadline.toDate() : milestone.deadline
-              
-              return {
-                ...milestone,
-                id: `${majorId}_milestone_${index}`, // Create a unique ID
-                major: majorId,
-                deadline: deadline // Ensure deadline is a Date object
-              }
-            })
-
-            console.log(`Received ${updatedMilestones.length} milestones for ${majorId}:`, 
-              updatedMilestones.map(m => ({
-                description: m.description,
-                deadline: m.deadline,
-                major: m.major
-              }))
-            )
-
-            // Update allMilestones with the new data for this major
-            const existingOtherMilestones = allMilestones.value.filter(m => m.major !== majorId)
-            allMilestones.value = [...existingOtherMilestones, ...updatedMilestones]
-
-            // Log the current state after update
-            console.log(`Total milestones after update: ${allMilestones.value.length}`)
-            console.log(`Current selected major: ${selectedMajor.value}`)
-            console.log(`Filtered milestones for current major:`, 
-              allMilestones.value.filter(m => m.major === selectedMajor.value)
-            )
-
-            // Store milestone data for this major
-            storeMilestoneData(majorId, updatedMilestones)
-          }, (err) => {
-            console.error(`Error in milestone listener for ${majorId}:`, err)
-            error.value = `Error receiving milestone updates: ${err.message}`
-          })
-
-          // Store the unsubscribe function
-          milestoneUnsubscribers.value.push(unsubscribe)
-          console.log(`Successfully set up listener for major ${majorId}`)
-        } catch (err) {
-          console.error(`Error setting up milestone listener for ${majorId}:`, err)
-          error.value = `Failed to set up milestone updates: ${err.message}`
-        }
-      }
-
       // Modify fetchMilestonesData to set up real-time listeners
       const fetchMilestonesData = async () => {
         console.log('Starting fetchMilestonesData')
@@ -864,8 +944,8 @@
         if (!date) return ''
         
         try {
-          // Convert from timestamp if needed
-          const dateObj = date instanceof Date ? date : date.toDate()
+          // Convert from timestamp if needed using our helper
+          const dateObj = getDateFromDeadline(date)
           
           return dateObj.toLocaleString('en-US', {
             year: 'numeric', 
@@ -873,6 +953,7 @@
             day: 'numeric'
           })
         } catch (err) {
+          console.error('Error formatting date:', err)
           return 'Invalid date'
         }
       }
@@ -1199,39 +1280,6 @@
       // Add a function to clear the cache if needed
       const clearSubmissionStatsCache = () => {
         submissionStatsCache.value = {};
-      };
-  
-      // Add this function in setup() to store milestone data
-      const storeMilestoneData = (majorId, majorMilestones) => {
-        try {
-          if (!userStore.currentUser?.uid) return;
-          
-          // Find upcoming milestone for this major
-          const now = new Date();
-          const sortedMilestones = [...majorMilestones].sort((a, b) => {
-            const dateA = a.deadline instanceof Date ? a.deadline : a.deadline.toDate();
-            const dateB = b.deadline instanceof Date ? b.deadline : b.deadline.toDate();
-            return dateA - dateB;
-          });
-          
-          const upcomingMilestone = sortedMilestones.find(milestone => {
-            const deadlineDate = milestone.deadline instanceof Date ? 
-              milestone.deadline : 
-              milestone.deadline.toDate();
-            return deadlineDate > now;
-          }) || sortedMilestones[sortedMilestones.length - 1];
-
-          // Create user and major specific key
-          const userMajorKey = `${userStore.currentUser.uid}_${majorId}_milestones`;
-          
-          localStorage.setItem(userMajorKey, JSON.stringify({
-            upcomingMilestone,
-            allMilestones: majorMilestones,
-            lastUpdated: new Date().getTime()
-          }));
-        } catch (err) {
-          console.error('Error storing milestone data:', err);
-        }
       };
   
       // Add cleanup on component unmount
