@@ -34,6 +34,17 @@
             class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
+        
+        <div class="flex items-center">
+          <span class="mr-2 text-sm font-medium text-gray-700">Scoring Method:</span>
+          <label class="inline-flex items-center cursor-pointer">
+            <input type="checkbox" v-model="useWeightedScoring" class="sr-only peer">
+            <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <span class="ml-2 text-sm font-medium text-gray-700">
+              {{ useWeightedScoring ? 'Weighted Top-3' : 'Best Match' }}
+            </span>
+          </label>
+        </div>
       </div>
   
       <!-- Loading State -->
@@ -203,6 +214,7 @@
       const userNames = ref({})
       const userIdsToFetch = new Set()
       const availableMajors = ref([])
+      const useWeightedScoring = ref(true)
   
       // Fetch lecturer specifications
       const fetchLecturerSpecs = async () => {
@@ -567,47 +579,88 @@
               score: specScoresMap[spec] || 0 // Default to 0 if not found
             }));
             
-            // Calculate average score
-            const avgScore = specScores.reduce((sum, item) => sum + item.score, 0) / specScores.length;
+            // Find highest single score (Best Match approach)
+            const highestScore = specScores.length > 0 
+              ? Math.max(...specScores.map(item => item.score)) 
+              : 0;
+            
+            // Calculate weighted score (new method)
+            // Sort specifications by score (highest first)
+            const sortedScores = [...specScores].sort((a, b) => b.score - a.score);
+            
+            // Apply weights: 60% to top score, 30% to second, 10% to third
+            let weightedScore = 0;
+            if (sortedScores.length > 0) {
+              weightedScore += sortedScores[0].score * 0.6; // Top score gets 60% weight
+              
+              if (sortedScores.length > 1) {
+                weightedScore += sortedScores[1].score * 0.3; // Second score gets 30% weight
+                
+                if (sortedScores.length > 2) {
+                  weightedScore += sortedScores[2].score * 0.1; // Third score gets 10% weight
+                } else {
+                  weightedScore += sortedScores[0].score * 0.1; // If only 2 specs, top gets extra weight
+                }
+              } else {
+                weightedScore += sortedScores[0].score * 0.4; // If only 1 spec, it gets full weight
+              }
+            }
             
             // Find top scoring specifications (scores above 0.5 threshold)
             const matchingSpecs = specScores
               .filter(spec => spec.score > 0.5)
               .sort((a, b) => b.score - a.score);
             
+            // Find the specification with the highest score
+            const bestMatch = sortedScores.length > 0 ? sortedScores[0] : null;
+            
             return {
               ...lecturer,
               specScores,
-              avgScore,
-              matchingSpecs
+              highestScore,
+              weightedScore,
+              matchingSpecs,
+              bestMatch,
+              // Use either weighted or highest score based on the toggle
+              finalScore: useWeightedScoring.value ? weightedScore : highestScore
             };
           });
           
-          // Sort by average score
-          const rankedExaminers = detailedResults.sort((a, b) => b.avgScore - a.avgScore);
+          // Sort by final score (either weighted or highest based on toggle)
+          const rankedExaminers = detailedResults.sort((a, b) => b.finalScore - a.finalScore);
           
           console.log("Classification Results:");
           console.log("---------------------");
+          console.log("Using scoring method:", useWeightedScoring.value ? "Weighted Top-3" : "Best Match");
           
           // Log detailed results for each lecturer
           rankedExaminers.forEach((examiner, index) => {
             console.log(`\n${index + 1}. ${examiner.name}`);
-            console.log(`Overall Match: ${(examiner.avgScore * 100).toFixed(2)}%`);
+            console.log(`Overall Match: ${Math.round(examiner.finalScore * 100)}%`);
+            if (useWeightedScoring.value) {
+              console.log(`(Weighted score: ${Math.round(examiner.weightedScore * 100)}%, Best match: ${Math.round(examiner.highestScore * 100)}%)`);
+            } else {
+              // For Best Match approach, show the specification with highest score
+              if (examiner.bestMatch) {
+                console.log(`Best matching specification: ${examiner.bestMatch.spec} (${Math.round(examiner.bestMatch.score * 100)}%)`);
+              }
+            }
             console.log("Specification Breakdown:");
             examiner.specScores.forEach(specScore => {
-              console.log(`  - ${specScore.spec}: ${(specScore.score * 100).toFixed(2)}%`);
+              console.log(`  - ${specScore.spec}: ${Math.round(specScore.score * 100)}%`);
             });
             
             if (examiner.matchingSpecs.length > 0) {
               console.log("Strong Matches:");
               examiner.matchingSpecs.forEach(match => {
-                console.log(`  * ${match.spec}: ${(match.score * 100).toFixed(2)}%`);
+                console.log(`  * ${match.spec}: ${Math.round(match.score * 100)}%`);
               });
             }
           });
           
           console.log("\n---------------------");
           console.log("Best match:", rankedExaminers[0].name);
+          console.log("Using scoring method:", useWeightedScoring.value ? "Weighted Top-3" : "Best Match");
           
         } catch (error) {
           console.error("Error finding examiners:", error);
@@ -637,7 +690,8 @@
         endIndex,
         paginatedProgressData,
         getInitials,
-        findExaminers
+        findExaminers,
+        useWeightedScoring
       }
     }
   }
