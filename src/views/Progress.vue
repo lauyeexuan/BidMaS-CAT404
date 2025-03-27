@@ -87,8 +87,7 @@
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm">
                   <span 
-                    class="px-2.5 py-1 rounded-full text-xs font-medium shadow-sm"
-                    :class="getMajorColorClasses(item.major)"
+                    class="px-2.5 py-1 rounded-full text-xs font-medium shadow-sm bg-blue-100 text-blue-800"
                   >
                     {{ item.major }}
                   </span>
@@ -505,22 +504,6 @@
           .toUpperCase()
       }
   
-      const getMajorColorClasses = (major) => {
-        switch (major) {
-          case 'Computer Science':
-            return 'bg-blue-100 text-blue-800'
-          case 'Mathematics':
-            return 'bg-green-100 text-green-800'
-          case 'Physics':
-            return 'bg-yellow-100 text-yellow-800'
-          case 'Chemistry':
-            return 'bg-pink-100 text-pink-800'
-          case 'Biology':
-            return 'bg-teal-100 text-teal-800'
-          default:
-            return 'bg-gray-100 text-gray-800'
-        }
-      }
       const findExaminers = async (studentProject) => {
         try {
           // Check if we have project description
@@ -553,30 +536,52 @@
               specs: specs
             };
           }).filter(item => item !== null);
+
+          // Collect all unique specifications
+          const allSpecs = [...new Set(lecturerLabels.flatMap(lecturer => lecturer.specs))];
           
-          // For each lecturer, classify against each of their specifications
-          const detailedResults = await Promise.all(lecturerLabels.map(async lecturer => {
-            // Classify against each specification individually
-            const specScores = await Promise.all(lecturer.specs.map(async spec => {
-              const result = await zeroShotClassification(
-                studentProject.projectDescription,
-                [spec]
-              );
-              return {
-                spec: spec,
-                score: result.scores[0]
-              };
+          console.log("Making single API call with all specifications:", allSpecs);
+          
+          // Make a single API call with all specifications using multi-label = true
+          const result = await zeroShotClassification(
+            studentProject.projectDescription,
+            allSpecs,
+            true // Enable multi-label classification
+          );
+          
+          console.log("API Response:", result);
+          
+          // Create a map of specification scores directly from the response
+          // This ensures correct mapping between labels and scores
+          const specScoresMap = {};
+          if (result.labels && result.scores) {
+            result.labels.forEach((label, index) => {
+              specScoresMap[label] = result.scores[index];
+            });
+          }
+          
+          // Calculate scores for each lecturer using the score map
+          const detailedResults = lecturerLabels.map(lecturer => {
+            const specScores = lecturer.specs.map(spec => ({
+              spec,
+              score: specScoresMap[spec] || 0 // Default to 0 if not found
             }));
             
             // Calculate average score
             const avgScore = specScores.reduce((sum, item) => sum + item.score, 0) / specScores.length;
             
+            // Find top scoring specifications (scores above 0.5 threshold)
+            const matchingSpecs = specScores
+              .filter(spec => spec.score > 0.5)
+              .sort((a, b) => b.score - a.score);
+            
             return {
               ...lecturer,
               specScores,
-              avgScore
+              avgScore,
+              matchingSpecs
             };
-          }));
+          });
           
           // Sort by average score
           const rankedExaminers = detailedResults.sort((a, b) => b.avgScore - a.avgScore);
@@ -592,6 +597,13 @@
             examiner.specScores.forEach(specScore => {
               console.log(`  - ${specScore.spec}: ${(specScore.score * 100).toFixed(2)}%`);
             });
+            
+            if (examiner.matchingSpecs.length > 0) {
+              console.log("Strong Matches:");
+              examiner.matchingSpecs.forEach(match => {
+                console.log(`  * ${match.spec}: ${(match.score * 100).toFixed(2)}%`);
+              });
+            }
           });
           
           console.log("\n---------------------");
@@ -625,7 +637,6 @@
         endIndex,
         paginatedProgressData,
         getInitials,
-        getMajorColorClasses,
         findExaminers
       }
     }

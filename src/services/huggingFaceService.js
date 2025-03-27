@@ -4,13 +4,16 @@ import axios from 'axios';
 const API_KEY = import.meta.env.VITE_HUGGING_FACE_API_KEY;
 
 // Zero-shot classification service
-export const zeroShotClassification = async (text, candidateLabels) => {
+export const zeroShotClassification = async (text, candidateLabels, multiLabel) => {
   try {
     const response = await axios.post(
       "https://router.huggingface.co/hf-inference/models/facebook/bart-large-mnli",
       {
         inputs: text,
-        parameters: { candidate_labels: candidateLabels }
+        parameters: { 
+          candidate_labels: candidateLabels,
+          multi_label: multiLabel 
+        }
       },
       {
         headers: { 
