@@ -13,6 +13,7 @@ import LecturerFeedback from '@/views/LecturerFeedback.vue'
 import DataMigration from '@/components/DataMigration.vue'
 import AccountManagement from '@/views/AccountManagement.vue'
 import Community from '@/views/Community.vue'
+import Progress from '@/views/Progress.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -49,6 +50,15 @@ const router = createRouter({
       meta: { 
         requiresAuth: true,
         requiresAdmin: true
+      }
+    },
+    {
+      path: '/progress',
+      name: 'progress',
+      component: Progress,
+      meta: { 
+        requiresAuth: true,
+        requiresAdmin: true // Only accessible by admins
       }
     },
     {
