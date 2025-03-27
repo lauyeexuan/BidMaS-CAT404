@@ -329,12 +329,12 @@
   </template>
   
   <script>
-  import { ref, onMounted, computed, watch } from 'vue'
+  import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
   import { useUserStore } from '@/stores/userStore'
   import { getMilestones } from '@/utils/milestones'
   import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
   import { db } from '@/firebase'
-  import { collection, getDocs, query, limit, where, doc, getDoc } from 'firebase/firestore'
+  import { collection, getDocs, query, limit, where, doc, getDoc, onSnapshot } from 'firebase/firestore'
   import '@/assets/styles/dashboard.css'
   
   export default {
@@ -346,7 +346,8 @@
       const error = ref(null)
       const showAllMilestones = ref(false)
       const lecturerMajors = ref([])
-      const selectedMajor = ref(null)  // Will be set to first major after fetching
+      const selectedMajor = ref(null)
+      const milestoneUnsubscribers = ref([]) // Store unsubscribe functions
       
       // Assigned project data
       const projectLoading = ref(true)
@@ -395,25 +396,39 @@
 
       // Computed property for the upcoming milestone, filtered by selected major
       const currentUpcomingMilestone = computed(() => {
-        if (!filteredMilestones.value || filteredMilestones.value.length === 0) return null
+        if (!filteredMilestones.value || filteredMilestones.value.length === 0) {
+          console.log('No filtered milestones available')
+          return null
+        }
+        
+        console.log('Computing current upcoming milestone...')
+        console.log('Filtered milestones:', filteredMilestones.value)
         
         const now = new Date()
         const sortedMilestones = [...filteredMilestones.value].sort((a, b) => {
-          const dateA = a.deadline instanceof Date ? a.deadline : a.deadline.toDate()
-          const dateB = b.deadline instanceof Date ? b.deadline : b.deadline.toDate()
+          // Ensure we're working with Date objects
+          const dateA = a.deadline instanceof Date ? a.deadline : new Date(a.deadline)
+          const dateB = b.deadline instanceof Date ? b.deadline : new Date(b.deadline)
           return dateA - dateB
         })
         
         // Find the first upcoming milestone for the selected major
         const upcoming = sortedMilestones.find(milestone => {
           const deadlineDate = milestone.deadline instanceof Date ? 
-            milestone.deadline : 
-            milestone.deadline.toDate()
+            milestone.deadline : new Date(milestone.deadline)
           return deadlineDate > now
         })
         
+        if (upcoming) {
+          console.log('Found upcoming milestone:', upcoming)
+        } else if (sortedMilestones.length > 0) {
+          console.log('No upcoming milestones, using most recent:', sortedMilestones[sortedMilestones.length - 1])
+        } else {
+          console.log('No milestones found at all')
+        }
+        
         // If no upcoming milestone, use the most recent one
-        return upcoming || sortedMilestones[sortedMilestones.length - 1]
+        return upcoming || (sortedMilestones.length > 0 ? sortedMilestones[sortedMilestones.length - 1] : null)
       })
 
       // Computed property to filter out the current milestone from the list
@@ -461,7 +476,7 @@
         
         // Calculate days remaining
         const diffTime = Math.abs(deadlineDate - now)
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
         
         return diffDays
       }
@@ -708,107 +723,141 @@
         }
       };
       
-      // Function to fetch just the milestones data
-      const fetchMilestonesData = async () => {
-        console.log('Starting fetchMilestonesData');
-        loading.value = true;
-        
+      // Function to set up real-time milestone listeners for a major
+      const setupMilestoneListener = async (school, yearId, majorId, majorDocId) => {
         try {
-          // Check if user is authenticated and has necessary data
-          if (!userStore.isAuthenticated || !userStore.currentUser) {
-            console.log('User not authenticated in fetchMilestonesData');
-            error.value = 'User not authenticated';
-            return;
-          }
+          // Get reference to the major document that contains the milestones array
+          const majorRef = doc(
+            db,
+            'schools', school,
+            'projects', yearId,
+            majorId, majorDocId
+          )
 
-          // Get user data
-          const { school, uid } = userStore.currentUser;
-          
-          if (!school) {
-            console.log('Missing school information in fetchMilestonesData');
-            error.value = 'Missing school information';
-            return;
-          }
-          
-          // Get latest academic year
-          const academicYearData = await getLatestAcademicYear(school);
-          
-          if (!academicYearData?.yearId) {
-            console.log('Failed to determine academic year in fetchMilestonesData');
-            error.value = 'Failed to determine academic year';
-            return;
-          }
-          
-          const yearId = academicYearData.yearId;
-          
-          if (!lecturerMajors.value || lecturerMajors.value.length === 0) {
-            console.log('No lecturer majors available in fetchMilestonesData');
-            error.value = 'No majors assigned to lecturer';
-            return;
-          }
-          
-          const majorIds = lecturerMajors.value;
+          console.log(`Setting up milestone listener for major ${majorId}`)
 
-          // OPTIMIZATION: Batch the majorDocId queries
-          // Create an array of promises to get all majorDocIds in parallel
-          const majorDocIdPromises = majorIds.map(majorId => 
-            getMajorDocId(school, yearId, majorId)
-          );
-          
-          // Execute all majorDocId queries in parallel
-          const majorDocIds = await Promise.all(majorDocIdPromises);
-          console.log('Fetched all majorDocIds in parallel');
-          
-          // Create an array of promises to get all milestones in parallel
-          const milestonesPromises = [];
-          
-          // For each major with a valid docId, create a milestone fetch promise
-          majorIds.forEach((majorId, index) => {
-            const majorDocId = majorDocIds[index];
-            if (!majorDocId) return; // Skip if no docId found
+          // Create the listener on the document
+          const unsubscribe = onSnapshot(majorRef, (docSnapshot) => {
+            if (!docSnapshot.exists()) {
+              console.log(`No document found for major ${majorId}`)
+              return
+            }
+
+            const data = docSnapshot.data()
+            // Get the milestones array from the document
+            const milestones = data.milestones || []
             
-            milestonesPromises.push(
-              getMilestones(school, yearId, majorId, majorDocId)
-                .then(milestones => {
-                  const majorMilestones = milestones.map(milestone => ({
-                    ...milestone,
-                    major: majorId
-                  }));
-                  
-                  // Store milestone data for this major in localStorage
-                  storeMilestoneData(majorId, majorMilestones);
-                  
-                  return majorMilestones;
-                })
-                .catch(err => {
-                  console.error(`Error fetching milestones for major ${majorId}:`, err);
-                  return [];
-                })
-            );
-          });
-          
-          // Execute all milestone fetch promises in parallel
-          const milestonesArrays = await Promise.all(milestonesPromises);
-          const combinedMilestones = milestonesArrays.flat();
+            // Transform the milestones data
+            const updatedMilestones = milestones.map((milestone, index) => {
+              // Ensure deadline is properly handled
+              const deadline = milestone.deadline?.toDate ? milestone.deadline.toDate() : milestone.deadline
+              
+              return {
+                ...milestone,
+                id: `${majorId}_milestone_${index}`, // Create a unique ID
+                major: majorId,
+                deadline: deadline // Ensure deadline is a Date object
+              }
+            })
 
-          if (combinedMilestones.length > 0) {
-            // Store all milestones
-            allMilestones.value = combinedMilestones;
-            console.log('Milestones loaded:', combinedMilestones.length, 'Selected major:', selectedMajor.value);
-          } else {
-            console.log('No milestones found');
-          }
-          
-          return combinedMilestones;
+            console.log(`Received ${updatedMilestones.length} milestones for ${majorId}:`, 
+              updatedMilestones.map(m => ({
+                description: m.description,
+                deadline: m.deadline,
+                major: m.major
+              }))
+            )
+
+            // Update allMilestones with the new data for this major
+            const existingOtherMilestones = allMilestones.value.filter(m => m.major !== majorId)
+            allMilestones.value = [...existingOtherMilestones, ...updatedMilestones]
+
+            // Log the current state after update
+            console.log(`Total milestones after update: ${allMilestones.value.length}`)
+            console.log(`Current selected major: ${selectedMajor.value}`)
+            console.log(`Filtered milestones for current major:`, 
+              allMilestones.value.filter(m => m.major === selectedMajor.value)
+            )
+
+            // Store milestone data for this major
+            storeMilestoneData(majorId, updatedMilestones)
+          }, (err) => {
+            console.error(`Error in milestone listener for ${majorId}:`, err)
+            error.value = `Error receiving milestone updates: ${err.message}`
+          })
+
+          // Store the unsubscribe function
+          milestoneUnsubscribers.value.push(unsubscribe)
+          console.log(`Successfully set up listener for major ${majorId}`)
         } catch (err) {
-          console.error('Error in fetchMilestonesData:', err);
-          error.value = `Failed to load milestone data: ${err.message}`;
-          throw err;
-        } finally {
-          loading.value = false;
-          console.log('fetchMilestonesData completed');
+          console.error(`Error setting up milestone listener for ${majorId}:`, err)
+          error.value = `Failed to set up milestone updates: ${err.message}`
         }
-      };
+      }
+
+      // Modify fetchMilestonesData to set up real-time listeners
+      const fetchMilestonesData = async () => {
+        console.log('Starting fetchMilestonesData')
+        loading.value = true
+
+        try {
+          if (!userStore.isAuthenticated || !userStore.currentUser) {
+            console.log('User not authenticated in fetchMilestonesData')
+            error.value = 'User not authenticated'
+            return
+          }
+
+          const { school, uid } = userStore.currentUser
+
+          if (!school) {
+            console.log('Missing school information in fetchMilestonesData')
+            error.value = 'Missing school information'
+            return
+          }
+
+          const academicYearData = await getLatestAcademicYear(school)
+
+          if (!academicYearData?.yearId) {
+            console.log('Failed to determine academic year in fetchMilestonesData')
+            error.value = 'Failed to determine academic year'
+            return
+          }
+
+          const yearId = academicYearData.yearId
+
+          if (!lecturerMajors.value || lecturerMajors.value.length === 0) {
+            console.log('No lecturer majors available in fetchMilestonesData')
+            error.value = 'No majors assigned to lecturer'
+            return
+          }
+
+          // Clear existing listeners
+          milestoneUnsubscribers.value.forEach(unsubscribe => unsubscribe())
+          milestoneUnsubscribers.value = []
+
+          // Get majorDocIds in parallel
+          const majorDocIdPromises = lecturerMajors.value.map(majorId =>
+            getMajorDocId(school, yearId, majorId)
+          )
+
+          const majorDocIds = await Promise.all(majorDocIdPromises)
+
+          // Set up real-time listeners for each major
+          lecturerMajors.value.forEach((majorId, index) => {
+            const majorDocId = majorDocIds[index]
+            if (majorDocId) {
+              setupMilestoneListener(school, yearId, majorId, majorDocId)
+            }
+          })
+
+        } catch (err) {
+          console.error('Error in fetchMilestonesData:', err)
+          error.value = `Failed to load milestone data: ${err.message}`
+        } finally {
+          loading.value = false
+          console.log('fetchMilestonesData completed')
+        }
+      }
   
       // Format date for display
       const formatDate = (date) => {
@@ -1184,6 +1233,13 @@
           console.error('Error storing milestone data:', err);
         }
       };
+  
+      // Add cleanup on component unmount
+      onUnmounted(() => {
+        // Clean up all milestone listeners
+        milestoneUnsubscribers.value.forEach(unsubscribe => unsubscribe())
+        milestoneUnsubscribers.value = []
+      })
   
       return {
         upcomingMilestone,
