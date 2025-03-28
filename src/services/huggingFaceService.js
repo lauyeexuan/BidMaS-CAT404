@@ -7,7 +7,7 @@ const API_KEY = import.meta.env.VITE_HUGGING_FACE_API_KEY;
 export const zeroShotClassification = async (text, candidateLabels, multiLabel) => {
   try {
     const response = await axios.post(
-      "https://router.huggingface.co/hf-inference/models/facebook/bart-large-mnli",
+      "https://router.huggingface.co/hf-inference/models/joeddav/bart-large-mnli-yahoo-answers",    
       {
         inputs: text,
         parameters: { 
@@ -28,4 +28,4 @@ export const zeroShotClassification = async (text, candidateLabels, multiLabel) 
     console.error("Error calling Hugging Face API:", error);
     throw error;
   }
-};
+  };
