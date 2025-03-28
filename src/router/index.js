@@ -14,6 +14,7 @@ import DataMigration from '@/components/DataMigration.vue'
 import AccountManagement from '@/views/AccountManagement.vue'
 import Community from '@/views/Community.vue'
 import Progress from '@/views/Progress.vue'
+import AdminProgressDashboard from '@/views/AdminProgressDashboard.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -119,6 +120,15 @@ const router = createRouter({
       meta: { 
         requiresAuth: true,
         requiresAdmin: true  // Restrict to admin only for safety
+      }
+    },
+    {
+      path: '/admin/progress-dashboard',
+      name: 'AdminProgressDashboard',
+      component: AdminProgressDashboard,
+      meta: {
+        requiresAuth: true,
+        allowedRoles: ['admin']
       }
     },
     // {
