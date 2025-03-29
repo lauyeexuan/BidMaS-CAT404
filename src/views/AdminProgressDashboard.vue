@@ -63,27 +63,61 @@
         </div>
         
         <div class="w-full overflow-x-auto">
-          <div class="flex min-w-max pb-4 text-sm">
-            <div v-for="(milestone, index) in majorMilestones" :key="milestone.id" 
-                 class="flex flex-col items-center" 
-                 :class="{'w-32': true, 'relative': true}">
-              <div class="font-medium">{{ milestone.name }}</div>
-              <div class="text-xs text-gray-500 mb-2">{{ milestone.dueDate }}</div>
-              <div class="w-full h-1" 
-                   :class="getMilestoneStatusClass(milestone, index)"></div>
-              
-              <!-- Current milestone indicator -->
-              <div v-if="isMilestoneCurrent(milestone)" class="absolute -bottom-4 left-1/2 transform -translate-x-1/2 text-xs font-semibold text-blue-600">
-                Current
+          <div class="relative py-8">
+            <!-- Timeline line -->
+            <div class="absolute h-1 bg-gray-200 w-full top-1/2 transform -translate-y-1/2">
+              <!-- Completed portion of the line -->
+              <div class="absolute h-full bg-green-500 w-[28.5%]"></div>
+            </div>
+            
+            <!-- Milestones -->
+            <div class="relative flex justify-between">
+              <div v-for="milestone in majorMilestones" 
+                   :key="milestone.id" 
+                   class="flex flex-col items-center relative"
+                   style="flex: 1">
+                <!-- Circle -->
+                <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center z-10 bg-white"
+                     :class="{
+                       'bg-green-500 border-green-500': milestone.id === 'proposal' || milestone.id === 'literature',
+                       'bg-yellow-500 border-yellow-500': milestone.id === 'methodology',
+                       'bg-white border-gray-300': !['proposal', 'literature', 'methodology'].includes(milestone.id)
+                     }">
+                  <svg v-if="milestone.id === 'proposal' || milestone.id === 'literature'" 
+                       class="w-4 h-4 text-white" 
+                       fill="none" 
+                       stroke="currentColor" 
+                       viewBox="0 0 24 24">
+                    <path stroke-linecap="round" 
+                          stroke-linejoin="round" 
+                          stroke-width="2" 
+                          d="M5 13l4 4L19 7">
+                    </path>
+                  </svg>
+                </div>
+                
+                <!-- Label above -->
+                <div class="absolute -top-8 w-full text-center">
+                  <div class="text-xs font-medium text-gray-600">{{ milestone.name }}</div>
+                </div>
+                
+                <!-- Date below -->
+                <div class="absolute -bottom-8 w-full text-center">
+                  <div class="text-xs text-gray-500">{{ milestone.dueDate }}</div>
+                  <div v-if="milestone.id === 'methodology'" 
+                       class="text-xs font-semibold text-yellow-600 mt-1">
+                    Current
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
         
-        <div class="flex justify-between mt-8 mb-2 text-sm">
+        <div class="flex justify-between mt-12 mb-2 text-sm">
           <div class="flex items-center">
             <span class="font-semibold mr-2">Current Milestone:</span> 
-            <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-md">
+            <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-md">
               {{ getCurrentMilestoneName() }}
             </span>
           </div>
