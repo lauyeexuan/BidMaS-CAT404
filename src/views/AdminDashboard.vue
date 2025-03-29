@@ -317,12 +317,12 @@
 </template>
 
 <script>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useUserStore } from '@/stores/userStore'
 import { getMilestones } from '@/utils/milestones'
 import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
 import { db } from '@/firebase'
-import { collection, getDocs, query, where, doc, getDoc, limit } from 'firebase/firestore'
+import { collection, getDocs, query, where, doc, getDoc, limit, onSnapshot } from 'firebase/firestore'
 
 export default {
   setup() {
@@ -351,6 +351,70 @@ export default {
     // In the setup function, add a projectStatsCache ref
     const projectStatsCache = ref({})
 
+    // Replace single unsubscribe with a map of unsubscribe functions
+    const unsubscribeMilestonesMap = ref({})
+
+    // Add new functions for session storage handling
+    const storeMilestoneData = (majorId, milestones) => {
+      try {
+        if (!userStore.currentUser?.uid) {
+          console.warn('No user ID available for storing milestone data');
+          return;
+        }
+        
+        console.log(`Storing milestone data for major ${majorId}`, {
+          milestonesCount: milestones.length
+        });
+        
+        // Create user and major specific key
+        const userMajorKey = `${userStore.currentUser.uid}_${majorId}_milestones`;
+        
+        // Convert Firestore timestamps to ISO strings before storage
+        const processedMilestones = milestones.map(milestone => {
+          const deadlineDate = milestone.deadline instanceof Date ? 
+            milestone.deadline : 
+            (milestone.deadline?.toDate ? milestone.deadline.toDate() : new Date(milestone.deadline));
+          
+          return {
+            ...milestone,
+            deadline: deadlineDate.toISOString()
+          };
+        });
+        
+        const storageData = {
+          milestones: processedMilestones,
+          lastUpdated: new Date().getTime()
+        };
+        
+        sessionStorage.setItem(userMajorKey, JSON.stringify(storageData));
+      } catch (err) {
+        console.error('Error storing milestone data:', err);
+      }
+    }
+
+    const getMilestonesFromSessionStorage = (majorId) => {
+      try {
+        if (!userStore.currentUser?.uid) return null;
+        
+        // Create user and major specific key
+        const userMajorKey = `${userStore.currentUser.uid}_${majorId}_milestones`;
+        const storedData = sessionStorage.getItem(userMajorKey);
+        
+        if (!storedData) return null;
+        
+        const parsedData = JSON.parse(storedData);
+        
+        // Convert ISO strings back to Date objects
+        return parsedData.milestones.map(milestone => ({
+          ...milestone,
+          deadline: new Date(milestone.deadline)
+        }));
+      } catch (err) {
+        console.error('Error retrieving milestone data from session storage:', err);
+        return null;
+      }
+    }
+
     // Computed property to filter milestones based on selected major
     const filteredMilestones = computed(() => {
       if (!allMilestones.value) return []
@@ -375,8 +439,12 @@ export default {
       console.log('Current time:', now)
       
       const sortedMilestones = [...filteredMilestones.value].sort((a, b) => {
-        const dateA = a.deadline instanceof Date ? a.deadline : a.deadline.toDate()
-        const dateB = b.deadline instanceof Date ? b.deadline : b.deadline.toDate()
+        const dateA = a.deadline instanceof Date ? 
+          a.deadline : 
+          (a.deadline?.toDate ? a.deadline.toDate() : new Date(a.deadline))
+        const dateB = b.deadline instanceof Date ? 
+          b.deadline : 
+          (b.deadline?.toDate ? b.deadline.toDate() : new Date(b.deadline))
         return dateA - dateB
       })
       console.log('Sorted milestones:', sortedMilestones)
@@ -385,7 +453,7 @@ export default {
       const upcoming = sortedMilestones.find(milestone => {
         const deadlineDate = milestone.deadline instanceof Date ? 
           milestone.deadline : 
-          milestone.deadline.toDate()
+          (milestone.deadline?.toDate ? milestone.deadline.toDate() : new Date(milestone.deadline))
         console.log('Checking milestone:', milestone.description, 'deadline:', deadlineDate)
         const isUpcoming = deadlineDate > now
         console.log('Is upcoming:', isUpcoming)
@@ -420,7 +488,7 @@ export default {
       
       const deadlineDate = milestone.deadline instanceof Date ? 
         milestone.deadline : 
-        milestone.deadline.toDate()
+        (milestone.deadline?.toDate ? milestone.deadline.toDate() : new Date(milestone.deadline))
       
       return new Date() > deadlineDate
     }
@@ -430,7 +498,7 @@ export default {
       
       const deadlineDate = milestone.deadline instanceof Date ? 
         milestone.deadline : 
-        milestone.deadline.toDate()
+        (milestone.deadline?.toDate ? milestone.deadline.toDate() : new Date(milestone.deadline))
       
       const now = new Date()
       
@@ -466,13 +534,16 @@ export default {
     const formatDate = (date) => {
       if (!date) return ''
       try {
-        const dateObj = date instanceof Date ? date : date.toDate()
+        const dateObj = date instanceof Date ? 
+          date : 
+          (date?.toDate ? date.toDate() : new Date(date))
         return dateObj.toLocaleString('en-US', {
           year: 'numeric',
           month: 'long',
           day: 'numeric'
         })
       } catch (err) {
+        console.error('Error formatting date:', err)
         return 'Invalid date'
       }
     }
@@ -499,88 +570,116 @@ export default {
       }
     }
 
-    // Add the fetchMilestonesData function
+    // Simplified fetchMilestonesData function
     const fetchMilestonesData = async () => {
-      loading.value = true
-      error.value = null
+      loading.value = true;
+      error.value = null;
       
       try {
         if (!userStore.currentUser?.school) {
-          throw new Error('School information not found')
+          throw new Error('School information not found');
         }
 
-        const school = userStore.currentUser.school
-        console.log('Fetching milestones for school:', school)
-        
-        const academicYearData = await getLatestAcademicYear(school)
-        console.log('Academic year data:', academicYearData)
+        const school = userStore.currentUser.school;
+        const academicYearData = await getLatestAcademicYear(school);
         
         if (!academicYearData?.yearId) {
-          throw new Error('Failed to determine academic year')
+          throw new Error('Failed to determine academic year');
         }
 
-        const yearId = academicYearData.yearId
-        console.log('Using year ID:', yearId)
+        const yearId = academicYearData.yearId;
 
         // Get all majors first if not already loaded
         if (schoolMajors.value.length === 0) {
-          await fetchSchoolMajors()
+          await fetchSchoolMajors();
         }
-        console.log('Available majors:', schoolMajors.value)
-        
-        // Create an array of promises to get all milestones in parallel
-        const milestonesPromises = schoolMajors.value.map(async majorId => {
-          try {
-            console.log(`Fetching milestones for major: ${majorId}`)
-            // First get the major document ID
-            const majorCollectionRef = collection(db, 'schools', school, 'projects', yearId, majorId)
-            const majorDocsQuery = query(majorCollectionRef, limit(1))
-            const majorDocsSnapshot = await getDocs(majorDocsQuery)
-            
-            if (majorDocsSnapshot.empty) {
-              console.log(`No documents found for major ${majorId}`)
-              return []
-            }
-            
-            const majorDoc = majorDocsSnapshot.docs[0]
-            console.log(`Found major document for ${majorId}:`, majorDoc.id)
-            const majorData = majorDoc.data()
-            console.log(`Major data for ${majorId}:`, majorData)
-            
-            // Get milestones array from the document data
-            const milestones = majorData.milestones || []
-            console.log(`Raw milestones for ${majorId}:`, milestones)
-            
-            // Map the milestones and add the major ID
+
+        // If no majors found, return early
+        if (schoolMajors.value.length === 0) {
+          console.log('No majors found');
+          return;
+        }
+
+        // First, try to get the selected major's data (or first major if none selected)
+        const primaryMajor = selectedMajor.value || schoolMajors.value[0];
+        console.log('Loading primary major first:', primaryMajor);
+
+        // Check session storage for primary major
+        const cachedPrimaryMilestones = getMilestonesFromSessionStorage(primaryMajor);
+        if (cachedPrimaryMilestones) {
+          console.log(`Using cached milestones for primary major: ${primaryMajor}`);
+          allMilestones.value = cachedPrimaryMilestones.map(milestone => ({
+            ...milestone,
+            major: primaryMajor
+          }));
+        } else {
+          // Fetch from Firestore for primary major
+          console.log(`Fetching milestones for primary major: ${primaryMajor}`);
+          const majorCollectionRef = collection(db, 'schools', school, 'projects', yearId, primaryMajor);
+          const majorDocsQuery = query(majorCollectionRef, limit(1));
+          const majorDocsSnapshot = await getDocs(majorDocsQuery);
+          
+          if (!majorDocsSnapshot.empty) {
+            const majorDoc = majorDocsSnapshot.docs[0];
+            const majorData = majorDoc.data();
+            const milestones = majorData.milestones || [];
             const processedMilestones = milestones.map(milestone => ({
               ...milestone,
-              major: majorId
-            }))
-            console.log(`Processed milestones for ${majorId}:`, processedMilestones)
-            return processedMilestones
-          } catch (err) {
-            console.error(`Error fetching milestones for major ${majorId}:`, err)
-            return []
+              major: primaryMajor
+            }));
+            
+            // Store in session storage and update state
+            storeMilestoneData(primaryMajor, processedMilestones);
+            allMilestones.value = processedMilestones;
           }
-        })
+        }
 
-        // Wait for all milestone queries to complete
-        const milestonesArrays = await Promise.all(milestonesPromises)
-        console.log('All milestone arrays:', milestonesArrays)
-        
-        // Combine all milestones into a single array
-        const combinedMilestones = milestonesArrays.flat()
-        console.log('Combined milestones:', combinedMilestones)
-        
-        // Update the allMilestones ref
-        allMilestones.value = combinedMilestones
-        console.log('Updated allMilestones.value:', allMilestones.value)
+        // After loading primary major, load others in background
+        const otherMajors = schoolMajors.value.filter(majorId => majorId !== primaryMajor);
+        console.log('Loading other majors in background:', otherMajors);
+
+        // Load other majors in the background
+        setTimeout(() => {
+          otherMajors.forEach(async majorId => {
+            try {
+              const cachedMilestones = getMilestonesFromSessionStorage(majorId);
+              if (cachedMilestones) {
+                console.log(`Using cached milestones for major: ${majorId}`);
+                allMilestones.value = [...allMilestones.value, ...cachedMilestones.map(milestone => ({
+                  ...milestone,
+                  major: majorId
+                }))];
+                return;
+              }
+
+              console.log(`Background fetching milestones for major: ${majorId}`);
+              const majorCollectionRef = collection(db, 'schools', school, 'projects', yearId, majorId);
+              const majorDocsQuery = query(majorCollectionRef, limit(1));
+              const majorDocsSnapshot = await getDocs(majorDocsQuery);
+              
+              if (!majorDocsSnapshot.empty) {
+                const majorDoc = majorDocsSnapshot.docs[0];
+                const majorData = majorDoc.data();
+                const milestones = majorData.milestones || [];
+                const processedMilestones = milestones.map(milestone => ({
+                  ...milestone,
+                  major: majorId
+                }));
+                
+                storeMilestoneData(majorId, processedMilestones);
+                allMilestones.value = [...allMilestones.value, ...processedMilestones];
+              }
+            } catch (err) {
+              console.error(`Error loading background milestones for major ${majorId}:`, err);
+            }
+          });
+        }, 0);
 
       } catch (err) {
-        console.error('Error in fetchMilestonesData:', err)
-        error.value = `Failed to load milestone data: ${err.message}`
+        console.error('Error in fetchMilestonesData:', err);
+        error.value = `Failed to load milestone data: ${err.message}`;
       } finally {
-        loading.value = false
+        loading.value = false;
       }
     }
 
@@ -939,27 +1038,32 @@ export default {
         // First fetch all majors for the school
         await fetchSchoolMajors()
 
-        // Set default selected project major if not already set
-        if (schoolMajors.value.length > 0 && !selectedProjectMajor.value) {
-          selectedProjectMajor.value = schoolMajors.value[0]
+        // Set default selected majors if not already set
+        if (schoolMajors.value.length > 0) {
+          if (!selectedMajor.value) {
+            selectedMajor.value = schoolMajors.value[0]
+          }
+          if (!selectedProjectMajor.value) {
+            selectedProjectMajor.value = schoolMajors.value[0]
+          }
         }
 
-        // Then fetch milestone data, submission stats, and project stats in parallel
+        // First, load primary major's data
         await Promise.all([
-          fetchMilestonesData(),
+          fetchMilestonesData(), // This now prioritizes the first major
           selectedMajor.value ? fetchSubmissionStats(selectedMajor.value) : Promise.resolve(),
           selectedProjectMajor.value ? fetchProjectStats(selectedProjectMajor.value) : Promise.resolve()
         ])
 
         initialLoadDone.value = true
-
-        // Start preloading other majors' stats
-        if (selectedMajor.value) {
-          preloadAllSubmissionStats()
-        }
         
-        // Preload project stats for all majors
-        preloadAllProjectStats()
+        // Then preload other majors' data in background
+        setTimeout(() => {
+          if (selectedMajor.value) {
+            preloadAllSubmissionStats()
+          }
+          preloadAllProjectStats()
+        }, 0)
 
         const totalLoadTime = Date.now() - startTime
         console.log(`Total dashboard load time: ${totalLoadTime}ms`)

@@ -1463,6 +1463,63 @@ const removeHeader = (index) => {
   currentHeaders.value.splice(index, 1)
 }
 
+// After imports, add this helper function to update session storage for AdminDashboard
+const updateSessionStorageForMilestones = (schoolId, userId, majorId, milestones) => {
+  try {
+    if (!userId) return;
+    
+    console.log(`Updating session storage for major ${majorId}`);
+    
+    // Create user and major specific key (same format as in AdminDashboard)
+    const userMajorKey = `${userId}_${majorId}_milestones`;
+    
+    // Convert Firestore timestamps to ISO strings before storage
+    const processedMilestones = milestones.map(milestone => {
+      let deadlineDate;
+      
+      // Handle all possible date formats
+      if (milestone.deadline instanceof Date) {
+        deadlineDate = milestone.deadline;
+      } else if (milestone.deadline?.toDate) {
+        // Firestore Timestamp with toDate method
+        deadlineDate = milestone.deadline.toDate();
+      } else if (milestone.deadline?.seconds !== undefined) {
+        // Firestore Timestamp object as plain object
+        deadlineDate = new Date(milestone.deadline.seconds * 1000);
+      } else if (typeof milestone.deadline === 'string') {
+        // ISO string
+        deadlineDate = new Date(milestone.deadline);
+      } else {
+        // Fallback
+        deadlineDate = new Date();
+        console.warn('Unknown date format, using current date as fallback');
+      }
+      
+      // Process the milestone to match the AdminDashboard format
+      return {
+        ...milestone,
+        major: majorId,
+        deadline: deadlineDate.toISOString()
+      };
+    });
+    
+    const storageData = {
+      milestones: processedMilestones,
+      lastUpdated: new Date().getTime()
+    };
+    
+    // First clear any existing data
+    sessionStorage.removeItem(userMajorKey);
+    
+    // Then store the new data
+    sessionStorage.setItem(userMajorKey, JSON.stringify(storageData));
+    
+    console.log(`Session storage updated for major ${majorId} with ${processedMilestones.length} milestones`);
+  } catch (err) {
+    console.error('Error updating session storage:', err);
+  }
+};
+
 const saveMilestones = async () => {
   try {
     // Check if Project Bidding Done milestone has a date
@@ -1558,6 +1615,14 @@ const saveMilestones = async () => {
           if (majorIndex !== -1) {
             currentSetting.majors[majorIndex].milestones = milestones
           }
+          
+          // Update session storage for AdminDashboard.vue
+          updateSessionStorageForMilestones(
+            userStore.currentUser.school,
+            userStore.currentUser.uid,
+            major.name,
+            milestones
+          );
         });
         
         // Wait for all save operations to complete
@@ -1615,6 +1680,14 @@ const saveMilestones = async () => {
           currentSetting.majors[majorIndex].milestones = milestones
         }
       }
+      
+      // Update session storage for AdminDashboard.vue
+      updateSessionStorageForMilestones(
+        userStore.currentUser.school,
+        userStore.currentUser.uid,
+        currentMajor.value.name,
+        milestones
+      );
 
       // Close the modal
       showHeadersModal.value = false;
