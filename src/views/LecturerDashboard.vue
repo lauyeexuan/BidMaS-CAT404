@@ -46,9 +46,20 @@
                 </div>
               </div>
             
-              <div v-if="loading" class="py-2">
-                <div class="h-5 bg-gray-200 rounded animate-pulse w-3/4 mb-2"></div>
-                <div class="h-4 bg-gray-200 rounded animate-pulse w-1/2"></div>
+              <div v-if="loading" class="animate-pulse">
+                <!-- Milestone Card Skeleton -->
+                <div class="relative pl-4">
+                  <div class="absolute left-0 top-0 bottom-0 w-1 bg-gray-200 rounded-full"></div>
+                  <div class="h-6 bg-gray-200 rounded w-3/4 mb-3"></div>
+                  <div class="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                  <div class="mt-3">
+                    <div class="w-full bg-gray-200 rounded-full h-2"></div>
+                    <div class="flex justify-between mt-1">
+                      <div class="h-3 bg-gray-200 rounded w-20"></div>
+                      <div class="h-3 bg-gray-200 rounded w-16"></div>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div v-else-if="error" class="py-2">
                 <p class="text-red-500">{{ error }}</p>
@@ -178,10 +189,28 @@
               <h2 class="text-sm font-medium text-gray-500">Milestone Submissions</h2>
             </div>
             
-            <div v-if="submissionLoading" class="py-3">
-              <div class="h-6 bg-gray-200 rounded animate-pulse w-3/4 mb-3"></div>
-              <div class="h-4 bg-gray-200 rounded animate-pulse w-1/2 mb-2"></div>
-              <div class="h-4 bg-gray-200 rounded animate-pulse w-2/3"></div>
+            <div v-if="submissionLoading" class="animate-pulse">
+              <!-- Submission Stats Skeleton -->
+              <div class="relative pl-4">
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-gray-200 rounded-full"></div>
+                <div class="h-6 bg-gray-200 rounded w-2/3 mb-4"></div>
+                <!-- Circular Progress Skeleton -->
+                <div class="flex flex-col items-center justify-center py-3">
+                  <div class="relative w-32 h-32">
+                    <svg class="w-full h-full" viewBox="0 0 100 100">
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="45"
+                        fill="none"
+                        stroke="#E2E8F0"
+                        stroke-width="8"
+                      />
+                    </svg>
+                  </div>
+                  <div class="h-4 bg-gray-200 rounded w-32 mt-3"></div>
+                </div>
+              </div>
             </div>
             
             <div v-else-if="submissionError" class="py-3">
@@ -261,10 +290,35 @@
               <h2 class="text-sm font-medium text-gray-500 mb-2">Your Projects Overview</h2>
             </div>
             
-            <div v-if="projectLoading" class="py-4">
-              <div class="h-6 bg-gray-200 rounded animate-pulse w-3/4 mb-3"></div>
-              <div class="h-4 bg-gray-200 rounded animate-pulse w-1/2 mb-2"></div>
-              <div class="h-4 bg-gray-200 rounded animate-pulse w-2/3"></div>
+            <div v-if="projectLoading" class="animate-pulse">
+              <!-- Project Stats Skeleton -->
+              <div class="relative pl-4">
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-gray-200 rounded-full"></div>
+                <div class="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
+                <!-- Stats Grid Skeleton -->
+                <div class="grid grid-cols-3 gap-4 mb-4">
+                  <div class="bg-gray-50 p-3 rounded-lg">
+                    <div class="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
+                    <div class="h-3 bg-gray-200 rounded w-20 mx-auto"></div>
+                  </div>
+                  <div class="bg-gray-50 p-3 rounded-lg">
+                    <div class="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
+                    <div class="h-3 bg-gray-200 rounded w-20 mx-auto"></div>
+                  </div>
+                  <div class="bg-gray-50 p-3 rounded-lg">
+                    <div class="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
+                    <div class="h-3 bg-gray-200 rounded w-20 mx-auto"></div>
+                  </div>
+                </div>
+                <!-- Progress Bar Skeleton -->
+                <div class="mt-2">
+                  <div class="flex justify-between mb-1">
+                    <div class="h-3 bg-gray-200 rounded w-24"></div>
+                    <div class="h-3 bg-gray-200 rounded w-12"></div>
+                  </div>
+                  <div class="w-full bg-gray-200 rounded-full h-2.5"></div>
+                </div>
+              </div>
             </div>
             
             <div v-else-if="projectError" class="py-4">
@@ -444,15 +498,34 @@
       // Function to set up real-time milestone listeners for a major
       const setupMilestoneListener = async (school, yearId, majorId, majorDocId) => {
         try {
+          if (!school || !yearId || !majorId) {
+            console.error('Missing required parameters:', { school, yearId, majorId });
+            throw new Error('Missing required parameters for milestone listener setup');
+          }
+
+          // If majorDocId is not provided, try to fetch it
+          if (!majorDocId) {
+            try {
+              majorDocId = await getMajorDocId(school, yearId, majorId);
+              if (!majorDocId) {
+                console.error(`No document found for major ${majorId}`);
+                return;
+              }
+            } catch (err) {
+              console.error(`Error getting majorDocId for ${majorId}:`, err);
+              return;
+            }
+          }
+
           // Get reference to the major document that contains the milestones array
           const majorRef = doc(
             db,
             'schools', school,
             'projects', yearId,
             majorId, majorDocId
-          )
+          );
 
-          console.log(`Setting up milestone listener for major ${majorId}`)
+          console.log(`Setting up milestone listener for major ${majorId} with docId ${majorDocId}`);
 
           // First try to get cached data
           const cachedData = getCachedMilestones(majorId)
@@ -875,7 +948,7 @@
         }
       };
       
-      // Modify fetchMilestonesData to set up real-time listeners
+      // Modify fetchMilestonesData to prioritize first major
       const fetchMilestonesData = async () => {
         console.log('Starting fetchMilestonesData')
         loading.value = true
@@ -915,20 +988,42 @@
           milestoneUnsubscribers.value.forEach(unsubscribe => unsubscribe())
           milestoneUnsubscribers.value = []
 
-          // Get majorDocIds in parallel
-          const majorDocIdPromises = lecturerMajors.value.map(majorId =>
-            getMajorDocId(school, yearId, majorId)
-          )
+          // First, handle the primary major (selected or first major)
+          const primaryMajor = selectedMajor.value || lecturerMajors.value[0]
+          console.log('Loading primary major first:', primaryMajor)
 
-          const majorDocIds = await Promise.all(majorDocIdPromises)
-
-          // Set up real-time listeners for each major
-          lecturerMajors.value.forEach((majorId, index) => {
-            const majorDocId = majorDocIds[index]
-            if (majorDocId) {
-              setupMilestoneListener(school, yearId, majorId, majorDocId)
+          // Try to get cached data for primary major
+          const cachedPrimaryData = getCachedMilestones(primaryMajor)
+          if (cachedPrimaryData) {
+            console.log('Using cached data for primary major')
+            allMilestones.value = {
+              [primaryMajor]: cachedPrimaryData
             }
-          })
+          }
+
+          // Get majorDocId for primary major
+          const primaryMajorDocId = await getMajorDocId(school, yearId, primaryMajor)
+          if (primaryMajorDocId) {
+            await setupMilestoneListener(school, yearId, primaryMajor, primaryMajorDocId)
+          }
+
+          // After primary major is loaded, load others in background
+          const otherMajors = lecturerMajors.value.filter(majorId => majorId !== primaryMajor)
+          console.log('Loading other majors in background:', otherMajors)
+
+          // Load other majors in background
+          setTimeout(() => {
+            otherMajors.forEach(async majorId => {
+              try {
+                const majorDocId = await getMajorDocId(school, yearId, majorId)
+                if (majorDocId) {
+                  setupMilestoneListener(school, yearId, majorId, majorDocId)
+                }
+              } catch (err) {
+                console.error(`Error loading background data for major ${majorId}:`, err)
+              }
+            })
+          }, 0)
 
         } catch (err) {
           console.error('Error in fetchMilestonesData:', err)
@@ -1206,74 +1301,122 @@
       onMounted(async () => {
         console.log('LecturerDashboard mounted');
         const startTime = Date.now();
+        
         try {
+          // Step 1: Initialize auth and get lecturer majors (blocking operations)
           if (!userStore.initialized) {
             console.log('Initializing UserStore');
             await userStore.initializeAuth();
           }
-          
-          console.log('Starting fully parallel data loading with prioritized UI updates');
-          
-          // First, we need to get the lecturer's majors since other functions depend on it
-          // This is a quick operation that blocks other data loading
-          await fetchLecturerMajors();
-          
-          // Now that we have lecturer majors, we can start all data fetching in parallel
-          // We'll handle each promise separately to update the UI as soon as each component's data is ready
-          
-          // Start all three data fetches in parallel
-          const milestonesPromise = fetchMilestonesData();
-          const projectsPromise = fetchLecturerProjects();
-          const submissionPromise = selectedMajor.value ? 
-            fetchSubmissionStats(selectedMajor.value, false) : 
-            Promise.resolve(null);
-          
-          // Handle each promise separately to update UI as soon as data is available
-          milestonesPromise
-            .then(() => console.log('✅ Milestones loaded successfully'))
-            .catch(err => {
-              console.error('❌ Error loading milestones:', err);
-              error.value = 'Failed to load milestone data';
-            });
-          
-          projectsPromise
-            .then(() => console.log('✅ Projects loaded successfully'))
-            .catch(err => {
-              console.error('❌ Error loading projects:', err);
-              projectError.value = 'Failed to load project data';
-            });
-          
-          if (selectedMajor.value) {
-            submissionPromise
-              .then(() => console.log('✅ Submission stats loaded successfully'))
-              .catch(err => {
-                console.error('❌ Error loading submission stats:', err);
-                submissionError.value = 'Failed to load submission data';
-              });
+
+          // Verify userStore.currentUser and school exist
+          if (!userStore.currentUser) {
+            throw new Error('User not initialized');
+          }
+
+          const { school } = userStore.currentUser;
+          if (!school) {
+            throw new Error('School information not available');
+          }
+
+          // Get academic year data early as we'll need it throughout
+          const academicYearData = await getLatestAcademicYear(school);
+          if (!academicYearData?.yearId) {
+            throw new Error('Failed to determine academic year');
           }
           
-          // Use Promise.allSettled to track when everything is done
-          Promise.allSettled([milestonesPromise, projectsPromise, submissionPromise])
-            .then(() => {
-              // All data loading attempts completed (successfully or not)
-              const totalLoadTime = Date.now() - startTime;
-              console.log(`🚀 PERFORMANCE: Total dashboard load time: ${totalLoadTime}ms`);
-              
-              // Mark initial load as complete
-              initialLoadDone.value = true;
-              
-              // Start preloading other majors' submission stats in the background
-              if (selectedMajor.value) {
-                preloadAllSubmissionStats();
+          // Get lecturer majors first as it's required for everything else
+          await fetchLecturerMajors();
+          
+          if (!lecturerMajors.value || lecturerMajors.value.length === 0) {
+            throw new Error('No majors assigned to lecturer');
+          }
+
+          // Step 2: Check cache and show cached data immediately
+          const primaryMajor = selectedMajor.value || lecturerMajors.value[0];
+          
+          // Try to get cached data for all components
+          const cachedMilestones = getCachedMilestones(primaryMajor);
+          if (cachedMilestones) {
+            console.log('Using cached milestone data');
+            allMilestones.value = {
+              [primaryMajor]: cachedMilestones
+            };
+            loading.value = false;
+          }
+
+          // Check submission stats cache
+          if (submissionStatsCache.value[primaryMajor]) {
+            console.log('Using cached submission stats');
+            currentMilestoneSubmissionStats.value = submissionStatsCache.value[primaryMajor];
+            submissionLoading.value = false;
+          }
+
+          // Step 3: Start all data fetches in parallel
+          console.log('Starting parallel data fetches');
+          
+          // Create an array of promises for all data fetches
+          const fetchPromises = [
+            // Primary major's data first
+            fetchMilestonesData(),
+            fetchSubmissionStats(primaryMajor, false),
+            fetchLecturerProjects()
+          ];
+
+          // Use Promise.race to update UI as soon as any data is available
+          Promise.race(fetchPromises).then(() => {
+            console.log('First data fetch completed');
+          });
+
+          // Handle all promises completion
+          Promise.allSettled(fetchPromises).then(results => {
+            const totalLoadTime = Date.now() - startTime;
+            console.log(`🚀 Total initial load time: ${totalLoadTime}ms`);
+            
+            // Log any errors that occurred
+            results.forEach((result, index) => {
+              if (result.status === 'rejected') {
+                console.error(`Failed to fetch data for promise ${index}:`, result.reason);
               }
             });
-          
+
+            // Mark initial load as complete
+            initialLoadDone.value = true;
+
+            // Step 4: Load background data
+            console.log('Starting background data loads');
+            
+            // Preload other majors' data
+            if (lecturerMajors.value.length > 1) {
+              setTimeout(() => {
+                const otherMajors = lecturerMajors.value.filter(m => m !== primaryMajor);
+                console.log('Preloading data for other majors:', otherMajors);
+                
+                // Preload submission stats
+                preloadAllSubmissionStats();
+                
+                // Preload milestones for other majors
+                otherMajors.forEach(majorId => {
+                  const cachedData = getCachedMilestones(majorId);
+                  if (!cachedData) {
+                    console.log(`Preloading milestones for major: ${majorId}`);
+                    setupMilestoneListener(
+                      school,
+                      academicYearData.yearId,
+                      majorId,
+                      null // Will be fetched in the setup function
+                    ).catch(err => {
+                      console.error(`Error preloading data for major ${majorId}:`, err);
+                    });
+                  }
+                });
+              }, 1000); // Delay background loading to prioritize main content
+            }
+          });
+
         } catch (err) {
           console.error('Failed to initialize dashboard:', err);
           error.value = 'Failed to initialize dashboard data';
-          loading.value = false;
-          projectLoading.value = false;
-          submissionLoading.value = false;
         }
       });
   
