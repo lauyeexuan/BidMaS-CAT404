@@ -12,6 +12,38 @@
                 <span v-if="selectedMajor || selectedMilestoneFilter" class="text-lg font-normal text-gray-600">
                   {{ getFilterDescription }}
                 </span>
+                <!-- Status Filter Labels -->
+                <div class="flex items-center gap-2 mt-2">
+                  <span class="text-sm text-gray-500">Filter by:</span>
+                  <div 
+                    @click="toggleStatusFilter('all')" 
+                    class="px-3 py-1 rounded-full text-xs cursor-pointer transition-colors"
+                    :class="statusFilter === 'all' ? 'bg-blue-100 text-blue-700 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                  >
+                    All
+                  </div>
+                  <div 
+                    @click="toggleStatusFilter('draft')" 
+                    class="px-3 py-1 rounded-full text-xs cursor-pointer transition-colors"
+                    :class="statusFilter === 'draft' ? 'bg-gray-600 text-white font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                  >
+                    Draft
+                  </div>
+                  <div 
+                    @click="toggleStatusFilter('pending')" 
+                    class="px-3 py-1 rounded-full text-xs cursor-pointer transition-colors"
+                    :class="statusFilter === 'pending' ? 'bg-yellow-100 text-yellow-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                  >
+                    Pending
+                  </div>
+                  <div 
+                    @click="toggleStatusFilter('reviewed')" 
+                    class="px-3 py-1 rounded-full text-xs cursor-pointer transition-colors"
+                    :class="statusFilter === 'reviewed' ? 'bg-green-100 text-green-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                  >
+                    Reviewed
+                  </div>
+                </div>
               </div>
               <div class="relative">
                 <input
@@ -316,35 +348,36 @@
           </div>
 
           <!-- Submission Cards with Virtual Scrolling -->
-          <div v-else class="relative" style="height: calc(100vh - 250px)" ref="containerRef" v-bind="containerProps">
-            <div v-bind="wrapperProps" class="grid grid-cols-2 gap-3">
+          <div v-else class="relative">
+            <!-- Submission Grid -->
+            <div class="grid grid-cols-2 gap-3 mb-4">
               <div
-                v-for="item in list"
-                :key="item.data.id"
+                v-for="submission in paginatedSubmissions"
+                :key="submission.id"
                 class="border rounded-lg p-3 hover:shadow-md transition-shadow duration-200 cursor-pointer"
-                @click="handleSubmissionClick(item.data)"
+                @click="handleSubmissionClick(submission)"
               >
                 <div class="flex flex-col space-y-2">
                   <!-- Top row: Filename, Major, and Review Status -->
                   <div class="flex items-start justify-between">
                     <div class="flex flex-col gap-1.5 max-w-[70%]">
                       <div class="flex items-center gap-2">
-                        <h3 class="font-medium text-gray-900 leading-tight line-clamp-2">{{ item.data.fileName }}</h3>
+                        <h3 class="font-medium text-gray-900 leading-tight line-clamp-2">{{ submission.fileName }}</h3>
                         <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full flex-shrink-0">
-                          {{ item.data.major }}
+                          {{ submission.major }}
                         </span>
                       </div>
-                      <span class="text-sm bg-blue-50 text-blue-700 px-2 py-0.5 rounded w-fit">{{ item.data.studentName }}</span>
+                      <span class="text-sm bg-blue-50 text-blue-700 px-2 py-0.5 rounded w-fit">{{ submission.studentName }}</span>
                     </div>
                     <span 
                       class="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
                       :class="{
-                        'bg-green-100 text-green-800': item.data.hasBeenReviewed && !item.data.isDraft,
-                        'bg-yellow-100 text-yellow-800': !item.data.hasBeenReviewed,
-                        'bg-gray-100 text-gray-600': item.data.hasBeenReviewed && item.data.isDraft
+                        'bg-green-100 text-green-800': submission.hasBeenReviewed && !submission.isDraft,
+                        'bg-yellow-100 text-yellow-800': !submission.hasBeenReviewed,
+                        'bg-gray-100 text-gray-600': submission.hasBeenReviewed && submission.isDraft
                       }"
                     >
-                      {{ item.data.hasBeenReviewed ? (item.data.isDraft ? 'Draft' : 'Reviewed') : 'Pending' }}
+                      {{ submission.hasBeenReviewed ? (submission.isDraft ? 'Draft' : 'Reviewed') : 'Pending' }}
                     </span>
                   </div>
 
@@ -354,21 +387,21 @@
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                       </svg>
-                      <p class="text-sm text-gray-700 font-medium truncate">{{ item.data.projectTitle }}</p>
+                      <p class="text-sm text-gray-700 font-medium truncate">{{ submission.projectTitle }}</p>
                     </div>
                     <div class="flex items-center justify-between">
                       <div class="flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                         </svg>
-                        <p class="text-xs text-gray-400 truncate">{{ item.data.milestoneDescription }}</p>
+                        <p class="text-xs text-gray-400 truncate">{{ submission.milestoneDescription }}</p>
                       </div>
-                      <div class="flex items-center gap-1" v-if="item.data.submittedAt">
+                      <div class="flex items-center gap-1" v-if="submission.submittedAt">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <p class="text-xs text-gray-400">
-                          {{ item.data.submittedAt?.toDate?.() ? formatDate(item.data.submittedAt.toDate()) : 'Date not available' }}
+                          {{ submission.submittedAt?.toDate?.() ? formatDate(submission.submittedAt.toDate()) : 'Date not available' }}
                         </p>
                       </div>
                     </div>
@@ -377,19 +410,93 @@
               </div>
             </div>
 
-            <!-- Background Loading Indicator -->
-            <div 
-              v-if="isBackgroundLoading"
-              class="absolute bottom-0 left-0 right-0 p-2 bg-gray-50 text-center text-sm text-gray-600"
-            >
-              Loading more submissions...
+            <!-- Pagination Controls -->
+            <div v-if="totalPages > 1" class="flex justify-center items-center space-x-2 py-3">
+              <button 
+                @click="currentPage > 1 && (currentPage--)"
+                class="px-2 py-1 rounded transition-colors"
+                :class="currentPage === 1 ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-50'"
+                :disabled="currentPage === 1"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              
+              <template v-if="totalPages <= 7">
+                <button 
+                  v-for="page in totalPages" 
+                  :key="page"
+                  @click="currentPage = page"
+                  class="px-3 py-1 rounded transition-colors"
+                  :class="currentPage === page ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-blue-50'"
+                >
+                  {{ page }}
+                </button>
+              </template>
+              
+              <template v-else>
+                <!-- First page -->
+                <button 
+                  @click="currentPage = 1"
+                  class="px-3 py-1 rounded transition-colors"
+                  :class="currentPage === 1 ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-blue-50'"
+                >
+                  1
+                </button>
+                
+                <!-- Ellipsis if needed -->
+                <span v-if="currentPage > 3" class="px-2">...</span>
+                
+                <!-- Pages around current -->
+                <template v-for="page in paginationRange" :key="page">
+                  <button 
+                    v-if="page > 1 && page < totalPages"
+                    @click="currentPage = page"
+                    class="px-3 py-1 rounded transition-colors"
+                    :class="currentPage === page ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-blue-50'"
+                  >
+                    {{ page }}
+                  </button>
+                </template>
+                
+                <!-- Ellipsis if needed -->
+                <span v-if="currentPage < totalPages - 2" class="px-2">...</span>
+                
+                <!-- Last page -->
+                <button 
+                  @click="currentPage = totalPages"
+                  class="px-3 py-1 rounded transition-colors"
+                  :class="currentPage === totalPages ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-blue-50'"
+                >
+                  {{ totalPages }}
+                </button>
+              </template>
+              
+              <button 
+                @click="currentPage < totalPages && (currentPage++)"
+                class="px-2 py-1 rounded transition-colors"
+                :class="currentPage === totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-50'"
+                :disabled="currentPage === totalPages"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
             </div>
-
-            <!-- Intersection Observer Target -->
-            <div 
-              ref="submissionsContainer"
-              class="h-4"
-            ></div>
+            
+            <!-- Items per page selector -->
+            <div class="flex justify-end items-center text-sm text-gray-500 mt-2">
+              <span class="mr-2">Items per page:</span>
+              <select 
+                v-model="itemsPerPage" 
+                class="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option :value="10">10</option>
+                <option :value="25">25</option>
+                <option :value="50">50</option>
+              </select>
+            </div>
           </div>
         </template>
       </div>
@@ -603,6 +710,7 @@ export default {
     const studentNameCache = ref({})
     const isBackgroundLoading = ref(false)
     const submissionsContainer = ref(null)
+    const statusFilter = ref('all') // Add the status filter ref
 
     // New state variables for feedback
     const showFeedbackView = ref(false)
@@ -624,6 +732,32 @@ export default {
     // Add search functionality
     const searchQuery = ref('')
     
+    // Add pagination
+    const currentPage = ref(1)
+    const itemsPerPage = ref(10)
+    
+    const paginatedSubmissions = computed(() => {
+      const startIdx = (currentPage.value - 1) * itemsPerPage.value
+      return filteredSubmissions.value.slice(startIdx, startIdx + itemsPerPage.value)
+    })
+    
+    const totalPages = computed(() => {
+      return Math.ceil(filteredSubmissions.value.length / itemsPerPage.value)
+    })
+    
+    // Create page range for smart pagination
+    const paginationRange = computed(() => {
+      const range = []
+      const currentPageVal = currentPage.value
+      
+      // Always include current page and 1 page on each side when possible
+      for (let i = Math.max(2, currentPageVal - 1); i <= Math.min(totalPages.value - 1, currentPageVal + 1); i++) {
+        range.push(i)
+      }
+      
+      return range
+    })
+    
     // Modified computed property for filtered submissions
     const filteredSubmissions = computed(() => {
       if (!searchQuery.value) return submissions.value
@@ -636,11 +770,24 @@ export default {
       })
     })
 
-    // Virtual list using filtered submissions
-    const { list, containerProps, wrapperProps } = useVirtualList(filteredSubmissions, {
-      itemHeight: 60,
-      overscan: 10,
+    // Reset to page 1 when filters change
+    watch([searchQuery, selectedMajor, selectedMilestoneFilter, statusFilter], () => {
+      currentPage.value = 1
     })
+    
+    // Watch for page size changes
+    watch(itemsPerPage, () => {
+      // Make sure current page is still valid with new page size
+      if (currentPage.value > totalPages.value) {
+        currentPage.value = totalPages.value || 1
+      }
+    })
+
+    // Legacy virtual list - can be removed since we're using pagination
+    // const { list, containerProps, wrapperProps } = useVirtualList(filteredSubmissions, {
+    //   itemHeight: 60,
+    //   overscan: 10,
+    // })
 
     // Add a custom toolbar configuration for the QuillEditor
     const editorToolbar = [
@@ -746,6 +893,45 @@ export default {
         return 'Unknown Student'
       }
     }
+    
+    // Optimized batch fetching of student names
+    const fetchStudentNamesInBatch = async (schoolId, studentIds) => {
+      // Filter out IDs that are already in cache
+      const uncachedIds = studentIds.filter(id => !studentNameCache.value[id])
+      
+      if (uncachedIds.length === 0) return
+      
+      try {
+        // Process in batches of 10 to avoid overwhelming Firestore
+        const batchSize = 10
+        const batches = []
+        
+        for (let i = 0; i < uncachedIds.length; i += batchSize) {
+          batches.push(uncachedIds.slice(i, i + batchSize))
+        }
+        
+        // Process each batch
+        for (const batch of batches) {
+          const promises = batch.map(studentId => {
+            const studentRef = doc(db, 'schools', schoolId, 'users', studentId)
+            return getDoc(studentRef)
+          })
+          
+          const docs = await Promise.all(promises)
+          
+          docs.forEach((doc, index) => {
+            if (doc.exists()) {
+              const data = doc.data()
+              studentNameCache.value[batch[index]] = data?.name || 'Unknown Student'
+            } else {
+              studentNameCache.value[batch[index]] = 'Unknown Student'
+            }
+          })
+        }
+      } catch (err) {
+        console.error('Error batch fetching student names:', err)
+      }
+    }
 
     // Modified fetchSubmissions function
     const fetchSubmissions = async (loadMore = false) => {
@@ -794,8 +980,10 @@ export default {
       submissionsUnsubscribers.value.forEach(unsubscribe => unsubscribe())
       submissionsUnsubscribers.value = []
       
-      const allNewSubmissions = []
-      const listeners = majorsToFetch.map(majorId => {
+      // Only listen to selected major if one is selected (performance optimization)
+      const majorsToListen = selectedMajor.value ? [selectedMajor.value] : majorsToFetch
+      
+      const listeners = majorsToListen.map(majorId => {
         const submissionsRef = collection(db, 'schools', schoolId, 'submissions')
         
         let submissionQuery = query(
@@ -803,7 +991,8 @@ export default {
           where('yearId', '==', yearId),
           where('majorId', '==', majorId),
           where('lecturerId', '==', userId),
-          orderBy('submittedAt', 'desc')
+          orderBy('submittedAt', 'desc'),
+          limit(50) // Increase limit but use pagination for display
         )
         
         if (selectedMilestoneFilter.value) {
@@ -815,62 +1004,74 @@ export default {
         
         // Set up the listener
         const unsubscribe = onSnapshot(submissionQuery, async (snapshot) => {
-          const newDocs = []
+          submissionsLoading.value = true
           
-          const processPromises = snapshot.docs.map(async (doc) => {
-            const submissionData = doc.data()
-            const studentName = await getStudentName(schoolId, submissionData.submittedBy)
+          try {
+            // Step 1: Extract all student IDs first
+            const studentIds = snapshot.docs.map(doc => doc.data().submittedBy)
             
-            // Check if feedback exists for this submission
-            const feedbackRef = collection(db, 'schools', schoolId, 'feedback')
-            const feedbackQuery = query(
-              feedbackRef,
-              where('submissionId', '==', doc.id),
-              where('lecturerId', '==', userId),
-              limit(1)
-            )
-            const feedbackSnapshot = await getDocs(feedbackQuery)
-            const hasBeenReviewed = !feedbackSnapshot.empty
-            const isDraft = hasBeenReviewed ? feedbackSnapshot.docs[0].data().isDraft : false
+            // Step 2: Batch fetch all student names at once
+            await fetchStudentNamesInBatch(schoolId, studentIds)
             
-            return {
-              id: doc.id,
-              projectId: submissionData.projectId,
-              projectTitle: submissionData.projectTitle,
-              major: majorId,
-              studentName,
-              hasBeenReviewed,
-              isDraft,
-              ...submissionData
-            }
-          })
-          
-          const processedDocs = await Promise.all(processPromises)
-          newDocs.push(...processedDocs)
-          
-          // Update all submissions data
-          if (allSubmissions.value.length === 0) {
-            allSubmissions.value = [...newDocs]
-          } else {
-            // Merge new submissions with existing ones
-            const updatedSubmissions = [...allSubmissions.value]
-            
-            newDocs.forEach(newDoc => {
-              const existingIndex = updatedSubmissions.findIndex(s => s.id === newDoc.id)
-              if (existingIndex !== -1) {
-                updatedSubmissions[existingIndex] = newDoc
-              } else {
-                updatedSubmissions.push(newDoc)
+            // Step 3: Process documents with cached student names
+            const processPromises = snapshot.docs.map(async (doc) => {
+              const submissionData = doc.data()
+              // Now student name should be in cache from batch fetch
+              const studentName = studentNameCache.value[submissionData.submittedBy] || 'Unknown Student'
+              
+              // Check if feedback exists for this submission
+              const feedbackRef = collection(db, 'schools', schoolId, 'feedback')
+              const feedbackQuery = query(
+                feedbackRef,
+                where('submissionId', '==', doc.id),
+                where('lecturerId', '==', userId),
+                limit(1)
+              )
+              const feedbackSnapshot = await getDocs(feedbackQuery)
+              const hasBeenReviewed = !feedbackSnapshot.empty
+              const isDraft = hasBeenReviewed ? feedbackSnapshot.docs[0].data().isDraft : false
+              
+              return {
+                id: doc.id,
+                projectId: submissionData.projectId,
+                projectTitle: submissionData.projectTitle,
+                major: majorId,
+                studentName,
+                hasBeenReviewed,
+                isDraft,
+                ...submissionData
               }
             })
             
-            allSubmissions.value = updatedSubmissions
+            const processedDocs = await Promise.all(processPromises)
+            
+            // Update all submissions data
+            if (allSubmissions.value.length === 0) {
+              allSubmissions.value = [...processedDocs]
+            } else {
+              // Merge new submissions with existing ones
+              const updatedSubmissions = [...allSubmissions.value]
+              
+              processedDocs.forEach(newDoc => {
+                const existingIndex = updatedSubmissions.findIndex(s => s.id === newDoc.id)
+                if (existingIndex !== -1) {
+                  updatedSubmissions[existingIndex] = newDoc
+                } else {
+                  updatedSubmissions.push(newDoc)
+                }
+              })
+              
+              allSubmissions.value = updatedSubmissions
+            }
+            
+            // Update filtered submissions based on search and filters
+            updateFilteredSubmissions()
+          } catch (error) {
+            console.error('Error processing submissions:', error)
+            submissionsError.value = 'Error processing submissions'
+          } finally {
+            submissionsLoading.value = false
           }
-          
-          // Update filtered submissions based on search and filters
-          updateFilteredSubmissions()
-          
-          submissionsLoading.value = false
         }, error => {
           console.error('Error in real-time listener:', error)
           submissionsError.value = 'Failed to establish real-time connection'
@@ -899,6 +1100,17 @@ export default {
       // Apply milestone filter
       if (selectedMilestoneFilter.value) {
         filtered = filtered.filter(sub => sub.milestoneDescription === selectedMilestoneFilter.value.description)
+      }
+      
+      // Apply status filter
+      if (statusFilter.value !== 'all') {
+        if (statusFilter.value === 'draft') {
+          filtered = filtered.filter(sub => sub.hasBeenReviewed && sub.isDraft)
+        } else if (statusFilter.value === 'pending') {
+          filtered = filtered.filter(sub => !sub.hasBeenReviewed)
+        } else if (statusFilter.value === 'reviewed') {
+          filtered = filtered.filter(sub => sub.hasBeenReviewed && !sub.isDraft)
+        }
       }
       
       // Apply search filter
@@ -930,6 +1142,13 @@ export default {
     watch(searchQuery, () => {
       updateFilteredSubmissions()
     })
+    
+    // Add status filter toggle function
+    const toggleStatusFilter = (status) => {
+      statusFilter.value = status
+      updateFilteredSubmissions()
+      currentPage.value = 1 // Reset to first page on filter change
+    }
     
     watch([selectedMajor, selectedMilestoneFilter], () => {
       if (allSubmissions.value.length > 0) {
@@ -1426,14 +1645,19 @@ export default {
       submissions,
       submissionsLoading,
       submissionsError,
-      submissionsContainer,
       hasMore,
       isBackgroundLoading,
       submissionCard,
       containerRef,
-      containerProps,
-      wrapperProps,
-      list,
+      // Pagination
+      paginatedSubmissions,
+      currentPage,
+      totalPages,
+      itemsPerPage,
+      paginationRange,
+      // Status filtering
+      statusFilter,
+      toggleStatusFilter,
       // Add new return values
       showFeedbackView,
       selectedSubmission,
