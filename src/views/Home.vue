@@ -1,7 +1,7 @@
 <template>
   <div class="fixed inset-0 overflow-hidden bg-gradient-to-br from-fuchsia-400 via-purple-400 to-pink-400">
     <!-- Animated background elements -->
-    <div class="absolute inset-0 overflow-hidden">
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
       <div class="absolute top-0 left-0 w-[600px] h-[600px] bg-pink-300/40 rounded-full filter blur-3xl -translate-x-1/2 -translate-y-1/2 animate-blob"></div>
       <div class="absolute bottom-0 right-0 w-[600px] h-[600px] bg-purple-300/40 rounded-full filter blur-3xl translate-x-1/2 translate-y-1/2 animate-blob delay-2000"></div>
       <div class="absolute top-1/2 left-1/2 w-[600px] h-[600px] bg-fuchsia-300/40 rounded-full filter blur-3xl -translate-x-1/2 -translate-y-1/2 animate-blob delay-4000"></div>
@@ -14,7 +14,7 @@
         <div class="max-w-2xl ml-auto mr-0">
           <div class="relative group mb-12">
             <!-- Glowing cloud effect -->
-            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px]">
+            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] pointer-events-none">
               <div class="absolute inset-0 bg-white/40 rounded-full blur-[100px] animate-pulse-slow"></div>
               <div class="absolute inset-[25%] bg-white/30 rounded-full blur-[50px] animate-pulse-slow animation-delay-1000"></div>
             </div>
@@ -24,7 +24,7 @@
                 <img 
                   src="/welcomelogo.png" 
                   alt="Welcome to BidMaS" 
-                  class="relative w-72 h-auto transform group-hover:scale-105 transition-transform duration-500 -ml-8"
+                  class="relative w-72 h-auto transform animate-pulse-welcome transition-transform duration-500 -ml-8"
                 />
               </template>
               <template v-else>
@@ -40,7 +40,7 @@
                 <img 
                   src="/runninglogo.png" 
                   alt="Running BidMaS Logo" 
-                  class="fixed top-1/4 left-1/3 w-72 h-auto animate-run-and-hide z-10"
+                  class="fixed top-1/4 left-1/3 w-72 h-auto animate-run-and-hide z-10 pointer-events-none"
                 />
               </template>
             </div>
@@ -69,7 +69,14 @@
       <!-- Right side - Login form -->
       <div class="w-1/2 p-12 transform transition-all duration-500"
            :class="showLogin ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'">
-        <div class="max-w-md mx-auto">
+        <div class="max-w-md mx-auto relative z-50">
+          <!-- Waving logo at the left edge of login form -->
+          <img 
+            v-if="showLogin"
+            src="/wavinglogo.png" 
+            alt="Waving Logo" 
+            class="absolute right-full top-0 h-28 w-auto animate-fade-in animate-wave pointer-events-none"
+          />
           <Login 
             v-if="showLogin" 
             class="w-full animate-slide-in bg-white/10 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20"
@@ -101,7 +108,7 @@ export default {
       // Show the login form sooner
       setTimeout(() => {
         showLogin.value = true;
-      }, 400); // Reduced from 700ms to 400ms
+      }, 700); // Reduced from 700ms to 400ms
     };
     
     const handleLoginSuccess = async () => {
@@ -184,7 +191,7 @@ export default {
 }
 
 .animate-run-and-hide {
-  animation: run-and-hide 0.7s ease-in-out forwards;
+  animation: run-and-hide 1.0s ease-in-out forwards;
 }
 
 .animation-delay-1000 {
@@ -205,5 +212,31 @@ export default {
 
 .animate-slide-in {
   animation: slide-in 0.5s ease-out;
+}
+
+@keyframes wave {
+  0% { transform: rotate(0deg); }
+  10% { transform: rotate(8deg); }
+  20% { transform: rotate(-4deg); }
+  30% { transform: rotate(8deg); }
+  40% { transform: rotate(-2deg); }
+  50% { transform: rotate(6deg); }
+  60% { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.animate-wave {
+  animation: wave 1.6s ease-in-out infinite;
+  transform-origin: 70% 70%;
+}
+
+@keyframes pulse-welcome {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+.animate-pulse-welcome {
+  animation: pulse-welcome 2s ease-in-out infinite;
 }
 </style>
