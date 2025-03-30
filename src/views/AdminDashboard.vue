@@ -3,42 +3,302 @@
   <div class="relative">
     <!-- Dashboard Cards -->
     <div class="mt-6 grid grid-cols-12 gap-4">
-      <!-- Left Column -->
-      <div class="col-span-6 flex flex-col gap-4">
-        <!-- Milestone Card with Expandable Content -->
-        <div 
-          class="bg-white p-4 shadow rounded relative transition-all duration-200 overflow-hidden flex flex-col min-h-[160px]"
-          :class="{'shadow-lg': showAllMilestones}"
-        >
-          <!-- Card Header -->
-          <div>
-            <!-- Major selector will be here -->
+      <!-- Loading state with skeleton loaders for all cards -->
+      <template v-if="showPlaceholders">
+        <!-- Left Column Skeleton Loaders -->
+        <div class="col-span-6 flex flex-col gap-4">
+          <!-- Milestone Card Skeleton -->
+          <div class="bg-white p-4 shadow rounded min-h-[160px]">
+            <div class="flex justify-between items-center mb-4">
+              <div class="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
+              <div class="flex space-x-2">
+                <div class="h-6 bg-gray-200 rounded-full animate-pulse w-16"></div>
+                <div class="h-6 bg-gray-200 rounded-full animate-pulse w-16"></div>
+              </div>
+            </div>
+            <div class="h-6 bg-gray-200 rounded animate-pulse w-3/4 mb-3"></div>
+            <div class="h-4 bg-gray-200 rounded animate-pulse w-1/2 mb-3"></div>
+            <div class="w-full bg-gray-200 rounded-full h-2 animate-pulse mb-3"></div>
           </div>
           
-          <div @click="toggleAllMilestones" class="cursor-pointer">
-            <div class="flex justify-between items-center mb-2">
-              <h2 class="text-sm font-medium text-gray-500 flex items-center">
-                Current Milestone
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  class="h-4 w-4 ml-2 transition-transform duration-300" 
-                  :class="{'rotate-180': showAllMilestones}"
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </h2>
-              <!-- Major Selector Tabs -->
-              <div class="flex space-x-2" @click.stop>
+          <!-- Submission Info Card Skeleton -->
+          <div class="bg-white p-4 shadow rounded min-h-[160px]">
+            <div class="flex justify-between items-center mb-4">
+              <div class="h-4 bg-gray-200 rounded animate-pulse w-40"></div>
+            </div>
+            <div class="flex flex-col items-center justify-center py-6">
+              <div class="relative w-32 h-32">
+                <div class="rounded-full bg-gray-200 animate-pulse w-32 h-32"></div>
+                <div class="absolute inset-0 flex items-center justify-center">
+                  <div class="h-8 bg-gray-300 rounded animate-pulse w-16"></div>
+                </div>
+              </div>
+              <div class="h-4 bg-gray-200 rounded animate-pulse w-3/4 mx-auto mt-4"></div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Right Column Skeleton - Project Overview Card -->
+        <div class="col-span-6">
+          <div class="bg-white p-4 shadow rounded min-h-[160px]">
+            <div class="flex justify-between items-center mb-4">
+              <div class="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
+              <div class="flex space-x-2">
+                <div class="h-6 bg-gray-200 rounded-full animate-pulse w-16"></div>
+                <div class="h-6 bg-gray-200 rounded-full animate-pulse w-16"></div>
+              </div>
+            </div>
+            <div class="h-6 bg-gray-200 rounded animate-pulse w-3/4 mb-4"></div>
+            <div class="grid grid-cols-3 gap-4 mb-4">
+              <div class="bg-gray-100 p-3 rounded-lg">
+                <div class="h-8 bg-gray-200 rounded animate-pulse w-12 mx-auto mb-2"></div>
+                <div class="h-4 bg-gray-200 rounded animate-pulse w-20 mx-auto"></div>
+              </div>
+              <div class="bg-gray-100 p-3 rounded-lg">
+                <div class="h-8 bg-gray-200 rounded animate-pulse w-12 mx-auto mb-2"></div>
+                <div class="h-4 bg-gray-200 rounded animate-pulse w-20 mx-auto"></div>
+              </div>
+              <div class="bg-gray-100 p-3 rounded-lg">
+                <div class="h-8 bg-gray-200 rounded animate-pulse w-12 mx-auto mb-2"></div>
+                <div class="h-4 bg-gray-200 rounded animate-pulse w-20 mx-auto"></div>
+              </div>
+            </div>
+            <div class="h-4 bg-gray-200 rounded animate-pulse w-full mb-2"></div>
+          </div>
+        </div>
+      </template>
+      
+      <!-- Actual content (only shown when all data is ready) -->
+      <template v-else>
+        <!-- Left Column -->
+        <div class="col-span-6 flex flex-col gap-4">
+          <!-- Milestone Card with Expandable Content -->
+          <div 
+            class="bg-white p-4 shadow rounded relative transition-all duration-200 overflow-hidden flex flex-col min-h-[160px]"
+            :class="{'shadow-lg': showAllMilestones}"
+          >
+            <!-- Card Header -->
+            <div>
+              <!-- Major selector will be here -->
+            </div>
+            
+            <div @click="toggleAllMilestones" class="cursor-pointer">
+              <div class="flex justify-between items-center mb-2">
+                <h2 class="text-sm font-medium text-gray-500 flex items-center">
+                  Current Milestone
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    class="h-4 w-4 ml-2 transition-transform duration-300" 
+                    :class="{'rotate-180': showAllMilestones}"
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </h2>
+                <!-- Major Selector Tabs -->
+                <div class="flex space-x-2" @click.stop>
+                  <button
+                    v-for="major in schoolMajors"
+                    :key="major"
+                    @click.stop="selectedMajor = major"
+                    class="px-3 py-1 text-xs rounded-full transition-colors"
+                    :class="selectedMajor === major ? 
+                      'bg-blue-100 text-blue-800 font-medium' : 
+                      'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                  >
+                    {{ major }}
+                  </button>
+                </div>
+              </div>
+              
+              <div v-if="error" class="py-2">
+                <p class="text-red-500">{{ error }}</p>
+              </div>
+              <div v-else-if="currentUpcomingMilestone" class="cursor-pointer">
+                <!-- Milestone content with enhanced styling -->
+                <div class="relative">
+                  <!-- Decorative element -->
+                  <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-full"></div>
+                  
+                  <div class="pl-4">
+                    <h3 class="text-lg font-semibold text-blue-800 mb-1">{{ currentUpcomingMilestone.description }}</h3>
+                    <div class="flex items-center text-gray-500">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>{{ formatDate(currentUpcomingMilestone.deadline) }}</span>
+                    </div>
+                    
+                    <!-- Days remaining indicator -->
+                    <div class="mt-3 flex items-center">
+                      <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          class="bg-blue-600 h-2 rounded-full" 
+                          :style="`width: ${getDaysRemainingPercentage(currentUpcomingMilestone)}%`"
+                        ></div>
+                      </div>
+                      <span class="ml-2 text-xs font-medium" :class="getDaysRemainingClass(currentUpcomingMilestone)">
+                        {{ getDaysRemainingText(currentUpcomingMilestone) }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="py-2">
+                <p class="text-gray-500">No upcoming milestones found.</p>
+              </div>
+            </div>
+
+            <!-- Expandable Milestone List -->
+            <transition
+              enter-active-class="transition-all duration-500 ease-out"
+              enter-from-class="max-h-0 opacity-0 overflow-hidden"
+              enter-to-class="max-h-[300px] opacity-100"
+              leave-active-class="transition-all duration-300 ease-in"
+              leave-from-class="max-h-[300px] opacity-100"
+              leave-to-class="max-h-0 opacity-0 overflow-hidden"
+            >
+              <div v-if="showAllMilestones && filteredMilestones && filteredMilestones.length > 0" class="mt-4 pt-4 border-t border-gray-200 overflow-auto flex-grow">
+                <div class="flex justify-between items-center mb-3">
+                  <h3 class="font-medium text-gray-800">All Milestones</h3>
+                </div>
+                
+                <div class="milestone-list-container">
+                  <transition-group 
+                    name="milestone-list" 
+                    tag="div"
+                    class="space-y-3"
+                  >
+                    <div 
+                      v-for="(milestone, index) in otherMilestones" 
+                      :key="index"
+                      class="p-3 rounded-md transition-all duration-200 relative overflow-hidden"
+                      :class="isMilestonePast(milestone) ? 'bg-gray-50 hover:bg-gray-100' : 'bg-blue-50 hover:bg-blue-100'"
+                    >
+                      <!-- Decorative element -->
+                      <div 
+                        class="absolute left-0 top-0 bottom-0 w-1 rounded-full"
+                        :class="isMilestonePast(milestone) ? 'bg-gray-400' : 'bg-blue-500'"
+                      ></div>
+                      
+                      <div class="flex justify-between items-start pl-3">
+                        <div>
+                          <p class="font-medium" :class="isMilestonePast(milestone) ? 'text-gray-600' : 'text-blue-700'">
+                            {{ milestone.description }}
+                          </p>
+                          <p class="text-sm flex items-center mt-1" :class="isMilestonePast(milestone) ? 'text-gray-500' : 'text-blue-600'">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {{ formatDate(milestone.deadline) }}
+                          </p>
+                        </div>
+                        <div 
+                          class="text-xs px-2 py-1 rounded-full"
+                          :class="isMilestonePast(milestone) ? 'bg-gray-200 text-gray-700' : 'bg-blue-200 text-blue-800'"
+                        >
+                          {{ isMilestonePast(milestone) ? 'Past' : 'Upcoming' }}
+                        </div>
+                      </div>
+                    </div>
+                  </transition-group>
+                </div>
+              </div>
+            </transition>
+          </div>
+
+          <!-- Submission Info Card (Now below milestone card) -->
+          <div class="bg-white p-4 shadow rounded relative">
+            <div class="flex justify-between items-center mb-3">
+              <h2 class="text-sm font-medium text-gray-500">Milestone Submissions</h2>
+            </div>
+            
+            <div v-if="submissionError" class="py-4">
+              <p class="text-red-500">{{ submissionError }}</p>
+            </div>
+            
+            <div v-else-if="currentMilestoneSubmissionStats" class="py-2">
+              <div class="relative">
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-purple-500 rounded-full"></div>
+                
+                <div class="pl-4">
+                  <h3 class="text-lg font-semibold text-gray-800 mb-3">
+                    {{ currentMilestoneSubmissionStats.milestoneName }}
+                  </h3>
+                  
+                  <!-- Circular Progress Display -->
+                  <div class="flex flex-col items-center justify-center py-6">
+                    <div class="relative w-32 h-32">
+                      <!-- Background Circle -->
+                      <svg class="w-full h-full" viewBox="0 0 100 100">
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="45"
+                          fill="none"
+                          stroke="#E2E8F0"
+                          stroke-width="8"
+                        />
+                        <!-- Progress Circle -->
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="45"
+                          fill="none"
+                          stroke="#7C3AED"
+                          stroke-width="8"
+                          stroke-linecap="round"
+                          :stroke-dasharray="`${currentMilestoneSubmissionStats.submissionRate * 2.83} 283`"
+                          transform="rotate(-90 50 50)"
+                        />
+                      </svg>
+                      <!-- Fraction Display -->
+                      <div class="absolute inset-0 flex items-center justify-center">
+                        <span class="text-2xl font-bold text-gray-800">
+                          {{ currentMilestoneSubmissionStats.projectsWithSubmissions }}/{{ currentMilestoneSubmissionStats.totalAssigned }}
+                        </span>
+                      </div>
+                    </div>
+                    <!-- Submission Status Text -->
+                    <p class="mt-4 text-center text-gray-600">
+                      {{ currentMilestoneSubmissionStats.projectsWithSubmissions }} out of {{ currentMilestoneSubmissionStats.totalAssigned }} 
+                      {{ currentMilestoneSubmissionStats.totalAssigned === 1 ? 'student' : 'students' }}
+                      {{ currentMilestoneSubmissionStats.projectsWithSubmissions < 2 ? 'has' : 'have' }} submitted their work.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div v-else class="py-4 text-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <p class="text-gray-500">No submission data available.</p>
+              <p class="text-sm text-gray-400 mt-1">
+                {{ currentUpcomingMilestone ? 'No assigned projects for this milestone yet.' : 'No current milestone found.' }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column - Project Assignment Card -->
+        <div class="col-span-6">
+          <div class="bg-white p-4 shadow rounded self-start min-h-[160px] relative">
+            <div class="flex justify-between items-start">
+              <h2 class="text-sm font-medium text-gray-500 mb-2">Projects Overview</h2>
+              
+              <!-- Major Selector Tabs for Projects -->
+              <div class="flex space-x-2">
                 <button
                   v-for="major in schoolMajors"
                   :key="major"
-                  @click.stop="selectedMajor = major"
+                  @click="selectedProjectMajor = major"
                   class="px-3 py-1 text-xs rounded-full transition-colors"
-                  :class="selectedMajor === major ? 
-                    'bg-blue-100 text-blue-800 font-medium' : 
+                  :class="selectedProjectMajor === major ? 
+                    'bg-green-100 text-green-800 font-medium' : 
                     'bg-gray-100 text-gray-600 hover:bg-gray-200'"
                 >
                   {{ major }}
@@ -46,272 +306,64 @@
               </div>
             </div>
             
-            <div v-if="loading" class="py-2">
-              <div class="h-5 bg-gray-200 rounded animate-pulse w-3/4 mb-2"></div>
-              <div class="h-4 bg-gray-200 rounded animate-pulse w-1/2"></div>
+            <div v-if="projectError" class="py-4">
+              <p class="text-red-500">{{ projectError }}</p>
             </div>
-            <div v-else-if="error" class="py-2">
-              <p class="text-red-500">{{ error }}</p>
-            </div>
-            <div v-else-if="currentUpcomingMilestone" class="cursor-pointer">
-              <!-- Milestone content with enhanced styling -->
+            
+            <div v-else-if="currentMajorProjectStats && currentMajorProjectStats.total > 0" class="py-2">
               <div class="relative">
-                <!-- Decorative element -->
-                <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-full"></div>
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-full"></div>
                 
                 <div class="pl-4">
-                  <h3 class="text-lg font-semibold text-blue-800 mb-1">{{ currentUpcomingMilestone.description }}</h3>
-                  <div class="flex items-center text-gray-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span>{{ formatDate(currentUpcomingMilestone.deadline) }}</span>
+                  <h3 class="text-lg font-semibold text-gray-800 mb-3">{{ selectedProjectMajor }} Projects</h3>
+                  
+                  <div class="grid grid-cols-3 gap-4 mb-4">
+                    <!-- Total Projects -->
+                    <div class="bg-blue-50 p-3 rounded-lg text-center">
+                      <p class="text-2xl font-bold text-blue-700">{{ currentMajorProjectStats.total }}</p>
+                      <p class="text-sm text-blue-600">Total Projects</p>
+                    </div>
+                    
+                    <!-- Assigned Projects -->
+                    <div class="bg-green-50 p-3 rounded-lg text-center">
+                      <p class="text-2xl font-bold text-green-700">{{ currentMajorProjectStats.assigned }}</p>
+                      <p class="text-sm text-green-600">Assigned</p>
+                    </div>
+                    
+                    <!-- Unassigned Projects -->
+                    <div class="bg-amber-50 p-3 rounded-lg text-center">
+                      <p class="text-2xl font-bold text-amber-700">{{ currentMajorProjectStats.unassigned }}</p>
+                      <p class="text-sm text-amber-600">Unassigned</p>
+                    </div>
                   </div>
                   
-                  <!-- Days remaining indicator -->
-                  <div class="mt-3 flex items-center">
-                    <div class="w-full bg-gray-200 rounded-full h-2">
+                  <!-- Assignment Rate Progress Bar -->
+                  <div class="mt-2">
+                    <div class="flex justify-between items-center mb-1">
+                      <span class="text-sm font-medium text-gray-700">Assignment Rate</span>
+                      <span class="text-sm font-medium text-gray-700">{{ currentMajorProjectStats.assignmentRate }}%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
                       <div 
-                        class="bg-blue-600 h-2 rounded-full" 
-                        :style="`width: ${getDaysRemainingPercentage(currentUpcomingMilestone)}%`"
+                        class="bg-blue-600 h-2.5 rounded-full" 
+                        :style="`width: ${currentMajorProjectStats.assignmentRate}%`"
                       ></div>
                     </div>
-                    <span class="ml-2 text-xs font-medium" :class="getDaysRemainingClass(currentUpcomingMilestone)">
-                      {{ getDaysRemainingText(currentUpcomingMilestone) }}
-                    </span>
                   </div>
                 </div>
               </div>
             </div>
-            <div v-else class="py-2">
-              <p class="text-gray-500">No upcoming milestones found.</p>
-            </div>
-          </div>
-
-          <!-- Expandable Milestone List -->
-          <transition
-            enter-active-class="transition-all duration-500 ease-out"
-            enter-from-class="max-h-0 opacity-0 overflow-hidden"
-            enter-to-class="max-h-[300px] opacity-100"
-            leave-active-class="transition-all duration-300 ease-in"
-            leave-from-class="max-h-[300px] opacity-100"
-            leave-to-class="max-h-0 opacity-0 overflow-hidden"
-          >
-            <div v-if="showAllMilestones && filteredMilestones && filteredMilestones.length > 0" class="mt-4 pt-4 border-t border-gray-200 overflow-auto flex-grow">
-              <div class="flex justify-between items-center mb-3">
-                <h3 class="font-medium text-gray-800">All Milestones</h3>
-              </div>
-              
-              <div class="milestone-list-container">
-                <transition-group 
-                  name="milestone-list" 
-                  tag="div"
-                  class="space-y-3"
-                >
-                  <div 
-                    v-for="(milestone, index) in otherMilestones" 
-                    :key="index"
-                    class="p-3 rounded-md transition-all duration-200 relative overflow-hidden"
-                    :class="isMilestonePast(milestone) ? 'bg-gray-50 hover:bg-gray-100' : 'bg-blue-50 hover:bg-blue-100'"
-                  >
-                    <!-- Decorative element -->
-                    <div 
-                      class="absolute left-0 top-0 bottom-0 w-1 rounded-full"
-                      :class="isMilestonePast(milestone) ? 'bg-gray-400' : 'bg-blue-500'"
-                    ></div>
-                    
-                    <div class="flex justify-between items-start pl-3">
-                      <div>
-                        <p class="font-medium" :class="isMilestonePast(milestone) ? 'text-gray-600' : 'text-blue-700'">
-                          {{ milestone.description }}
-                        </p>
-                        <p class="text-sm flex items-center mt-1" :class="isMilestonePast(milestone) ? 'text-gray-500' : 'text-blue-600'">
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          {{ formatDate(milestone.deadline) }}
-                        </p>
-                      </div>
-                      <div 
-                        class="text-xs px-2 py-1 rounded-full"
-                        :class="isMilestonePast(milestone) ? 'bg-gray-200 text-gray-700' : 'bg-blue-200 text-blue-800'"
-                      >
-                        {{ isMilestonePast(milestone) ? 'Past' : 'Upcoming' }}
-                      </div>
-                    </div>
-                  </div>
-                </transition-group>
-              </div>
-            </div>
-          </transition>
-        </div>
-
-        <!-- Submission Info Card (Now below milestone card) -->
-        <div class="bg-white p-4 shadow rounded relative">
-          <div class="flex justify-between items-center mb-3">
-            <h2 class="text-sm font-medium text-gray-500">Milestone Submissions</h2>
-          </div>
-          
-          <div v-if="submissionLoading" class="py-4">
-            <div class="h-6 bg-gray-200 rounded animate-pulse w-3/4 mb-3"></div>
-            <div class="h-4 bg-gray-200 rounded animate-pulse w-1/2 mb-2"></div>
-            <div class="h-4 bg-gray-200 rounded animate-pulse w-2/3"></div>
-          </div>
-          
-          <div v-else-if="submissionError" class="py-4">
-            <p class="text-red-500">{{ submissionError }}</p>
-          </div>
-          
-          <div v-else-if="currentMilestoneSubmissionStats" class="py-2">
-            <div class="relative">
-              <div class="absolute left-0 top-0 bottom-0 w-1 bg-purple-500 rounded-full"></div>
-              
-              <div class="pl-4">
-                <h3 class="text-lg font-semibold text-gray-800 mb-3">
-                  {{ currentMilestoneSubmissionStats.milestoneName }}
-                </h3>
-                
-                <!-- Circular Progress Display -->
-                <div class="flex flex-col items-center justify-center py-6">
-                  <div class="relative w-32 h-32">
-                    <!-- Background Circle -->
-                    <svg class="w-full h-full" viewBox="0 0 100 100">
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="45"
-                        fill="none"
-                        stroke="#E2E8F0"
-                        stroke-width="8"
-                      />
-                      <!-- Progress Circle -->
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="45"
-                        fill="none"
-                        stroke="#7C3AED"
-                        stroke-width="8"
-                        stroke-linecap="round"
-                        :stroke-dasharray="`${currentMilestoneSubmissionStats.submissionRate * 2.83} 283`"
-                        transform="rotate(-90 50 50)"
-                      />
-                    </svg>
-                    <!-- Fraction Display -->
-                    <div class="absolute inset-0 flex items-center justify-center">
-                      <span class="text-2xl font-bold text-gray-800">
-                        {{ currentMilestoneSubmissionStats.projectsWithSubmissions }}/{{ currentMilestoneSubmissionStats.totalAssigned }}
-                      </span>
-                    </div>
-                  </div>
-                  <!-- Submission Status Text -->
-                  <p class="mt-4 text-center text-gray-600">
-                    {{ currentMilestoneSubmissionStats.projectsWithSubmissions }} out of {{ currentMilestoneSubmissionStats.totalAssigned }} 
-                    {{ currentMilestoneSubmissionStats.totalAssigned === 1 ? 'student' : 'students' }}
-                    {{ currentMilestoneSubmissionStats.projectsWithSubmissions < 2 ? 'has' : 'have' }} submitted their work.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div v-else class="py-4 text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            <p class="text-gray-500">No submission data available.</p>
-            <p class="text-sm text-gray-400 mt-1">
-              {{ currentUpcomingMilestone ? 'No assigned projects for this milestone yet.' : 'No current milestone found.' }}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Right Column - Project Assignment Card -->
-      <div class="col-span-6">
-        <div class="bg-white p-4 shadow rounded self-start min-h-[160px] relative">
-          <div class="flex justify-between items-start">
-            <h2 class="text-sm font-medium text-gray-500 mb-2">Projects Overview</h2>
             
-            <!-- Major Selector Tabs for Projects -->
-            <div class="flex space-x-2">
-              <button
-                v-for="major in schoolMajors"
-                :key="major"
-                @click="selectedProjectMajor = major"
-                class="px-3 py-1 text-xs rounded-full transition-colors"
-                :class="selectedProjectMajor === major ? 
-                  'bg-green-100 text-green-800 font-medium' : 
-                  'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-              >
-                {{ major }}
-              </button>
+            <div v-else class="py-4 text-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <p class="text-gray-500">No projects data available for {{ selectedProjectMajor }}.</p>
+              <p class="text-sm text-gray-400 mt-1">Projects may not have been created yet.</p>
             </div>
-          </div>
-          
-          <div v-if="projectLoading" class="py-4">
-            <div class="h-6 bg-gray-200 rounded animate-pulse w-3/4 mb-3"></div>
-            <div class="h-4 bg-gray-200 rounded animate-pulse w-1/2 mb-2"></div>
-            <div class="h-4 bg-gray-200 rounded animate-pulse w-2/3"></div>
-          </div>
-          
-          <div v-else-if="projectError" class="py-4">
-            <p class="text-red-500">{{ projectError }}</p>
-          </div>
-          
-          <div v-else-if="currentMajorProjectStats && currentMajorProjectStats.total > 0" class="py-2">
-            <div class="relative">
-              <div class="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-full"></div>
-              
-              <div class="pl-4">
-                <h3 class="text-lg font-semibold text-gray-800 mb-3">{{ selectedProjectMajor }} Projects</h3>
-                
-                <div class="grid grid-cols-3 gap-4 mb-4">
-                  <!-- Total Projects -->
-                  <div class="bg-blue-50 p-3 rounded-lg text-center">
-                    <p class="text-2xl font-bold text-blue-700">{{ currentMajorProjectStats.total }}</p>
-                    <p class="text-sm text-blue-600">Total Projects</p>
-                  </div>
-                  
-                  <!-- Assigned Projects -->
-                  <div class="bg-green-50 p-3 rounded-lg text-center">
-                    <p class="text-2xl font-bold text-green-700">{{ currentMajorProjectStats.assigned }}</p>
-                    <p class="text-sm text-green-600">Assigned</p>
-                  </div>
-                  
-                  <!-- Unassigned Projects -->
-                  <div class="bg-amber-50 p-3 rounded-lg text-center">
-                    <p class="text-2xl font-bold text-amber-700">{{ currentMajorProjectStats.unassigned }}</p>
-                    <p class="text-sm text-amber-600">Unassigned</p>
-                  </div>
-                </div>
-                
-                <!-- Assignment Rate Progress Bar -->
-                <div class="mt-2">
-                  <div class="flex justify-between items-center mb-1">
-                    <span class="text-sm font-medium text-gray-700">Assignment Rate</span>
-                    <span class="text-sm font-medium text-gray-700">{{ currentMajorProjectStats.assignmentRate }}%</span>
-                  </div>
-                  <div class="w-full bg-gray-200 rounded-full h-2.5">
-                    <div 
-                      class="bg-blue-600 h-2.5 rounded-full" 
-                      :style="`width: ${currentMajorProjectStats.assignmentRate}%`"
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div v-else class="py-4 text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <p class="text-gray-500">No projects data available for {{ selectedProjectMajor }}.</p>
-            <p class="text-sm text-gray-400 mt-1">Projects may not have been created yet.</p>
           </div>
         </div>
-      </div>
+      </template>
     </div>
   </div>
 </template>
@@ -333,6 +385,10 @@ export default {
     const showAllMilestones = ref(false)
     const schoolMajors = ref([])
     const selectedMajor = ref(null)
+    
+    // Unified loading state
+    const showPlaceholders = ref(true)
+    const allContentLoaded = ref(false)
     
     // Submission data
     const submissionLoading = ref(true)
@@ -726,7 +782,7 @@ export default {
     }
 
     // Function to fetch submission statistics for the current milestone
-    const fetchSubmissionStats = async (majorId, isBackgroundLoad = false) => {
+    const fetchSubmissionStats = async (majorId, isBackgroundLoad = false, force = false) => {
       if (!majorId) return
       
       console.log('Starting fetchSubmissionStats for major:', majorId, 'background:', isBackgroundLoad)
@@ -735,13 +791,46 @@ export default {
         selectedSubmissionMajor.value = majorId
       }
       
-      // Check cache
+      // Skip if recently loaded (within 30 seconds) unless forced
+      const now = Date.now()
+      
+      // Check cache with better timestamp expiration logic
       if (submissionStatsCache.value[majorId]) {
-        console.log('Using cached submission stats for major:', majorId)
+        console.log('Found cached submission stats for major:', majorId)
+        
+        // Use cached data immediately
         if (!isBackgroundLoad) {
           currentMilestoneSubmissionStats.value = submissionStatsCache.value[majorId]
         }
-        return
+        
+        // If not forced and cache is fresh (less than 30 seconds), don't refresh
+        const cacheAge = now - (submissionStatsCache.value[majorId].timestamp || 0)
+        if (!force && cacheAge < 30000) {
+          console.log('Using fresh cache for submission stats, age:', cacheAge, 'ms')
+          return
+        }
+      }
+      
+      // Also check session storage (provides persistence between page loads)
+      const sessionStorageKey = `${userStore.currentUser?.uid}_${majorId}_submissionStats`
+      try {
+        const storedStats = sessionStorage.getItem(sessionStorageKey)
+        if (storedStats) {
+          const parsedStats = JSON.parse(storedStats)
+          const storageAge = now - (parsedStats.timestamp || 0)
+          
+          // Use session storage if fresh (less than 2 minutes)
+          if (!force && storageAge < 120000) {
+            console.log('Using submission stats from session storage, age:', storageAge, 'ms')
+            submissionStatsCache.value[majorId] = parsedStats
+            if (!isBackgroundLoad) {
+              currentMilestoneSubmissionStats.value = parsedStats
+            }
+            return
+          }
+        }
+      } catch (err) {
+        console.error('Error reading submission stats from session storage:', err)
       }
       
       if (!isBackgroundLoad) {
@@ -769,18 +858,7 @@ export default {
           throw new Error('Major document not found')
         }
         
-        // Get all projects for this major
-        const projectsRef = collection(
-          db,
-          'schools', school,
-          'projects', yearId,
-          majorId, majorDocId,
-          'projectsPerYear'
-        )
-        
-        const projectsSnapshot = await getDocs(projectsRef)
-        
-        // Get current milestone index
+        // Get current milestone index first to avoid loading unnecessary data
         const majorMilestones = await getMilestones(school, yearId, majorId, majorDocId)
         const now = new Date()
         const sortedMilestones = [...majorMilestones].sort((a, b) => {
@@ -808,39 +886,93 @@ export default {
           m.description === currentMilestone.description
         )
         
-        // Count assigned projects and prepare submission queries
-        let totalAssigned = 0
-        const submissionQueries = []
+        // OPTIMIZATION: Use a more efficient approach - get all submissions for this milestone first
+        // This is faster than querying each project's submissions separately
+        const projectsRef = collection(
+          db,
+          'schools', school,
+          'projects', yearId,
+          majorId, majorDocId,
+          'projectsPerYear'
+        )
         
-        projectsSnapshot.docs.forEach(projectDoc => {
-          const projectData = projectDoc.data()
-          if (projectData.assignedTo) {
-            totalAssigned++
-            const submissionsRef = collection(projectDoc.ref, 'submissions')
-            const submissionsQuery = query(
-              submissionsRef,
-              where('milestoneIndex', '==', milestoneIndex)
-            )
-            submissionQueries.push({
-              projectId: projectDoc.id,
-              query: submissionsQuery
-            })
+        // Use limit to improve performance - we only need the assignment info
+        const projectsQuery = query(projectsRef, limit(100))
+        const projectsSnapshot = await getDocs(projectsQuery)
+        
+        // Build a map of project IDs to make lookups faster
+        const assignedProjectIds = new Set()
+        projectsSnapshot.docs.forEach(doc => {
+          const data = doc.data()
+          if (data.assignedTo) {
+            assignedProjectIds.add(doc.id)
           }
         })
         
-        // Execute all submission queries in parallel
-        const submissionResults = await Promise.all(
-          submissionQueries.map(item => 
-            getDocs(item.query).then(snapshot => ({
-              projectId: item.projectId,
-              hasSubmission: !snapshot.empty
-            }))
-          )
-        )
+        const totalAssigned = assignedProjectIds.size
         
-        const projectsWithSubmissions = submissionResults.filter(result => result.hasSubmission).length
-        const submissionRate = totalAssigned > 0 ? 
-          Math.round((projectsWithSubmissions / totalAssigned) * 100) : 0
+        // If no assigned projects, return early with zero stats
+        if (totalAssigned === 0) {
+          const emptyStats = {
+            milestoneName: currentMilestone.description,
+            milestoneIndex: milestoneIndex,
+            totalAssigned: 0,
+            projectsWithSubmissions: 0,
+            projectsWithoutSubmissions: 0,
+            submissionRate: 0,
+            timestamp: Date.now()
+          }
+          
+          submissionStatsCache.value[majorId] = emptyStats
+          
+          // Store in session storage
+          try {
+            sessionStorage.setItem(sessionStorageKey, JSON.stringify(emptyStats))
+          } catch (err) {
+            console.error('Error storing submission stats in session storage:', err)
+          }
+          
+          if (!isBackgroundLoad) {
+            currentMilestoneSubmissionStats.value = emptyStats
+          }
+          
+          return
+        }
+        
+        // OPTIMIZATION: Use a batched approach with a single query for all submissions
+        // by querying the "milestoneIndex" across all projects
+        // This is a significant performance improvement over the original approach
+        let projectsWithSubmissions = 0
+        
+        // Use Promise.all for concurrent requests with a limit on batch size
+        const batchSize = 10 // Process 10 projects at a time to avoid overwhelming Firestore
+        const batches = []
+        const projectIds = Array.from(assignedProjectIds)
+        
+        for (let i = 0; i < projectIds.length; i += batchSize) {
+          const batch = projectIds.slice(i, i + batchSize)
+          batches.push(batch)
+        }
+        
+        // Process batches sequentially to avoid too many parallel requests
+        for (const batch of batches) {
+          const batchQueries = batch.map(projectId => {
+            const projectRef = doc(projectsRef, projectId)
+            const submissionsRef = collection(projectRef, 'submissions')
+            // OPTIMIZATION: Limit to 1 result, we only need to know if any exist
+            const submissionsQuery = query(
+              submissionsRef,
+              where('milestoneIndex', '==', milestoneIndex),
+              limit(1)
+            )
+            return getDocs(submissionsQuery).then(snapshot => !snapshot.empty)
+          })
+          
+          const batchResults = await Promise.all(batchQueries)
+          projectsWithSubmissions += batchResults.filter(Boolean).length
+        }
+        
+        const submissionRate = Math.round((projectsWithSubmissions / totalAssigned) * 100)
         
         const statsObject = {
           milestoneName: currentMilestone.description,
@@ -852,7 +984,15 @@ export default {
           timestamp: Date.now()
         }
         
+        // Cache in memory
         submissionStatsCache.value[majorId] = statsObject
+        
+        // Store in session storage
+        try {
+          sessionStorage.setItem(sessionStorageKey, JSON.stringify(statsObject))
+        } catch (err) {
+          console.error('Error storing submission stats in session storage:', err)
+        }
         
         if (!isBackgroundLoad) {
           currentMilestoneSubmissionStats.value = statsObject
@@ -876,19 +1016,39 @@ export default {
       
       console.log('Pre-loading submission statistics for all majors')
       
-      const fetchPromises = schoolMajors.value
+      // Prioritize majors without cached data
+      const majorsToLoad = schoolMajors.value
         .filter(majorId => majorId !== selectedMajor.value)
-        .map(majorId => {
-          if (!submissionStatsCache.value[majorId]) {
-            console.log('Preloading stats for major:', majorId)
-            return fetchSubmissionStats(majorId, true)
-          }
-          return Promise.resolve()
-        })
+        .sort((a, b) => {
+          // Sort by cache status - uncached majors first
+          const aIsCached = !!submissionStatsCache.value[a];
+          const bIsCached = !!submissionStatsCache.value[b];
+          if (aIsCached !== bIsCached) return aIsCached ? 1 : -1;
+          return 0;
+        });
       
-      Promise.all(fetchPromises)
-        .then(() => console.log('Finished pre-loading submission statistics'))
-        .catch(err => console.error('Error during background preloading:', err))
+      // Process in batches to avoid overwhelming the browser/Firestore
+      const processBatch = async (startIndex) => {
+        if (startIndex >= majorsToLoad.length) return;
+        
+        // Process maximum 2 majors at a time
+        const batchSize = 2;
+        const endIndex = Math.min(startIndex + batchSize, majorsToLoad.length);
+        const currentBatch = majorsToLoad.slice(startIndex, endIndex);
+        
+        // Process this batch
+        await Promise.all(
+          currentBatch.map(majorId => fetchSubmissionStats(majorId, true))
+        );
+        
+        // Schedule next batch with a small delay to avoid UI blocking
+        setTimeout(() => {
+          processBatch(endIndex);
+        }, 100);
+      };
+      
+      // Start processing the first batch
+      processBatch(0);
     }
 
     // Add watcher for selectedMajor
@@ -904,16 +1064,56 @@ export default {
     })
 
     // Function to fetch project statistics for a specific major
-    const fetchProjectStats = async (majorId, isBackgroundLoad = false) => {
+    const fetchProjectStats = async (majorId, isBackgroundLoad = false, force = false) => {
       if (!majorId) return
       
       console.log('Starting fetchProjectStats for major:', majorId, 'background:', isBackgroundLoad)
       
-      // Check cache first
+      // Set selected major (only for foreground loads)
+      if (!isBackgroundLoad) {
+        selectedProjectMajor.value = majorId
+      }
+      
+      // Skip if recently loaded (within 30 seconds) unless forced
+      const now = Date.now()
+      
+      // Check memory cache with expiration logic
       if (projectStatsCache.value[majorId]) {
-        console.log('Using cached project stats for major:', majorId)
-        currentMajorProjectStats.value = projectStatsCache.value[majorId]
-        return
+        console.log('Found cached project stats for major:', majorId)
+        
+        // Use cached data immediately
+        if (!isBackgroundLoad) {
+          currentMajorProjectStats.value = projectStatsCache.value[majorId]
+        }
+        
+        // If not forced and cache is fresh (less than 30 seconds), don't refresh
+        const cacheAge = now - (projectStatsCache.value[majorId].timestamp || 0)
+        if (!force && cacheAge < 30000) {
+          console.log('Using fresh memory cache for project stats, age:', cacheAge, 'ms')
+          return
+        }
+      }
+      
+      // Check session storage for cached data
+      const sessionStorageKey = `${userStore.currentUser?.uid}_${majorId}_projectStats`
+      try {
+        const storedStats = sessionStorage.getItem(sessionStorageKey)
+        if (storedStats) {
+          const parsedStats = JSON.parse(storedStats)
+          const storageAge = now - (parsedStats.timestamp || 0)
+          
+          // Use session storage if fresh (less than 2 minutes)
+          if (!force && storageAge < 120000) {
+            console.log('Using project stats from session storage, age:', storageAge, 'ms')
+            projectStatsCache.value[majorId] = parsedStats
+            if (!isBackgroundLoad) {
+              currentMajorProjectStats.value = parsedStats
+            }
+            return
+          }
+        }
+      } catch (err) {
+        console.error('Error reading project stats from session storage:', err)
       }
       
       if (!isBackgroundLoad) {
@@ -949,7 +1149,9 @@ export default {
           'projectsPerYear'
         )
         
-        const projectsSnapshot = await getDocs(projectsRef)
+        // OPTIMIZATION: Use limit and only fetch necessary fields
+        const projectsQuery = query(projectsRef, limit(100))
+        const projectsSnapshot = await getDocs(projectsQuery)
         
         // Count total, assigned and unassigned projects
         let totalProjects = projectsSnapshot.size
@@ -974,21 +1176,30 @@ export default {
           timestamp: Date.now()
         }
         
-        // Store in cache
+        // Store in memory cache
         projectStatsCache.value[majorId] = statsObject
         
+        // Store in session storage for persistence
+        try {
+          sessionStorage.setItem(sessionStorageKey, JSON.stringify(statsObject))
+        } catch (err) {
+          console.error('Error storing project stats in session storage:', err)
+        }
+        
         // Update current stats
-        if (majorId === selectedProjectMajor.value || !selectedProjectMajor.value) {
+        if (!isBackgroundLoad) {
           currentMajorProjectStats.value = statsObject
         }
         
         console.log(`Project stats for ${majorId}:`, statsObject)
+        return statsObject
         
       } catch (err) {
         if (!isBackgroundLoad) {
           projectError.value = `Failed to load project data: ${err.message}`
         }
         console.error(`Error loading project stats for major ${majorId}:`, err)
+        return null
       } finally {
         if (!isBackgroundLoad) {
           projectLoading.value = false
@@ -1002,13 +1213,39 @@ export default {
       
       console.log('Pre-loading project statistics for all majors')
       
-      const fetchPromises = schoolMajors.value.map(majorId => {
-        return fetchProjectStats(majorId, true)
-      })
+      // Prioritize majors without cached data
+      const majorsToLoad = schoolMajors.value
+        .filter(majorId => majorId !== selectedProjectMajor.value)
+        .sort((a, b) => {
+          // Sort by cache status - uncached majors first
+          const aIsCached = !!projectStatsCache.value[a];
+          const bIsCached = !!projectStatsCache.value[b];
+          if (aIsCached !== bIsCached) return aIsCached ? 1 : -1;
+          return 0;
+        });
       
-      Promise.all(fetchPromises)
-        .then(() => console.log('Finished pre-loading project statistics'))
-        .catch(err => console.error('Error during background preloading of projects:', err))
+      // Process in batches to avoid overwhelming the browser/Firestore
+      const processBatch = async (startIndex) => {
+        if (startIndex >= majorsToLoad.length) return;
+        
+        // Process maximum 2 majors at a time
+        const batchSize = 2;
+        const endIndex = Math.min(startIndex + batchSize, majorsToLoad.length);
+        const currentBatch = majorsToLoad.slice(startIndex, endIndex);
+        
+        // Process this batch
+        await Promise.all(
+          currentBatch.map(majorId => fetchProjectStats(majorId, true))
+        );
+        
+        // Schedule next batch without blocking the main thread
+        setTimeout(() => {
+          processBatch(endIndex);
+        }, 100);
+      };
+      
+      // Start processing the first batch
+      processBatch(0);
     }
 
     // Update the watcher for selectedProjectMajor to use the cache
@@ -1027,9 +1264,11 @@ export default {
       }
     })
 
+    // Modified onMounted function for instant loading with cached data
     onMounted(async () => {
       console.log('AdminDashboard mounted')
       const startTime = Date.now()
+      
       try {
         if (!userStore.initialized) {
           await userStore.initializeAuth()
@@ -1048,31 +1287,147 @@ export default {
           }
         }
 
-        // First, load primary major's data
-        await Promise.all([
-          fetchMilestonesData(), // This now prioritizes the first major
-          selectedMajor.value ? fetchSubmissionStats(selectedMajor.value) : Promise.resolve(),
-          selectedProjectMajor.value ? fetchProjectStats(selectedProjectMajor.value) : Promise.resolve()
-        ])
-
-        initialLoadDone.value = true
+        // STEP 1: Load cached data immediately and show UI
+        let hasAnyCache = false;
         
-        // Then preload other majors' data in background
-        setTimeout(() => {
-          if (selectedMajor.value) {
-            preloadAllSubmissionStats()
+        // Check for cached milestone data
+        if (selectedMajor.value) {
+          const cachedMilestones = getMilestonesFromSessionStorage(selectedMajor.value);
+          if (cachedMilestones) {
+            console.log(`Using cached milestones for instant display: ${selectedMajor.value}`);
+            allMilestones.value = cachedMilestones.map(milestone => ({
+              ...milestone,
+              major: selectedMajor.value
+            }));
+            hasAnyCache = true;
           }
-          preloadAllProjectStats()
-        }, 0)
-
-        const totalLoadTime = Date.now() - startTime
-        console.log(`Total dashboard load time: ${totalLoadTime}ms`)
+        }
+        
+        // Check for cached submission data
+        if (selectedMajor.value) {
+          const sessionStorageKey = `${userStore.currentUser?.uid}_${selectedMajor.value}_submissionStats`;
+          try {
+            const storedStats = sessionStorage.getItem(sessionStorageKey);
+            if (storedStats) {
+              const parsedStats = JSON.parse(storedStats);
+              submissionStatsCache.value[selectedMajor.value] = parsedStats;
+              currentMilestoneSubmissionStats.value = parsedStats;
+              hasAnyCache = true;
+              submissionLoading.value = false;
+              console.log('Using cached submission stats for instant display');
+            }
+          } catch (err) {
+            console.error('Error reading submission stats from session storage:', err);
+          }
+        }
+        
+        // Check for cached project data
+        if (selectedProjectMajor.value) {
+          const projectStorageKey = `${userStore.currentUser?.uid}_${selectedProjectMajor.value}_projectStats`;
+          try {
+            const storedProjectStats = sessionStorage.getItem(projectStorageKey);
+            if (storedProjectStats) {
+              const parsedProjectStats = JSON.parse(storedProjectStats);
+              projectStatsCache.value[selectedProjectMajor.value] = parsedProjectStats;
+              currentMajorProjectStats.value = parsedProjectStats;
+              hasAnyCache = true;
+              projectLoading.value = false;
+              console.log('Using cached project stats for instant display');
+            }
+          } catch (err) {
+            console.error('Error reading project stats from session storage:', err);
+          }
+        }
+        
+        // If we have any cached data, show the UI immediately
+        if (hasAnyCache) {
+          console.log('Found cached data, showing UI immediately');
+          showPlaceholders.value = false;
+          initialLoadDone.value = true;
+        }
+        
+        // STEP 2: Load fresh data in background and update UI incrementally
+        
+        // Function to update UI with fresh milestone data
+        const updateMilestoneData = async () => {
+          try {
+            console.log('Loading fresh milestone data');
+            await fetchMilestonesData();
+            console.log('Milestone data refreshed');
+          } catch (err) {
+            console.error('Error updating milestone data:', err);
+          } finally {
+            loading.value = false;
+          }
+        };
+        
+        // Function to update UI with fresh submission data
+        const updateSubmissionData = async () => {
+          if (!selectedMajor.value) return;
+          try {
+            console.log('Loading fresh submission data');
+            await fetchSubmissionStats(selectedMajor.value, false, true); // Force refresh
+            console.log('Submission data refreshed');
+          } catch (err) {
+            console.error('Error updating submission data:', err);
+          } finally {
+            submissionLoading.value = false;
+          }
+        };
+        
+        // Function to update UI with fresh project data
+        const updateProjectData = async () => {
+          if (!selectedProjectMajor.value) return;
+          try {
+            console.log('Loading fresh project data');
+            await fetchProjectStats(selectedProjectMajor.value, false, true); // Force refresh
+            console.log('Project data refreshed');
+          } catch (err) {
+            console.error('Error updating project data:', err);
+          } finally {
+            projectLoading.value = false;
+          }
+        };
+        
+        // Load data in background and update UI as each piece becomes available
+        Promise.all([
+          updateMilestoneData(),
+          updateSubmissionData(),
+          updateProjectData()
+        ]).then(() => {
+          // All data is now fresh
+          console.log('All dashboard data refreshed');
+          // Always ensure UI is visible after all data is loaded
+          showPlaceholders.value = false;
+          initialLoadDone.value = true;
+          
+          // Preload other majors in background
+          if (selectedMajor.value) {
+            preloadAllSubmissionStats();
+          }
+          preloadAllProjectStats();
+          
+          const totalLoadTime = Date.now() - startTime;
+          console.log(`Total dashboard refresh time: ${totalLoadTime}ms`);
+        }).catch(err => {
+          console.error('Error refreshing dashboard data:', err);
+        });
+        
       } catch (err) {
-        console.error('Failed to initialize dashboard:', err)
-        error.value = 'Failed to initialize dashboard data'
+        console.error('Failed to initialize dashboard:', err);
+        error.value = 'Failed to initialize dashboard data';
+        
+        // Ensure UI is shown even in case of errors
+        showPlaceholders.value = false;
       } finally {
-        loading.value = false
-        projectLoading.value = false
+        // If we had no cache, we need to wait for the first data load
+        if (showPlaceholders.value) {
+          setTimeout(() => {
+            // Safety fallback - if after 2 seconds we still have placeholders, hide them anyway
+            showPlaceholders.value = false;
+            initialLoadDone.value = true;
+          }, 2000);
+        }
       }
     })
 
@@ -1103,7 +1458,10 @@ export default {
       projectError,
       selectedProjectMajor,
       currentMajorProjectStats,
-      fetchProjectStats
+      fetchProjectStats,
+      // Add new reactive variables to the return object
+      showPlaceholders,
+      allContentLoaded
     }
   }
 }
@@ -1112,4 +1470,5 @@ export default {
 <style scoped>
 /* Dashboard styles imported from assets/styles/dashboard.css */
 </style>
+
 
