@@ -5,9 +5,18 @@
       class="bg-gradient-to-b from-blue-50 to-gray-50 shadow-md transition-all duration-300 overflow-hidden relative rounded-r-2xl border-r border-blue-100"
       :class="{ 'w-64': isOpen, 'w-16': !isOpen }"
     >
-      <div class="p-4 flex items-center justify-center">
-        <div class="w-10 h-10 flex-shrink-0">
-          <img src="/logo.png" alt="BidMaS Logo" class="h-full w-full object-contain" />
+      <div class="h-[72px] flex items-center justify-center">
+        <div class="relative" :style="{ width: isOpen ? '56px' : '40px', height: '40px' }">
+          <img 
+            :src="isOpen ? '/standinglogo.png' : '/logo.png'" 
+            :alt="isOpen ? 'BidMaS Standing Logo' : 'BidMaS Logo'" 
+            class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
+            :style="{ 
+              width: isOpen ? '56px' : '40px',
+              height: isOpen ? '56px' : '40px',
+              objectFit: 'contain'
+            }" 
+          />
         </div>
         <span v-if="isOpen" class="ml-2 font-semibold text-blue-700">BidMaS</span>
       </div>
