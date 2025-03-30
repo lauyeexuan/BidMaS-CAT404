@@ -5,10 +5,11 @@
         {{ isRegistering ? 'Create Account' : 'Welcome Back' }}
       </h2>
       <button 
-        @click="$emit('close')" 
+        v-if="isRegistering"
+        @click="toggleAuthMode" 
         class="text-gray-500 hover:text-gray-700 transition-colors"
       >
-        ← Back
+        ← Back to Login
       </button>
     </div>
     
