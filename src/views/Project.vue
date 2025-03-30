@@ -48,7 +48,7 @@
         <div v-if="loading" class="p-6">
           <div class="flex justify-center items-center">
             <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-            <span class="ml-3 text-gray-600">Projects on thier way...</span>
+            <span class="ml-3 text-gray-600">Projects on their way...</span>
           </div>
         </div>
 
@@ -1511,8 +1511,6 @@ const fetchAvailableYears = async () => {
 // Fetch project settings for the selected year
 const fetchSettings = async () => {
   try {
-    loading.value = true
-    
     // Get basic settings (majors, etc.)
     await fetchBasicSettings()
     
@@ -1524,8 +1522,6 @@ const fetchSettings = async () => {
   } catch (error) {
     console.error('Error fetching settings:', error)
     showToast('Failed to load settings', 'error')
-  } finally {
-    loading.value = false
   }
 }
 
@@ -2878,6 +2874,11 @@ const updateBidStatus = async (bid, newStatus) => {
         lecturerAccepted: newStatus === 'accepted'
       }
     }
+    
+    // If we're in the bids tab, refresh listeners to ensure real-time updates
+    if (activeTab.value === 'bids') {
+      setTimeout(() => refreshBidListeners(), 500);
+    }
   } catch (error) {
     console.error('Error updating bid status:', error)
     showToast('Failed to update bid status', 'error')
@@ -3176,6 +3177,24 @@ const setupAllBidsListeners = async () => {
   }
 }
 
+// Add new function to refresh bid listeners without affecting loading state or the current bids
+const refreshBidListeners = async () => {
+  console.log("Refreshing bid listeners to ensure real-time updates");
+  
+  try {
+    // Clean up existing listeners but keep the current bids data
+    bidListeners.value.forEach(unsubscribe => unsubscribe());
+    bidListeners.value.clear();
+    
+    // Set up new listeners
+    await setupAllBidsListeners();
+    
+    console.log("Bid listeners refreshed successfully");
+  } catch (error) {
+    console.error("Error refreshing bid listeners:", error);
+  }
+};
+
 // Add watcher for activeTab
 watch(activeTab, async (newTab, oldTab) => {
   // First clean up any resources from the old tab
@@ -3183,6 +3202,27 @@ watch(activeTab, async (newTab, oldTab) => {
     // Clean up listeners when leaving bids tab
     bidListeners.value.forEach(unsubscribe => unsubscribe())
     bidListeners.value.clear()
+  }
+  
+  // Special handling for bids tab - always ensure listeners are active
+  if (newTab === 'bids') {
+    if (bidsLoaded.value) {
+      console.log('Bids tab already loaded, but refreshing listeners to ensure real-time updates');
+      // Re-setup listeners without full reload
+      refreshBidListeners();
+      return;
+    }
+    // If not loaded, proceed with normal loading
+  } else {
+    // For other tabs, check if already loaded
+    const isTabLoaded = 
+      (newTab === 'myProjects' && myProjectsLoaded.value) || 
+      (newTab === 'allProjects' && allProjectsLoaded.value);
+      
+    if (isTabLoaded) {
+      console.log(`Tab ${newTab} already loaded, switching immediately`);
+      return; // Skip loading if already loaded
+    }
   }
   
   // Then load data for the new tab
@@ -3213,73 +3253,85 @@ const loadTabData = async (tab) => {
       userId = "unknown-user-" + Date.now()
     }
     
-    // Call fetchSettings to ensure we load all necessary data
+    // Call fetchSettings to ensure we load basic settings without affecting main loading state
     await fetchSettings()
     
     // Load specific data based on active tab
     if (tab === 'myProjects') {
-      // Only load if not already loaded
-      if (!myProjectsLoaded.value) {
-        myProjectsLoading.value = true
-        // Clear current data
-        projects.value = []
-        await fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
-        myProjectsLoaded.value = true
-        myProjectsLoading.value = false
+      // Skip loading if already loaded
+      if (myProjectsLoaded.value) {
+        console.log("My projects already loaded, skipping fetch")
+        return
+      }
+      
+      myProjectsLoading.value = true
+      // Clear current data
+      projects.value = []
+      await fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
+      myProjectsLoaded.value = true
+      myProjectsLoading.value = false
 
-        // Prefetch bids data after loading my projects
-        if (!bidsLoaded.value) {
-          projectBids.value = []
-          fetchProjectBids().then(async () => {
-            await setupAllBidsListeners()
-            bidsLoaded.value = true
-          }).catch(error => {
-            console.error('Error prefetching bids:', error)
-          })
-        }
+      // Prefetch bids data after loading my projects
+      if (!bidsLoaded.value) {
+        projectBids.value = []
+        fetchProjectBids().then(async () => {
+          await setupAllBidsListeners()
+          bidsLoaded.value = true
+        }).catch(error => {
+          console.error('Error prefetching bids:', error)
+        })
+      }
 
-        // Prefetch all projects data
-        if (!allProjectsLoaded.value) {
-          allProjects.value = []
-          fetchAllProjects().then(() => {
-            allProjectsLoaded.value = true
-          }).catch(error => {
-            console.error('Error prefetching all projects:', error)
-          })
-        }
+      // Prefetch all projects data
+      if (!allProjectsLoaded.value) {
+        allProjects.value = []
+        fetchAllProjects().then(() => {
+          allProjectsLoaded.value = true
+        }).catch(error => {
+          console.error('Error prefetching all projects:', error)
+        })
       }
     } else if (tab === 'allProjects') {
-      // Only load if not already loaded
-      if (!allProjectsLoaded.value) {
-        allProjectsLoading.value = true
-        // Clear current data
-        allProjects.value = []
-        await fetchAllProjects()
-        allProjectsLoaded.value = true
-        allProjectsLoading.value = false
+      // Skip loading if already loaded
+      if (allProjectsLoaded.value) {
+        console.log("All projects already loaded, skipping fetch")
+        return
+      }
+      
+      allProjectsLoading.value = true
+      // Clear current data
+      allProjects.value = []
+      await fetchAllProjects()
+      allProjectsLoaded.value = true
+      allProjectsLoading.value = false
 
-        // Prefetch bids data
-        if (!bidsLoaded.value) {
-          projectBids.value = []
-          fetchProjectBids().then(async () => {
-            await setupAllBidsListeners()
-            bidsLoaded.value = true
-          }).catch(error => {
-            console.error('Error prefetching bids:', error)
-          })
-        }
+      // Prefetch bids data
+      if (!bidsLoaded.value) {
+        projectBids.value = []
+        fetchProjectBids().then(async () => {
+          await setupAllBidsListeners()
+          bidsLoaded.value = true
+        }).catch(error => {
+          console.error('Error prefetching bids:', error)
+        })
       }
     } else if (tab === 'bids') {
-      // Only load if not already loaded
-      if (!bidsLoaded.value) {
-        bidsLoading.value = true
-        // Clear current data
-        projectBids.value = []
-        await fetchProjectBids()
-        await setupAllBidsListeners()
-        bidsLoaded.value = true
-        bidsLoading.value = false
+      // Skip loading if already loaded
+      if (bidsLoaded.value) {
+        console.log("Bids already loaded, ensuring listeners are active")
+        // Even if the tab is loaded, refresh listeners to ensure real-time updates
+        await refreshBidListeners()
+        return
       }
+      
+      bidsLoading.value = true
+      // Clear current data
+      projectBids.value = []
+      await fetchProjectBids()
+      console.log("Setting up bid listeners for tab load")
+      await setupAllBidsListeners()
+      bidsLoaded.value = true
+      bidsLoading.value = false
     }
   } catch (error) {
     console.error('Error loading tab data:', error)
@@ -3501,6 +3553,9 @@ onMounted(async () => {
     console.log("Starting improved loading sequence...")
     const startTime = performance.now()
     
+    // Set loading state just once at the beginning
+    loading.value = true
+    
     // First, start the essential data fetches in parallel
     const availableYearsPromise = fetchAvailableYears()
     const userMajorsPromise = fetchUserMajors() 
@@ -3509,94 +3564,147 @@ onMounted(async () => {
     await Promise.all([availableYearsPromise, userMajorsPromise])
     
     if (selectedAcademicYear.value) {
-      // Start loading basic settings right away (don't await yet)
-      const settingsPromise = fetchBasicSettings()
+      // Start loading basic settings right away
+      await fetchBasicSettings()
       
-      // Start loading tab data in parallel
-      console.log("Loading tab data for", activeTab.value)
-      let tabDataPromise = null
-      
+      console.log("Loading active tab data for", activeTab.value)
       const schoolId = userStore.currentUser.school
       let userId = userStore.currentUser.id || userStore.currentUser.uid || userStore.currentUser._id || userStore.currentUser.userId
       if (!userId) {
         userId = "unknown-user-" + Date.now()
       }
       
-      // Only start loading specific tab data
-      if (activeTab.value === 'myProjects' && !myProjectsLoaded.value) {
-        myProjectsLoading.value = true
-        tabDataPromise = fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
-          .then(() => { myProjectsLoaded.value = true })
-      } else if (activeTab.value === 'allProjects' && !allProjectsLoaded.value) {
-        allProjectsLoading.value = true
-        tabDataPromise = fetchAllProjects()
-          .then(() => { allProjectsLoaded.value = true })
-      } else if (activeTab.value === 'bids' && !bidsLoaded.value) {
-        bidsLoading.value = true
-        tabDataPromise = fetchProjectBids()
-          .then(async () => { 
-            await setupAllBidsListeners()
-            bidsLoaded.value = true 
-          })
-      }
-      
-      // Wait for settings and the active tab's data to load
-      await Promise.all([settingsPromise, tabDataPromise])
-      
-      // Start prefetching data for other tabs in the background (don't await)
+      // Only load the active tab first to show content ASAP
       if (activeTab.value === 'myProjects') {
-        // Prefetch bids and all projects in background
-        if (!bidsLoaded.value) {
-          projectBids.value = []
-          fetchProjectBids().then(async () => {
-            await setupAllBidsListeners()
-            bidsLoaded.value = true
-          }).catch(error => {
-            console.error('Error prefetching bids:', error)
-          })
-        }
+        myProjectsLoading.value = true
+        await fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
+        myProjectsLoaded.value = true
+        myProjectsLoading.value = false
         
-        if (!allProjectsLoaded.value) {
-          allProjects.value = []
-          fetchAllProjects().then(() => {
-            allProjectsLoaded.value = true
-          }).catch(error => {
-            console.error('Error prefetching all projects:', error)
-          })
-        }
+        // Show content immediately after first tab is ready
+        loading.value = false
+        
+        // Load other tabs in background
+        setTimeout(() => {
+          // Load bids in background
+          if (!bidsLoaded.value) {
+            console.log("Background loading: bids tab")
+            projectBids.value = []
+            fetchProjectBids().then(async () => {
+              await setupAllBidsListeners()
+              bidsLoaded.value = true
+              console.log("Background loaded: bids tab")
+            }).catch(error => {
+              console.error('Error background loading bids:', error)
+            })
+          }
+          
+          // Load all projects in background
+          if (!allProjectsLoaded.value) {
+            console.log("Background loading: all projects tab")
+            allProjects.value = []
+            fetchAllProjects().then(() => {
+              allProjectsLoaded.value = true
+              console.log("Background loaded: all projects tab")
+            }).catch(error => {
+              console.error('Error background loading all projects:', error)
+            })
+          }
+        }, 500)
       } else if (activeTab.value === 'allProjects') {
-        // Prefetch bids in background
-        if (!bidsLoaded.value) {
-          projectBids.value = []
-          fetchProjectBids().then(async () => {
-            await setupAllBidsListeners()
-            bidsLoaded.value = true
-          }).catch(error => {
-            console.error('Error prefetching bids:', error)
-          })
-        }
+        allProjectsLoading.value = true
+        await fetchAllProjects()
+        allProjectsLoaded.value = true
+        allProjectsLoading.value = false
+        
+        // Show content immediately after first tab is ready
+        loading.value = false
+        
+        // Load other tabs in background
+        setTimeout(() => {
+          // Load my projects in background
+          if (!myProjectsLoaded.value) {
+            console.log("Background loading: my projects tab")
+            projects.value = []
+            fetchUserProjects(schoolId, userId, selectedAcademicYear.value).then(() => {
+              myProjectsLoaded.value = true
+              console.log("Background loaded: my projects tab")
+            }).catch(error => {
+              console.error('Error background loading my projects:', error)
+            })
+          }
+          
+          // Load bids in background
+          if (!bidsLoaded.value) {
+            console.log("Background loading: bids tab")
+            projectBids.value = []
+            fetchProjectBids().then(async () => {
+              await setupAllBidsListeners()
+              bidsLoaded.value = true
+              console.log("Background loaded: bids tab")
+            }).catch(error => {
+              console.error('Error background loading bids:', error)
+            })
+          }
+        }, 500)
+      } else if (activeTab.value === 'bids') {
+        bidsLoading.value = true
+        await fetchProjectBids()
+        // Always set up listeners for bids tab to ensure real-time updates
+        console.log("Setting up bid listeners for initial load");
+        await setupAllBidsListeners()
+        bidsLoaded.value = true
+        bidsLoading.value = false
+        
+        // Show content immediately after first tab is ready
+        loading.value = false
+        
+        // Load other tabs in background
+        setTimeout(() => {
+          // Load my projects in background
+          if (!myProjectsLoaded.value) {
+            console.log("Background loading: my projects tab")
+            projects.value = []
+            fetchUserProjects(schoolId, userId, selectedAcademicYear.value).then(() => {
+              myProjectsLoaded.value = true
+              console.log("Background loaded: my projects tab")
+            }).catch(error => {
+              console.error('Error background loading my projects:', error)
+            })
+          }
+          
+          // Load all projects in background
+          if (!allProjectsLoaded.value) {
+            console.log("Background loading: all projects tab")
+            allProjects.value = []
+            fetchAllProjects().then(() => {
+              allProjectsLoaded.value = true
+              console.log("Background loaded: all projects tab")
+            }).catch(error => {
+              console.error('Error background loading all projects:', error)
+            })
+          }
+        }, 500)
       }
       
-      // Process deadlines
-      await checkAndProcessDeadlines()
+      // Process deadlines in background
+      checkAndProcessDeadlines().catch(error => {
+        console.error('Error processing deadlines:', error)
+      })
       
       const endTime = performance.now()
-      console.log(`Improved loading sequence completed in ${(endTime - startTime).toFixed(2)}ms`)
+      console.log(`Initial tab loading completed in ${(endTime - startTime).toFixed(2)}ms`)
     } else {
       console.log('Missing required data:', {
         hasAcademicYear: !!selectedAcademicYear.value,
         hasSelectedMajor: !!selectedMajor.value
       })
+      loading.value = false
     }
   } catch (error) {
     console.error("Error during page initialization:", error)
     showToast('Failed to load page data', 'error')
-  } finally {
-    // Ensure loading state is reset
     loading.value = false
-    myProjectsLoading.value = false
-    allProjectsLoading.value = false
-    bidsLoading.value = false
   }
 })
 
@@ -3818,7 +3926,14 @@ watch(selectedAcademicYear, async (newYear) => {
     try {
       const schoolId = userStore.currentUser.school
       if (schoolId) {
-        loading.value = true
+        // Use a separate loading indicator for academic year changes
+        // instead of the main loading indicator to avoid showing 
+        // the loading message twice
+        const tabLoading = activeTab.value === 'myProjects' ? myProjectsLoading : 
+                          activeTab.value === 'allProjects' ? allProjectsLoading : 
+                          activeTab.value === 'bids' ? bidsLoading : null;
+        
+        if (tabLoading) tabLoading.value = true;
         
         // Fetch project settings for the new academic year
         const settingsRef = doc(db, 'schools', schoolId, 'projects', newYear)
@@ -3885,6 +4000,9 @@ watch(selectedAcademicYear, async (newYear) => {
           selectedMilestoneViewMajor.value = null;
           userMajors.value = [];
         }
+
+        // Reset the tab-specific loading indicator
+        if (tabLoading) tabLoading.value = false;
       }
     } catch (error) {
       console.error('Error fetching project settings:', error)
@@ -3893,8 +4011,6 @@ watch(selectedAcademicYear, async (newYear) => {
       selectedMajor.value = null;
       selectedMilestoneViewMajor.value = null;
       userMajors.value = [];
-    } finally {
-      loading.value = false
     }
     
     // Reload data
