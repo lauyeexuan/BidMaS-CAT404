@@ -8,56 +8,100 @@ Each school has its own document in the "schools" collection. Inside each school
 Below is the current Firestore hierarchy:
 
 schools (collection)
- └─ {schoolId} (document)
-     ├─ users (subcollection)
-     │   └─ {userId} (document)
-     │       ├─ name: string
-     │       ├─ email: string
-     │       ├─ role: string ('student', 'lecturer', 'admin')
-     │       ├─ major: string
-     │       └─ school: string (reference to school ID)
-     │
-     ├─ projects (subcollection)
-     │   └─ {year} (document)
-     │       ├─ majors: array (list of available majors)
-     │       │
-     │       └─ {majorId} (subcollection)
-     │           └─ {majorDocId} (document)
-                   ├─ milestones: array [
-                   │    {
-                   │        deadline: timestamp,
-                   │        description: string
-                   │    }
-                   │ ]
-     │               └─ projectsPerYear (subcollection)
-     │                   └─ {projectId} (document)
-     │                       ├─ Title: string
-     │                       ├─ tentativeStudentIds: array  // store student ids that got accepted before final assignment of prejects
-     │                       ├─ userId: string (owner/lecturer that created it)
-     │                       ├─ major: string
-     │                       ├─ isAssigned: boolean      // NEW: tracks if project is assigned
-     │                       ├─ assignedTo: string       // NEW: studentId of assigned student
-     │                       ├─ assignedAt: timestamp    // NEW: when the project was assigned
-     │                       └─ bids (subcollection)
-     │                           └─ {bidId} (document)
-     │                               ├─ studentId: string
-     │                               ├─ status: string ('pending', 'accepted', 'rejected')  
-     │                               ├─ priority: number
-     │                               ├─ createdAt: timestamp
-     │                               └─ lecturerAccepted: boolean (updated when lecturer accept a bid)
-     │
-     └─ studentBids (subcollection)
-         └─ {studentId} (document)
-             └─ bids (subcollection)
-                 └─ {bidId} (document)
-                     ├─ projectId: string
-                     ├─ majorId: string
-                     ├─ majorDocId: string
-                     ├─ year: string
-                     ├─ status: string ('pending', 'accepted', 'rejected', 'invalidated')  // UPDATED: added 'invalidated' status
-                     ├─ priority: number
-                     ├─ createdAt: timestamp
-                     └─ updatedAt: timestamp
+└─ {schoolId} (document)
+├─ users (subcollection)
+│ └─ {userId} (document)
+│ ├─ name: string
+│ ├─ email: string
+│ ├─ role: string ('student', 'lecturer', 'admin')
+│ ├─ major: string
+│ ├─ school: string (reference to school ID)
+│ ├─ specifications: array (for lecturers)
+│ ├─ skills: array (for students)
+│ ├─ cgpa: number (for students)
+│ ├─ introduction: string (for students)
+│ └─ profilePicture: string (path to storage)
+│
+├─ projects (subcollection)
+│ └─ {year} (document)
+│ ├─ majors: array (list of available majors)
+│ │
+│ └─ {majorId} (subcollection)
+│ └─ {majorDocId} (document)
+│ ├─ milestones: array [
+│ │ {
+│ │ deadline: timestamp,
+│ │ description: string
+│ │ }
+│ │ ]
+│ └─ projectsPerYear (subcollection)
+│ └─ {projectId} (document)
+│ ├─ Title: string
+│ ├─ tentativeStudentIds: array
+│ ├─ userId: string (owner/lecturer)
+│ ├─ major: string
+│ ├─ isAssigned: boolean
+│ ├─ assignedTo: string
+│ ├─ assignedAt: timestamp
+│ ├─ bids (subcollection)
+│ │ └─ {bidId} (document)
+│ │ ├─ studentId: string
+│ │ ├─ status: string
+│ │ ├─ priority: number
+│ │ ├─ createdAt: timestamp
+│ │ └─ lecturerAccepted: boolean
+│ │
+│ └─ submissions (subcollection)
+│ └─ {submissionId} (document)
+│ ├─ fileName: string
+│ ├─ filePath: string
+│ ├─ downloadUrl: string
+│ ├─ milestoneIndex: number
+│ ├─ milestoneDescription: string
+│ ├─ submittedAt: timestamp
+│ └─ submittedBy: string
+│
+├─ submissions (subcollection - flattened structure)
+│ └─ {submissionId} (document)
+│ ├─ fileName: string
+│ ├─ filePath: string
+│ ├─ downloadUrl: string
+│ ├─ milestoneIndex: number
+│ ├─ milestoneDescription: string
+│ ├─ submittedAt: timestamp
+│ ├─ submittedBy: string
+│ ├─ yearId: string
+│ ├─ majorId: string
+│ ├─ lecturerId: string
+│ ├─ projectId: string
+│ ├─ projectTitle: string
+│ └─ migratedAt: timestamp
+│
+├─ feedback (subcollection)
+│ └─ {feedbackId} (document)
+│ ├─ submissionId: string
+│ ├─ lecturerId: string
+│ ├─ comment: string
+│ ├─ advice: string (optional)
+│ ├─ rating: number
+│ ├─ attachmentUrl: string (optional)
+│ ├─ attachmentName: string (optional)
+│ ├─ attachmentSize: number (optional)
+│ ├─ isDraft: boolean
+│ └─ createdAt: timestamp
+│
+└─ studentBids (subcollection)
+└─ {studentId} (document)
+└─ bids (subcollection)
+└─ {bidId} (document)
+├─ projectId: string
+├─ majorId: string
+├─ majorDocId: string
+├─ year: string
+├─ status: string
+├─ priority: number
+├─ createdAt: timestamp
+└─ updatedAt: timestamp
 
 ### Schools Collection
 The root collection that contains all school-specific data. Each school is represented by a document with a unique ID.
@@ -126,4 +170,70 @@ Important security considerations:
 ## Notes
 - The dual storage of bid information (in both project and student collections) enables quick access from either perspective while maintaining data consistency
 - The majorDocId field is stored in the student's bid record to help with lookups between the major document and its projects
-- Timestamps are used to track when bids are created and updated 
+- Timestamps are used to track when bids are created and updated
+
+### Submissions Collections
+Submissions are stored in two locations for different query optimization purposes:
+
+1. **Project-level Submissions** (Nested Structure)
+   - Location: `schools/{schoolId}/projects/{year}/{majorId}/{majorDocId}/projectsPerYear/{projectId}/submissions/{submissionId}`
+   - Fields:
+     - **fileName**: string - Original name of the uploaded file
+     - **filePath**: string - Storage path where the file is saved
+     - **downloadUrl**: string - Direct URL to download the file
+     - **milestoneIndex**: number - Index of the milestone this submission is for
+     - **milestoneDescription**: string - Description of the milestone
+     - **submittedAt**: timestamp - When the submission was made
+     - **submittedBy**: string - Student ID who made the submission
+
+2. **School-level Submissions** (Flattened Structure)
+   - Location: `schools/{schoolId}/submissions/{submissionId}`
+   - Purpose: Optimized for querying submissions across projects
+   - Fields:
+     - **fileName**: string - Original name of the uploaded file
+     - **filePath**: string - Storage path where the file is saved
+     - **downloadUrl**: string - Direct URL to download the file
+     - **milestoneIndex**: number - Index of the milestone this submission is for
+     - **milestoneDescription**: string - Description of the milestone
+     - **submittedAt**: timestamp - When the submission was made
+     - **submittedBy**: string - Student ID who made the submission
+     - **yearId**: string - Academic year ID
+     - **majorId**: string - Major ID
+     - **lecturerId**: string - ID of the lecturer supervising the project
+     - **projectId**: string - ID of the project
+     - **projectTitle**: string - Title of the project
+     - **migratedAt**: timestamp - When the submission was copied to flattened structure
+
+### Feedback Collection
+- Location: `schools/{schoolId}/feedback/{feedbackId}`
+- Purpose: Store lecturer feedback on student submissions
+- Fields:
+  - **submissionId**: string - Reference to the submission this feedback is for
+  - **lecturerId**: string - ID of the lecturer providing feedback
+  - **comment**: string - Main feedback text (supports rich text formatting)
+  - **advice**: string (optional) - Additional advice or suggestions
+  - **rating**: number - Numerical rating of the submission
+  - **attachmentUrl**: string (optional) - URL to any attached feedback file
+  - **attachmentName**: string (optional) - Name of the attachment file
+  - **attachmentSize**: number (optional) - Size of the attachment in bytes
+  - **isDraft**: boolean - Whether this feedback is a draft or finalized
+  - **createdAt**: timestamp - When the feedback was created
+
+### Usage Notes
+1. **Submission Storage Strategy**:
+   - The nested structure (under projects) maintains data hierarchy and relationships
+   - The flattened structure enables efficient querying for:
+     - All submissions by a student
+     - All submissions for a lecturer to review
+     - Submissions by milestone or date range
+
+2. **Feedback Features**:
+   - Supports draft mode for lecturers to save feedback before finalizing
+   - Includes both structured (rating) and unstructured (comment) feedback
+   - Allows file attachments for detailed feedback documents
+   - Links directly to submissions via submissionId
+
+3. **Security Considerations**:
+   - Students should only access their own submissions
+   - Lecturers should only access submissions and provide feedback for their assigned projects
+   - Draft feedback should only be visible to the authoring lecturer 
