@@ -22,7 +22,7 @@
             <div class="relative min-h-[288px] flex flex-col justify-end">
               <template v-if="!showAnimation">
                 <img 
-                  src="/welcomelogo.png" 
+                  src="/welcomelogo2.png" 
                   alt="Welcome to BidMaS" 
                   class="relative w-72 h-auto transform animate-pulse-welcome transition-transform duration-500 -ml-8"
                 />
