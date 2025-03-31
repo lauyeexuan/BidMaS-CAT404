@@ -156,14 +156,31 @@
                 <td class="px-3 py-4 whitespace-nowrap text-sm">
                   <div class="flex items-center gap-2">
                     <select 
-                      class="bg-white border border-gray-300 text-gray-800 text-xs font-medium rounded-md px-2 py-1 cursor-not-allowed opacity-70"
-                      disabled
+                      class="bg-white border border-gray-300 text-gray-800 text-xs font-medium rounded-md px-2 py-1 w-28"
+                      :disabled="loadingExaminers[project.id]"
+                      @click="loadExaminersForProject(project)"
                     >
-                      <option value="">Select Examiner</option>
+                      <option value="">-</option>
+                      <option v-if="loadingExaminers[project.id]" disabled>Loading...</option>
+                      <option 
+                        v-for="examiner in availableExaminers[project.id] || []" 
+                        :key="examiner.id" 
+                        :value="examiner.id"
+                        :disabled="examiner.isHeader"
+                        :class="{ 
+                          'font-semibold bg-gray-100': examiner.isHeader
+                        }"
+                      >
+                        {{ examiner.name }}
+                      </option>
+                      <option v-if="availableExaminers[project.id]?.length === 0" disabled>
+                        No available examiners
+                      </option>
                     </select>
                     <button 
-                      class="px-3 py-1 bg-gray-100 text-gray-400 text-xs font-medium rounded-md cursor-not-allowed"
-                      disabled
+                      class="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-medium rounded-md hover:bg-blue-100 transition-colors"
+                      :disabled="loadingExaminers[project.id]"
+                      @click="findExaminers(project)"
                     >
                       Find
                     </button>
@@ -210,12 +227,66 @@
           No projects available for the selected academic year.
         </div>
       </div>
+
+      <!-- Lecturers Section with Deferred Loading -->
+      <div class="mt-8 bg-white rounded-lg shadow p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-semibold text-gray-800">Lecturers</h2>
+          <div v-if="loadingLecturers" class="flex items-center">
+            <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2"></div>
+            <span class="text-sm text-gray-600">Loading lecturers...</span>
+          </div>
+        </div>
+        
+        <div v-if="!lecturersLoaded && !loadingLecturers" class="text-center py-4">
+          <button 
+            @click="loadLecturers" 
+            class="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors"
+          >
+            Load Lecturers
+          </button>
+        </div>
+        
+        <div v-else-if="lecturers.length === 0 && !loadingLecturers" class="text-center py-4 text-gray-500">
+          No lecturers found.
+        </div>
+        
+        <div v-else-if="lecturers.length > 0" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div 
+            v-for="lecturer in lecturers" 
+            :key="lecturer.id" 
+            class="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow p-4"
+          >
+            <h3 class="font-medium text-lg text-gray-800 mb-1">{{ lecturer.name }}</h3>
+            <div class="mb-2">
+              <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                {{ lecturer.major ? lecturer.major.join(', ') : 'Unknown' }}
+              </span>
+            </div>
+            <div v-if="lecturer.specifications && lecturer.specifications.length > 0" class="mt-2">
+              <p class="text-xs text-gray-500 mb-1">Specializations:</p>
+              <div class="flex flex-wrap gap-1">
+                <span 
+                  v-for="(spec, index) in lecturer.specifications" 
+                  :key="index"
+                  class="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                >
+                  {{ spec }}
+                </span>
+              </div>
+            </div>
+            <div v-else class="mt-2 text-xs text-gray-400 italic">
+              No specializations listed
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { collection, getDocs, doc, getDoc, query, limit, where } from 'firebase/firestore'
 import { db } from '@/firebase'
 import { useUserStore } from '@/stores/userStore'
@@ -246,6 +317,15 @@ const projectCache = ref({}) // Cache by academic year
 const userCache = ref({}) // Cache for user data
 const initialLoadComplete = ref(false) // Track if initial data load is complete
 const loadingMore = ref(false) // Track if we're loading more projects
+
+// Data for lecturers section
+const lecturers = ref([])
+const loadingLecturers = ref(false)
+const lecturersLoaded = ref(false)
+
+// Data for examiners
+const loadingExaminers = ref({}) // Track loading state per project
+const availableExaminers = ref({}) // Available examiners per project
 
 // Define color palette
 const colorPalette = [
@@ -315,8 +395,8 @@ const fetchAcademicYears = async () => {
   }
 }
 
-// Fetch all projects
-const fetchProjects = async () => {
+// Extract the projects loading code to separate function to use in both initial load and refresh
+const loadProjects = async () => {
   try {
     loading.value = true
     initialLoadComplete.value = false
@@ -399,8 +479,10 @@ const fetchProjects = async () => {
     const yearRef = doc(db, 'schools', schoolId, 'projects', selectedAcademicYear.value)
     const yearDoc = await getDoc(yearRef)
     
+    let majors = [];
+    
     if (yearDoc.exists()) {
-      const majors = yearDoc.data().majors || []
+      majors = yearDoc.data().majors || []
       
       // Use Promise.all to fetch only INITIAL_BATCH_SIZE projects from each major
       // This reduces the initial load time
@@ -519,17 +601,25 @@ const fetchProjects = async () => {
     
     loading.value = false
     
+    // Store majors for later use
+    const savedMajors = [...majors];
+    
     // Load remaining projects in the background after initial render
     // Create a slight delay to ensure the UI has time to render
     setTimeout(() => {
       if (projects.value.length > 0) {
-        loadRemainingProjects(majors, schoolId);
+        loadRemainingProjects(savedMajors, schoolId);
       }
     }, 300);
   } catch (error) {
     console.error('Error fetching projects:', error)
     loading.value = false
   }
+}
+
+// Fetch all projects - now simply calls the new loadProjects function
+const fetchProjects = async () => {
+  await loadProjects();
 }
 
 // Save usernames to session storage
@@ -830,14 +920,95 @@ watch([currentPage, filteredProjects], () => {
   }
 })
 
-// Lifecycle hooks
+// Function to load lecturers data
+const loadLecturers = async () => {
+  try {
+    loadingLecturers.value = true
+    const schoolId = userStore.currentUser.school
+    
+    // First check if we have cached lecturers in session storage
+    try {
+      const cachedLecturers = sessionStorage.getItem(`lecturers_${schoolId}`)
+      const cachedTimestamp = sessionStorage.getItem(`lecturers_timestamp_${schoolId}`)
+      
+      // Use cache if it's less than 10 minutes old
+      if (cachedLecturers && cachedTimestamp) {
+        const isRecent = (Date.now() - parseInt(cachedTimestamp)) < 10 * 60 * 1000 // 10 minutes
+        if (isRecent) {
+          lecturers.value = JSON.parse(cachedLecturers)
+          lecturersLoaded.value = true
+          loadingLecturers.value = false
+          return
+        }
+      }
+    } catch (storageError) {
+      console.error('Error reading lecturers from session storage:', storageError)
+    }
+    
+    // If no cache or expired, fetch from Firestore
+    const usersRef = collection(db, 'schools', schoolId, 'users')
+    
+    // Query for users with role 'lecturer'
+    const q = query(usersRef, where('role', '==', 'lecturer'))
+    const querySnapshot = await getDocs(q)
+    
+    // Process results
+    const lecturersList = []
+    querySnapshot.forEach(doc => {
+      const userData = doc.data()
+      lecturersList.push({
+        id: doc.id,
+        name: userData.name || userData.email || 'Unknown',
+        major: userData.major || [],
+        specifications: userData.specifications || []
+      })
+    })
+    
+    // Sort by name
+    lecturersList.sort((a, b) => a.name.localeCompare(b.name))
+    
+    // Update state
+    lecturers.value = lecturersList
+    lecturersLoaded.value = true
+    
+    // Cache in session storage
+    try {
+      sessionStorage.setItem(`lecturers_${schoolId}`, JSON.stringify(lecturersList))
+      sessionStorage.setItem(`lecturers_timestamp_${schoolId}`, Date.now().toString())
+    } catch (storageError) {
+      console.error('Error caching lecturers to session storage:', storageError)
+    }
+  } catch (error) {
+    console.error('Error loading lecturers:', error)
+  } finally {
+    loadingLecturers.value = false
+  }
+}
+
+// Modified lifecycle hook to separate the lecturer loading
 onMounted(async () => {
   // Try to load usernames from session storage on mount
   loadUserNamesFromSession()
   
+  // Load core data first
   await fetchAcademicYears()
   if (selectedAcademicYear.value) {
     await fetchProjects()
+    
+    // After projects are loaded and UI is updated, load lecturers in the background
+    nextTick(() => {
+      // Add a small delay to ensure project data is fully processed first
+      setTimeout(() => {
+        // Auto-load lecturers if we have a fast connection or cached data
+        const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection
+        const isSlowConnection = connection && (connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g')
+        
+        // Auto-load only on fast connections
+        if (!isSlowConnection) {
+          loadLecturers()
+        }
+      }, 500)
+    })
   }
 })
 
@@ -858,15 +1029,34 @@ const refreshProjects = async () => {
       const timestampKey = `${SESSION_STORAGE_KEY_TIMESTAMP}${schoolId}_${selectedAcademicYear.value}`
       sessionStorage.removeItem(projectsKey)
       sessionStorage.removeItem(timestampKey)
+      
+      // Also clear lecturer data cache
+      sessionStorage.removeItem(`lecturers_${schoolId}`)
+      sessionStorage.removeItem(`lecturers_timestamp_${schoolId}`)
+      
+      // Reset lecturer state to trigger reload
+      lecturers.value = []
+      lecturersLoaded.value = false
+
+      // Clear examiner data as well since lecturer data is refreshed
+      availableExaminers.value = {}
+      loadingExaminers.value = {}
     } catch (storageError) {
       console.error('Error clearing session storage:', storageError)
     }
     
-    // Re-fetch projects from Firestore
-    await fetchProjects()
+    // Re-fetch projects using our new loadProjects function
+    await loadProjects()
+    
+    // If lecturers were previously loaded, reload them in the background
+    if (document.visibilityState !== 'hidden') {
+      setTimeout(() => {
+        loadLecturers()
+      }, 300)
+    }
     
     // Show notification or feedback (optional)
-    console.log('Projects refreshed from Firestore')
+    console.log('Projects and lecturer data refreshed from Firestore')
   } catch (error) {
     console.error('Error refreshing projects:', error)
   }
@@ -887,6 +1077,223 @@ const lazyLoadUserNames = async () => {
   const idsToFetch = Array.from(visibleUserIds).filter(id => !userNames.value[id])
   if (idsToFetch.length > 0) {
     await fetchUserNames(idsToFetch)
+  }
+}
+
+// Load examiners for a specific project
+const loadExaminersForProject = async (project) => {
+  // Skip if already loaded or loading
+  if (availableExaminers.value[project.id] || loadingExaminers.value[project.id]) {
+    return
+  }
+  
+  try {
+    // Set loading state for this project
+    loadingExaminers.value = { ...loadingExaminers.value, [project.id]: true }
+    
+    const schoolId = userStore.currentUser.school
+    const projectMajor = project.major || ''
+    const supervisorId = project.userId
+    
+    console.log(`Loading examiners for project: ${project.id}, major: ${projectMajor}, supervisor: ${supervisorId}`)
+    
+    // Check if we have all lecturers loaded already
+    if (lecturers.value.length === 0) {
+      // Need to load lecturers first
+      console.log('No lecturers loaded yet, loading them now')
+      await loadLecturers()
+    }
+    
+    console.log(`Total lecturers available: ${lecturers.value.length}`)
+    
+    // Debug: print all lecturer majors to see what's available
+    const lecturerMajors = lecturers.value
+      .map(l => Array.isArray(l.major) ? l.major : [])
+      .flat()
+      .filter(Boolean);
+    console.log('Available lecturer majors:', [...new Set(lecturerMajors)]);
+    
+    // First try: Exact case-insensitive match
+    let matchingExaminers = lecturers.value.filter(lecturer => {
+      // Skip the supervisor
+      if (lecturer.id === supervisorId) return false;
+      
+      // Skip if no majors
+      if (!Array.isArray(lecturer.major) || !projectMajor) return false;
+      
+      // Case-insensitive exact match with any of the lecturer's majors
+      const projectMajorLower = String(projectMajor).toLowerCase();
+      return lecturer.major.some(m => String(m).toLowerCase() === projectMajorLower);
+    });
+    
+    // Second try: If no exact matches, try partial match
+    if (matchingExaminers.length === 0 && projectMajor) {
+      console.log('No exact major matches, trying partial matches');
+      matchingExaminers = lecturers.value.filter(lecturer => {
+        // Skip the supervisor
+        if (lecturer.id === supervisorId) return false;
+        
+        // Skip if no majors
+        if (!Array.isArray(lecturer.major)) return false;
+        
+        // Check if any major contains project major or vice versa (case insensitive)
+        const projectMajorLower = String(projectMajor).toLowerCase();
+        return lecturer.major.some(m => {
+          const lecturerMajorLower = String(m).toLowerCase();
+          return lecturerMajorLower.includes(projectMajorLower) || 
+                 projectMajorLower.includes(lecturerMajorLower);
+        });
+      });
+    }
+    
+    // If still no matches, include all lecturers except the supervisor as a fallback
+    if (matchingExaminers.length === 0) {
+      console.log('No major matches found, including all lecturers as fallback');
+      matchingExaminers = lecturers.value.filter(lecturer => lecturer.id !== supervisorId);
+      
+      // Add a special "All Lecturers" indicator to the first element if there are matches
+      if (matchingExaminers.length > 0) {
+        matchingExaminers.unshift({
+          id: 'all_lecturers_header',
+          name: '--- All Available Lecturers ---',
+          major: [],
+          specifications: [],
+          isHeader: true
+        });
+      }
+    }
+    
+    console.log(`Found ${matchingExaminers.length} matching examiners for project ${project.id}`)
+    
+    // Store the result
+    availableExaminers.value = { 
+      ...availableExaminers.value, 
+      [project.id]: matchingExaminers 
+    }
+  } catch (error) {
+    console.error('Error loading examiners:', error)
+  } finally {
+    // Clear loading state
+    loadingExaminers.value = { ...loadingExaminers.value, [project.id]: false }
+  }
+}
+
+// Find examiners button handler - prioritizes examiners with matching specifications
+const findExaminers = async (project) => {
+  // Make sure examiners are loaded first
+  if (!availableExaminers.value[project.id]) {
+    await loadExaminersForProject(project)
+  }
+  
+  try {
+    // Set loading state while finding best match
+    loadingExaminers.value = { ...loadingExaminers.value, [project.id]: true }
+    
+    // Get available examiners for this project
+    const examiners = availableExaminers.value[project.id] || []
+    
+    // Filter out header items
+    const realExaminers = examiners.filter(e => !e.isHeader)
+    
+    if (realExaminers.length === 0) {
+      console.warn('No examiners available to find matches')
+      return
+    }
+    
+    console.log(`Finding best examiner match for project: ${project.Title}`)
+    
+    // Get project title words for keyword matching (excluding common words)
+    const projectTitle = project.Title || ''
+    const commonWords = ['the', 'and', 'or', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'of']
+    const titleWords = projectTitle.toLowerCase()
+      .split(/\s+/)
+      .filter(word => word.length > 2 && !commonWords.includes(word))
+    
+    console.log('Project keywords:', titleWords)
+    
+    // Score each examiner based on:
+    // 1. Major match (highest priority)
+    // 2. Specification matches with project title
+    // 3. Current workload (future enhancement)
+    const scoredExaminers = realExaminers.map(examiner => {
+      let score = 0
+      
+      if (Array.isArray(examiner.major) && project.major) {
+        const projectMajorLower = String(project.major).toLowerCase();
+        
+        // Major match (exact)
+        if (examiner.major.some(m => String(m).toLowerCase() === projectMajorLower)) {
+          score += 100;
+        }
+        // Major contains or is contained by (partial match)
+        else if (examiner.major.some(m => {
+          const majorLower = String(m).toLowerCase();
+          return majorLower.includes(projectMajorLower) || 
+                 projectMajorLower.includes(majorLower);
+        })) {
+          score += 50;
+        }
+      }
+      
+      // Specification matches with title keywords
+      if (examiner.specifications && examiner.specifications.length > 0) {
+        examiner.specifications.forEach(spec => {
+          const specLower = spec.toLowerCase()
+          
+          // Direct specification match in title
+          if (projectTitle.toLowerCase().includes(specLower)) {
+            score += 30
+          }
+          
+          // Word-by-word match
+          titleWords.forEach(word => {
+            if (specLower.includes(word) || word.includes(specLower)) {
+              score += 10
+            }
+          })
+        })
+      }
+      
+      return {
+        ...examiner,
+        score
+      }
+    })
+    
+    // Sort by score (descending)
+    scoredExaminers.sort((a, b) => b.score - a.score)
+    
+    // Add scores to existing examiners
+    const enhancedExaminers = [...scoredExaminers]
+    
+    // If we have at least one match with a score, highlight the best match
+    if (enhancedExaminers.length > 0 && enhancedExaminers[0].score > 0) {
+      // Add a "Recommended" label to the top match
+      enhancedExaminers[0].name = `${enhancedExaminers[0].name} (Recommended)`
+    }
+    
+    // Create a completely new array to force Vue to re-render the dropdown
+    availableExaminers.value = { 
+      ...availableExaminers.value, 
+      [project.id]: [
+        // Add a header if we have recommendations
+        {
+          id: 'recommendations_header',
+          name: '--- Recommended Examiners ---',
+          major: [],
+          specifications: [],
+          isHeader: true
+        },
+        ...enhancedExaminers
+      ]
+    }
+    
+    console.log(`Found and ranked ${enhancedExaminers.length} examiners for project ${project.id}`)
+  } catch (error) {
+    console.error('Error finding best examiner match:', error)
+  } finally {
+    // Clear loading state
+    loadingExaminers.value = { ...loadingExaminers.value, [project.id]: false }
   }
 }
 </script> 
