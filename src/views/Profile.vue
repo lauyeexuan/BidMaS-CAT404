@@ -412,6 +412,85 @@
                 <p class="text-lg font-medium">{{ currentSession || 'Not available' }}</p>
               </div>
             </div>
+            
+            <!-- Specifications Section (for lecturers only) -->
+            <div v-if="userStore.userRole === 'lecturer'" class="bg-white rounded-lg shadow-md p-6 mt-6">
+              <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Specializations</h2>
+                <button 
+                  class="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                  @click="editSpecifications = true"
+                  v-if="!editSpecifications"
+                >
+                  <i class="fas fa-edit mr-1"></i> Edit
+                </button>
+              </div>
+              
+              <!-- Specifications Display -->
+              <div v-if="!editSpecifications" class="border border-dashed border-gray-300 rounded-md p-4 bg-gray-50">
+                <div v-if="userStore.currentUser?.specifications && userStore.currentUser.specifications.length > 0" class="flex flex-wrap gap-2 mt-1">
+                  <span 
+                    v-for="spec in userStore.currentUser.specifications" 
+                    :key="spec"
+                    class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                  >
+                    {{ spec }}
+                  </span>
+                </div>
+                <p v-else class="text-gray-500 italic text-center">Add your specializations to help match you with appropriate projects</p>
+              </div>
+              
+              <!-- Specifications Edit Form -->
+              <div v-else>
+                <div class="mb-4">
+                  <div class="flex flex-wrap gap-2 mb-2">
+                    <span 
+                      v-for="(spec, index) in specificationsList" 
+                      :key="index"
+                      class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center"
+                    >
+                      {{ spec }}
+                      <button @click="removeSpecification(index)" class="ml-1.5 text-red-500 hover:text-red-700 flex items-center justify-center" style="min-width: 16px; min-height: 16px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                      </button>
+                    </span>
+                  </div>
+                  <div class="flex">
+                    <input 
+                      v-model="newSpecification" 
+                      type="text" 
+                      class="flex-grow p-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Add a specialization (e.g. Machine Learning, Web Development)"
+                      @keyup.enter="addSpecification"
+                    />
+                    <button 
+                      @click="addSpecification" 
+                      class="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+                <div class="flex justify-end space-x-2">
+                  <button 
+                    @click="editSpecifications = false" 
+                    class="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    @click="saveSpecifications" 
+                    class="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    :disabled="savingSpecifications"
+                  >
+                    <span v-if="savingSpecifications">Saving...</span>
+                    <span v-else>Save</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
           
           <!-- No User Data -->
@@ -458,6 +537,12 @@
       const availableMajors = ref([])
       const selectedMajor = ref('')
       const loadingMajors = ref(false)
+      
+      // Specifications editing
+      const editSpecifications = ref(false)
+      const specificationsList = ref([])
+      const newSpecification = ref('')
+      const savingSpecifications = ref(false)
       
       // Profile completion helpers
       const hasIntroduction = computed(() => {
@@ -517,6 +602,11 @@
         // Initialize major if exists
         if (userStore.currentUser?.major) {
           selectedMajor.value = userStore.currentUser.major
+        }
+        
+        // Initialize specifications if exists
+        if (userStore.currentUser?.specifications && Array.isArray(userStore.currentUser.specifications)) {
+          specificationsList.value = [...userStore.currentUser.specifications]
         }
         
         // Clear new user flag if present
@@ -735,6 +825,53 @@
         }
       }
       
+      // Specifications functions
+      const addSpecification = () => {
+        if (!newSpecification.value.trim()) return
+        
+        // Check if specification already exists
+        if (specificationsList.value.includes(newSpecification.value.trim())) {
+          error.value = 'This specification is already added'
+          setTimeout(() => {
+            error.value = null
+          }, 3000)
+          return
+        }
+        
+        // Add specification to list
+        specificationsList.value.push(newSpecification.value.trim())
+        newSpecification.value = ''
+      }
+      
+      const removeSpecification = (index) => {
+        specificationsList.value.splice(index, 1)
+      }
+      
+      const saveSpecifications = async () => {
+        if (!userStore.currentUser) return
+        
+        try {
+          savingSpecifications.value = true
+          
+          // Update user document in Firestore
+          const userRef = doc(db, 'schools', userStore.currentUser.school, 'users', userStore.currentUser.uid)
+          await updateDoc(userRef, {
+            specifications: specificationsList.value
+          })
+          
+          // Update local state
+          userStore.currentUser.specifications = [...specificationsList.value]
+          
+          // Close edit mode
+          editSpecifications.value = false
+        } catch (err) {
+          console.error('Error saving specifications:', err)
+          error.value = 'Failed to save specifications. Please try again.'
+        } finally {
+          savingSpecifications.value = false
+        }
+      }
+      
       return {
         userStore,
         userInitials,
@@ -773,7 +910,16 @@
         availableMajors,
         selectedMajor,
         loadingMajors,
-        fetchMajors
+        fetchMajors,
+        
+        // Specifications
+        editSpecifications,
+        specificationsList,
+        newSpecification,
+        savingSpecifications,
+        addSpecification,
+        removeSpecification,
+        saveSpecifications
       }
     }
   }
