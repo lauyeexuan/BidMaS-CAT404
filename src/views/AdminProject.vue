@@ -154,7 +154,7 @@
                   </span>
                 </td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm">
-                  <div class="flex items-center gap-2">
+                  <div v-if="project.assignedTo" class="flex items-center gap-2">
                     <select 
                       class="bg-white border border-gray-300 text-gray-800 text-xs font-medium rounded-md px-2 py-1 w-28"
                       :disabled="loadingExaminers[project.id]"
@@ -184,6 +184,9 @@
                     >
                       Find
                     </button>
+                  </div>
+                  <div v-else class="text-gray-500 text-xs italic">
+                    Not assigned to student
                   </div>
                 </td>
               </tr>
