@@ -156,7 +156,7 @@
                 <td class="px-3 py-4 whitespace-nowrap text-sm">
                   <div v-if="project.examinerId" class="flex items-center gap-2 w-full relative">
                     <div class="relative w-28">
-                      <span class="px-2.5 py-1 rounded-full text-xs font-medium shadow-sm bg-blue-100 text-blue-800 inline-block overflow-hidden text-ellipsis">
+                      <span class="px-2.5 py-1 rounded-full text-xs font-medium shadow-sm bg-gray-100 text-gray-800 inline-block overflow-hidden text-ellipsis">
                         {{ project.examinerName || getUserName(project.examinerId) }}
                       </span>
                     </div>
@@ -766,12 +766,13 @@ const loadProjects = async () => {
               
               // Use Map to ensure uniqueness by project ID
               if (!projectsMap.has(projectId)) {
+                // Explicitly include all examiner data
                 projectsMap.set(projectId, {
                   id: projectId,
                   ...projectData,
                   major,
                   majorDocId: majorDocId,
-                  // Ensure examiner data is explicitly included
+                  // Ensure examiner data is explicitly included and preserved
                   examinerId: projectData.examinerId || null,
                   examinerName: projectData.examinerName || null,
                   examinerAssignedAt: projectData.examinerAssignedAt || null
@@ -1468,17 +1469,12 @@ const findExaminersWithScoring = async (project, forceNew = false) => {
           if (sortedScores.length > 2) {
             weightedScore += sortedScores[2].score * 0.1; // Third score gets 10% weight
           } else {
-            weightedScore += sortedScores[0].score * 0.1; // If only 2 specs, top gets extra weight
+            weightedScore += sortedScores[0].score * 0.1; // If only 1 spec, it gets full weight
           }
         } else {
           weightedScore += sortedScores[0].score * 0.4; // If only 1 spec, it gets full weight
         }
       }
-      
-      // Find top scoring specifications (scores above 0.5 threshold)
-      const matchingSpecs = specScores
-        .filter(spec => spec.score > 0.5)
-        .sort((a, b) => b.score - a.score);
       
       // Find the specification with the highest score
       const bestMatch = sortedScores.length > 0 ? sortedScores[0] : null;
@@ -1488,7 +1484,6 @@ const findExaminersWithScoring = async (project, forceNew = false) => {
         specScores,
         highestScore,
         weightedScore,
-        matchingSpecs,
         bestMatch,
         // Use either weighted or highest score based on the toggle
         finalScore: useWeightedScoring.value ? weightedScore : highestScore
@@ -1513,40 +1508,6 @@ const findExaminersWithScoring = async (project, forceNew = false) => {
     } catch (storageError) {
       console.error('Error caching examiner results to session storage:', storageError);
     }
-    
-    console.log("Classification Results:");
-    console.log("---------------------");
-    console.log("Using scoring method:", useWeightedScoring.value ? "Weighted Top-3" : "Best Match");
-    
-    // Log detailed results for each lecturer
-    results.forEach((examiner, index) => {
-      console.log(`\n${index + 1}. ${examiner.name}`);
-      console.log(`Overall Match: ${Math.round(examiner.finalScore * 100)}%`);
-      
-      if (useWeightedScoring.value) {
-        console.log(`(Weighted score: ${Math.round(examiner.weightedScore * 100)}%, Best match: ${Math.round(examiner.highestScore * 100)}%)`);
-      } else {
-        // For Best Match approach, show the specification with highest score
-        if (examiner.bestMatch) {
-          console.log(`Best matching specification: ${examiner.bestMatch.spec} (${Math.round(examiner.bestMatch.score * 100)}%)`);
-        }
-      }
-      console.log("Specification Breakdown:");
-      examiner.specScores.forEach(specScore => {
-        console.log(`  - ${specScore.spec}: ${Math.round(specScore.score * 100)}%`);
-      });
-      
-      if (examiner.matchingSpecs.length > 0) {
-        console.log("Strong Matches:");
-        examiner.matchingSpecs.forEach(match => {
-          console.log(`  * ${match.spec}: ${Math.round(match.score * 100)}%`);
-        });
-      }
-    });
-    
-    console.log("\n---------------------");
-    console.log("Best match:", results[0]?.name || "No matches found");
-    console.log("Using scoring method:", useWeightedScoring.value ? "Weighted Top-3" : "Best Match");
     
   } catch (error) {
     console.error("Error finding examiners:", error);
@@ -1576,17 +1537,44 @@ const assignExaminer = async (examiner, project) => {
       examinerAssignedAt: serverTimestamp()
     })
     
-    // Update the local project object
+    // Update the local project object with examiner data
     const updatedProject = {
       ...project,
       examinerId: examiner.id,
-      examinerName: examiner.name
+      examinerName: examiner.name,
+      examinerAssignedAt: new Date().toISOString() // Use client-side timestamp since server timestamp isn't available immediately
     }
     
     // Update the projects array
     const index = projects.value.findIndex(p => p.id === project.id)
     if (index !== -1) {
       projects.value[index] = updatedProject
+      
+      // Also update the project cache to ensure persistence
+      if (projectCache.value[selectedAcademicYear.value]) {
+        const cacheIndex = projectCache.value[selectedAcademicYear.value].findIndex(p => p.id === project.id)
+        if (cacheIndex !== -1) {
+          projectCache.value[selectedAcademicYear.value][cacheIndex] = updatedProject
+        }
+      }
+      
+      // Update session storage if this is the latest year
+      if (selectedAcademicYear.value === availableAcademicYears.value[0]?.yearId) {
+        try {
+          const projectsKey = `${SESSION_STORAGE_KEY_PROJECTS}${schoolId}_${selectedAcademicYear.value}`
+          const storedProjectsStr = sessionStorage.getItem(projectsKey)
+          if (storedProjectsStr) {
+            const storedProjects = JSON.parse(storedProjectsStr)
+            const storageIndex = storedProjects.findIndex(p => p.id === project.id)
+            if (storageIndex !== -1) {
+              storedProjects[storageIndex] = updatedProject
+              sessionStorage.setItem(projectsKey, JSON.stringify(storedProjects))
+            }
+          }
+        } catch (storageError) {
+          console.error('Error updating projects in session storage:', storageError)
+        }
+      }
     }
     
     console.log(`Successfully assigned examiner ${examiner.name} to project ${project.Title}`)
@@ -1643,15 +1631,42 @@ const resetExaminer = async (project) => {
       examinerAssignedAt: null
     })
     
-    // Update the local project object
-    project.examinerId = null
-    project.examinerName = null
-    project.examinerAssignedAt = null
+    // Create updated project object
+    const updatedProject = { ...project }
+    updatedProject.examinerId = null
+    updatedProject.examinerName = null
+    updatedProject.examinerAssignedAt = null
     
     // Update the projects array
     const index = projects.value.findIndex(p => p.id === project.id)
     if (index !== -1) {
-      projects.value[index] = { ...project }
+      projects.value[index] = updatedProject
+      
+      // Also update the project cache to ensure persistence
+      if (projectCache.value[selectedAcademicYear.value]) {
+        const cacheIndex = projectCache.value[selectedAcademicYear.value].findIndex(p => p.id === project.id)
+        if (cacheIndex !== -1) {
+          projectCache.value[selectedAcademicYear.value][cacheIndex] = updatedProject
+        }
+      }
+      
+      // Update session storage if this is the latest year
+      if (selectedAcademicYear.value === availableAcademicYears.value[0]?.yearId) {
+        try {
+          const projectsKey = `${SESSION_STORAGE_KEY_PROJECTS}${schoolId}_${selectedAcademicYear.value}`
+          const storedProjectsStr = sessionStorage.getItem(projectsKey)
+          if (storedProjectsStr) {
+            const storedProjects = JSON.parse(storedProjectsStr)
+            const storageIndex = storedProjects.findIndex(p => p.id === project.id)
+            if (storageIndex !== -1) {
+              storedProjects[storageIndex] = updatedProject
+              sessionStorage.setItem(projectsKey, JSON.stringify(storedProjects))
+            }
+          }
+        } catch (storageError) {
+          console.error('Error updating projects in session storage:', storageError)
+        }
+      }
     }
     
     console.log(`Successfully reset examiner for project ${project.Title}`)
@@ -1694,8 +1709,8 @@ const findExaminers = async (project) => {
       if (sessionResults && sessionTimestamp) {
         sessionCachedResults = JSON.parse(sessionResults);
         sessionCachedTimestamp = parseInt(sessionTimestamp);
-      }
-    } catch (storageError) {
+          }
+        } catch (storageError) {
       console.error('Error reading cached examiner results from session storage:', storageError);
     }
     
