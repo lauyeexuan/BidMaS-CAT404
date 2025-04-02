@@ -397,21 +397,24 @@
                 <div class="mt-3">
                   <p class="text-xs text-gray-500 mb-1">Best matching specification:</p>
                   <div v-if="examiner.bestMatch" class="text-sm">
-                    <span class="px-2 py-1 rounded-full bg-blue-100 text-blue-800 text-xs">
+                    <span class="px-2 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold">
                       {{ examiner.bestMatch.spec }} ({{ Math.round(examiner.bestMatch.score * 100) }}%)
                     </span>
                   </div>
                 </div>
                 
-                <div v-if="examiner.matchingSpecs && examiner.matchingSpecs.length > 0" class="mt-3">
-                  <p class="text-xs text-gray-500 mb-1">Strong matches:</p>
+                <div v-if="examiner.specScores && examiner.specScores.length > 1" class="mt-3">
+                  <p class="text-xs text-gray-500 mb-1">Other Specifications:</p>
                   <div class="flex flex-wrap gap-1 mt-1">
                     <span 
-                      v-for="match in examiner.matchingSpecs" 
-                      :key="match.spec"
+                      v-for="spec in examiner.specScores
+                        .filter(s => s.spec !== examiner.bestMatch?.spec)
+                        .sort((a, b) => b.score - a.score)
+                        .slice(0, 3)" 
+                      :key="spec.spec"
                       class="px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs"
                     >
-                      {{ match.spec }} ({{ Math.round(match.score * 100) }}%)
+                      {{ spec.spec }} ({{ Math.round(spec.score * 100) }}%)
                     </span>
                   </div>
                 </div>
