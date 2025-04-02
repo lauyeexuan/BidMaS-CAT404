@@ -1331,11 +1331,11 @@ const majorProjectSettings = ref(null)
 
 // Remove predefined major colors and add dynamic color generation
 const colorPalette = [
-  { bg: 'bg-blue-100', text: 'text-blue-800' ,selectedBg: 'bg-blue-500'},
-  { bg: 'bg-lime-100', text: 'text-lime-800',selectedBg: 'bg-lime-500' },
-  { bg: 'bg-pink-100', text: 'text-pink-800',selectedBg: 'bg-pink-500' },
-  { bg: 'bg-teal-100', text: 'text-teal-800',selectedBg: 'bg-teal-500' },
-  { bg: 'bg-orange-100', text: 'text-orange-800',selectedBg: 'bg-orange-500' }
+  { bg: 'bg-blue-100', text: 'text-blue-800' ,selectedBg: 'bg-blue-400'},
+  { bg: 'bg-lime-100', text: 'text-lime-800',selectedBg: 'bg-lime-400' },
+  { bg: 'bg-pink-100', text: 'text-pink-800',selectedBg: 'bg-pink-400' },
+  { bg: 'bg-teal-100', text: 'text-teal-800',selectedBg: 'bg-teal-400' },
+  { bg: 'bg-orange-100', text: 'text-orange-800',selectedBg: 'bg-orange-400' }
 ]
 
 // Map to store major-color associations

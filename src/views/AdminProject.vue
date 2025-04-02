@@ -154,29 +154,71 @@
                   </span>
                 </td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm">
-                  <div v-if="project.assignedTo" class="flex items-center gap-2">
-                    <select 
-                      class="bg-white border border-gray-300 text-gray-800 text-xs font-medium rounded-md px-2 py-1 w-28"
-                      :disabled="loadingExaminers[project.id]"
-                      @click="loadExaminersForProject(project)"
+                  <div v-if="project.examinerId" class="flex items-center gap-2 w-full relative">
+                    <div class="relative w-28">
+                      <span class="px-2.5 py-1 rounded-full text-xs font-medium shadow-sm bg-blue-100 text-blue-800 inline-block overflow-hidden text-ellipsis">
+                        {{ project.examinerName || getUserName(project.examinerId) }}
+                      </span>
+                    </div>
+                    <button 
+                      class="px-3 py-1 bg-red-50 text-red-600 text-xs font-medium rounded-md hover:bg-red-100 transition-colors"
+                      @click="resetExaminer(project)"
                     >
-                      <option value="">-</option>
-                      <option v-if="loadingExaminers[project.id]" disabled>Loading...</option>
-                      <option 
-                        v-for="examiner in availableExaminers[project.id] || []" 
-                        :key="examiner.id" 
-                        :value="examiner.id"
-                        :disabled="examiner.isHeader"
-                        :class="{ 
-                          'font-semibold bg-gray-100': examiner.isHeader
-                        }"
+                      Reset
+                    </button>
+                  </div>
+                  <div v-else-if="project.assignedTo" class="flex items-center gap-2 w-full relative">
+                    <!-- Custom Searchable Dropdown -->
+                    <div class="relative w-28" :class="`dropdown-container-${project.id}`">
+                      <div 
+                        class="bg-white border border-gray-300 text-gray-800 text-xs font-medium rounded-md px-2 py-1 w-full flex justify-between cursor-pointer"
+                        @click="toggleExaminerDropdown(project)"
+                        :class="{'border-blue-500': openExaminerDropdown === project.id}"
                       >
-                        {{ examiner.name }}
-                      </option>
-                      <option v-if="availableExaminers[project.id]?.length === 0" disabled>
-                        No available examiners
-                      </option>
-                    </select>
+                        <span>{{ getSelectedExaminerName(project) }}</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-gray-500 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                      
+                      <!-- Dropdown Panel -->
+                      <div 
+                        v-if="openExaminerDropdown === project.id" 
+                        class="absolute z-50 mt-1 bg-white border border-gray-200 rounded-md shadow-lg w-56 max-h-48 overflow-y-auto"
+                      >
+                        <!-- Search Input -->
+                        <div class="p-1 border-b border-gray-200">
+                          <input 
+                            type="text" 
+                            class="w-full text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="Search examiner..."
+                            v-model="examinerSearchQueries[project.id]"
+                            @input="filterExaminers($event, project)"
+                            @click.stop
+                            ref="searchInput"
+                          />
+                        </div>
+                        
+                        <!-- Dropdown Items -->
+                        <div class="py-1">
+                          <div 
+                            v-for="examiner in getFilteredExaminers(project.id)" 
+                            :key="examiner.id"
+                            @click="selectExaminer(examiner, project)"
+                            class="px-2 py-1 text-xs cursor-pointer hover:bg-blue-50"
+                          >
+                            {{ examiner.name }}
+                          </div>
+                          <div v-if="loadingExaminers[project.id]" class="px-2 py-1 text-xs text-gray-500">
+                            Loading...
+                          </div>
+                          <div v-else-if="getFilteredExaminers(project.id).length === 0" class="px-2 py-1 text-xs text-gray-500">
+                            No matching examiners
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
                     <button 
                       class="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-medium rounded-md hover:bg-blue-100 transition-colors"
                       :disabled="loadingExaminers[project.id]"
@@ -284,16 +326,149 @@
           </div>
         </div>
       </div>
+
+      <!-- Examiner Matching Modal -->
+      <div v-if="showExaminerModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-2xl shadow-xl overflow-y-auto max-h-[90vh]">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-semibold text-gray-900">Recommended Examiners</h3>
+            <button 
+              @click="showExaminerModal = false"
+              class="text-gray-500 hover:text-gray-700 focus:outline-none rounded-full p-1 hover:bg-gray-200 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          <!-- Project Information - Always visible -->
+          <div class="mb-6 bg-gray-50 p-4 rounded-lg">
+            <h4 class="font-medium text-gray-700 mb-4">Project Details</h4>
+            <div class="space-y-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p class="text-sm text-gray-500 mb-1">Title</p>
+                  <p class="text-md font-medium">{{ currentProject?.Title || 'N/A' }}</p>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-500 mb-1">Major</p>
+                  <p class="text-md font-medium">{{ currentProject?.major || 'N/A' }}</p>
+                </div>
+              </div>
+              <div>
+                <p class="text-sm text-gray-500 mb-2">Project Description</p>
+                <div class="min-h-[100px] max-h-[200px] overflow-y-auto pr-2">
+                  <p class="text-md whitespace-pre-wrap">{{ currentProject?.Description || 'No description available.' }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Examiner Results Section -->
+          <div class="space-y-4">
+            <!-- Loading State for Recommendations Only -->
+            <div v-if="examinerModalLoading" class="flex flex-col items-center justify-center py-8 space-y-3 bg-gray-50 rounded-lg">
+              <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+              <p class="text-gray-600">Finding the best examiner matches...</p>
+              <p class="text-sm text-gray-500">This may take a few seconds</p>
+            </div>
+            
+            <div v-else>
+              <!-- Examiner Results Content -->
+              <div v-if="rankedExaminers.length === 0" class="text-center py-6 text-gray-500">
+                No matching examiners found. Please try again.
+              </div>
+              
+              <div v-for="(examiner, index) in rankedExaminers" :key="examiner.id" 
+                class="border rounded-lg p-4 transition-all hover:shadow-md"
+                :class="[index === 0 ? 'border-blue-300 bg-blue-50' : 'border-gray-200']">
+                
+                <div class="flex justify-between items-start mb-2">
+                  <div class="flex items-center">
+                    <span v-if="index === 0" class="mr-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">Top Match</span>
+                    <h4 class="font-medium text-gray-900">{{ examiner.name }}</h4>
+                  </div>
+                  <div class="text-sm font-semibold text-blue-600">
+                    {{ Math.round(examiner.finalScore * 100) }}% Match
+                  </div>
+                </div>
+                
+                <div class="mt-3">
+                  <p class="text-xs text-gray-500 mb-1">Best matching specification:</p>
+                  <div v-if="examiner.bestMatch" class="text-sm">
+                    <span class="px-2 py-1 rounded-full bg-blue-100 text-blue-800 text-xs">
+                      {{ examiner.bestMatch.spec }} ({{ Math.round(examiner.bestMatch.score * 100) }}%)
+                    </span>
+                  </div>
+                </div>
+                
+                <div v-if="examiner.matchingSpecs && examiner.matchingSpecs.length > 0" class="mt-3">
+                  <p class="text-xs text-gray-500 mb-1">Strong matches:</p>
+                  <div class="flex flex-wrap gap-1 mt-1">
+                    <span 
+                      v-for="match in examiner.matchingSpecs" 
+                      :key="match.spec"
+                      class="px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs"
+                    >
+                      {{ match.spec }} ({{ Math.round(match.score * 100) }}%)
+                    </span>
+                  </div>
+                </div>
+                
+                <div class="mt-4">
+                  <button 
+                    @click="assignExaminer(examiner, currentProject)"
+                    class="px-3 py-1 bg-blue-500 text-white text-xs font-medium rounded-md hover:bg-blue-600 transition-colors"
+                  >
+                    Assign as Examiner
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Controls Section -->
+          <div class="mt-6 flex items-center">
+            <span class="mr-2 text-sm font-medium text-gray-700">Scoring Method:</span>
+            <label class="inline-flex items-center cursor-pointer">
+              <input type="checkbox" v-model="useWeightedScoring" class="sr-only peer" @change="findExaminersWithScoring(currentProject)">
+              <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <span class="ml-2 text-sm font-medium text-gray-700">
+                {{ useWeightedScoring ? 'Weighted Top-3' : 'Best Match' }}
+              </span>
+            </label>
+            
+            <!-- New Result button -->
+            <button 
+              @click="forceNewExaminerSearch" 
+              class="ml-auto px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2"
+              :disabled="examinerModalLoading"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" :class="{ 'animate-spin': examinerModalLoading }">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              New Results
+            </button>
+          </div>
+          
+          <!-- Last updated info -->
+          <div v-if="examinerResultsTimestamp[currentProject?.id]" class="mt-2 text-xs text-gray-500 text-right">
+            Last updated: {{ new Date(examinerResultsTimestamp[currentProject?.id]).toLocaleString() }}
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { collection, getDocs, doc, getDoc, query, limit, where } from 'firebase/firestore'
+import { collection, getDocs, doc, getDoc, query, limit, where, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/firebase'
 import { useUserStore } from '@/stores/userStore'
 import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
+import { zeroShotClassification } from '@/services/huggingFaceService'
 
 const userStore = useUserStore()
 
@@ -330,18 +505,77 @@ const lecturersLoaded = ref(false)
 const loadingExaminers = ref({}) // Track loading state per project
 const availableExaminers = ref({}) // Available examiners per project
 
+// Modal state and examiner matching
+const showExaminerModal = ref(false)
+const examinerModalLoading = ref(false)
+const currentProject = ref(null)
+const rankedExaminers = ref([])
+const useWeightedScoring = ref(true)
+// Add new refs for caching examiner results
+const examinerResultsCache = ref({}) // Cache for examiner results by project ID
+const examinerResultsTimestamp = ref({}) // Timestamps for cache freshness
+
+// Add these new refs for filtering
+const examinerSearchQueries = ref({});  // Store search query for each project
+const filteredExaminers = ref({});      // Store filtered results for each project
+
 // Define color palette
 const colorPalette = [
-  { bg: 'bg-pink-100', text: 'text-pink-800', selected: 'bg-pink-500 text-white' },
-  { bg: 'bg-teal-100', text: 'text-teal-800', selected: 'bg-teal-500 text-white' },
-  { bg: 'bg-orange-100', text: 'text-orange-800', selected: 'bg-orange-500 text-white' },
-  { bg: 'bg-purple-100', text: 'text-purple-800', selected: 'bg-purple-500 text-white' },
-  { bg: 'bg-amber-100', text: 'text-amber-800', selected: 'bg-amber-500 text-white' },
-  { bg: 'bg-emerald-100', text: 'text-emerald-800', selected: 'bg-emerald-500 text-white' }
+  { bg: 'bg-pink-100', text: 'text-pink-800', selected: 'bg-pink-400 text-white' },
+  { bg: 'bg-teal-100', text: 'text-teal-800', selected: 'bg-teal-400 text-white' },
+  { bg: 'bg-orange-100', text: 'text-orange-800', selected: 'bg-orange-400 text-white' },
+  { bg: 'bg-purple-100', text: 'text-purple-800', selected: 'bg-purple-400 text-white' },
+  { bg: 'bg-amber-100', text: 'text-amber-800', selected: 'bg-amber-400 text-white' },
+  { bg: 'bg-emerald-100', text: 'text-emerald-800', selected: 'bg-emerald-400 text-white' }
 ]
 
 // Map to store major-color associations
 const majorColorMap = ref(new Map())
+
+// Add the shared filtering function
+const filterEligibleLecturers = (lecturersList, project) => {
+  const projectMajor = project.major || '';
+  const supervisorId = project.userId;
+
+  // First try: Exact case-insensitive match
+  let matchingExaminers = lecturersList.filter(lecturer => {
+    // Skip the supervisor
+    if (lecturer.id === supervisorId) return false;
+    
+    // Skip if no majors
+    if (!Array.isArray(lecturer.major) || !projectMajor) return false;
+    
+    // Case-insensitive exact match with any of the lecturer's majors
+    const projectMajorLower = String(projectMajor).toLowerCase();
+    return lecturer.major.some(m => String(m).toLowerCase() === projectMajorLower);
+  });
+  
+  // Second try: If no exact matches, try partial match
+  if (matchingExaminers.length === 0 && projectMajor) {
+    matchingExaminers = lecturersList.filter(lecturer => {
+      // Skip the supervisor
+      if (lecturer.id === supervisorId) return false;
+      
+      // Skip if no majors
+      if (!Array.isArray(lecturer.major)) return false;
+      
+      // Check if any major contains project major or vice versa (case insensitive)
+      const projectMajorLower = String(projectMajor).toLowerCase();
+      return lecturer.major.some(m => {
+        const lecturerMajorLower = String(m).toLowerCase();
+        return lecturerMajorLower.includes(projectMajorLower) || 
+               projectMajorLower.includes(lecturerMajorLower);
+      });
+    });
+  }
+  
+  // If still no matches, include all lecturers except the supervisor as a fallback
+  if (matchingExaminers.length === 0) {
+    matchingExaminers = lecturersList.filter(lecturer => lecturer.id !== supervisorId);
+  }
+
+  return matchingExaminers;
+};
 
 // Fetch academic years
 const fetchAcademicYears = async () => {
@@ -527,23 +761,32 @@ const loadProjects = async () => {
               const projectId = doc.id
               const projectData = doc.data()
               
-              // Add userId to the set of IDs to fetch
-              if (projectData.userId) {
-                userIdsToFetch.add(projectData.userId)
-              }
-              
-              // Add assignedTo user ID to the set of IDs to fetch if it exists
-              if (projectData.assignedTo) {
-                userIdsToFetch.add(projectData.assignedTo)
-              }
-              
               // Use Map to ensure uniqueness by project ID
               if (!projectsMap.has(projectId)) {
                 projectsMap.set(projectId, {
                   id: projectId,
                   ...projectData,
                   major,
+                  majorDocId: majorDocId,
+                  // Ensure examiner data is explicitly included
+                  examinerId: projectData.examinerId || null,
+                  examinerName: projectData.examinerName || null,
+                  examinerAssignedAt: projectData.examinerAssignedAt || null
                 })
+              }
+              
+              // Add user IDs to fetch if not already known
+              if (projectData.userId && !userNames.value[projectData.userId]) {
+                userIdsToFetch.add(projectData.userId)
+              }
+              
+              if (projectData.assignedTo && !userNames.value[projectData.assignedTo]) {
+                userIdsToFetch.add(projectData.assignedTo)
+              }
+              
+              // Also add examiner to fetch if not already known
+              if (projectData.examinerId && !userNames.value[projectData.examinerId]) {
+                userIdsToFetch.add(projectData.examinerId)
               }
             })
             
@@ -703,6 +946,18 @@ const loadRemainingProjects = async (majors, schoolId) => {
             const projectId = doc.id
             const projectData = doc.data()
             
+            // Add to complete projects map
+            completeProjectsMap.set(projectId, {
+              id: projectId,
+              ...projectData,
+              major,
+              majorDocId: majorDocId,
+              // Ensure examiner data is explicitly included
+              examinerId: projectData.examinerId || null,
+              examinerName: projectData.examinerName || null,
+              examinerAssignedAt: projectData.examinerAssignedAt || null
+            })
+            
             // Add user IDs to fetch if not already known
             if (projectData.userId && !userNames.value[projectData.userId]) {
               newUserIdsToFetch.add(projectData.userId)
@@ -712,12 +967,9 @@ const loadRemainingProjects = async (majors, schoolId) => {
               newUserIdsToFetch.add(projectData.assignedTo)
             }
             
-            // Add to complete projects map
-            completeProjectsMap.set(projectId, {
-              id: projectId,
-              ...projectData,
-              major,
-            })
+            if (projectData.examinerId && !userNames.value[projectData.examinerId]) {
+              newUserIdsToFetch.add(projectData.examinerId)
+            }
           })
         }
       } catch (majorError) {
@@ -1083,220 +1335,523 @@ const lazyLoadUserNames = async () => {
   }
 }
 
-// Load examiners for a specific project
+// Update loadExaminersForProject to use the shared function
 const loadExaminersForProject = async (project) => {
   // Skip if already loaded or loading
   if (availableExaminers.value[project.id] || loadingExaminers.value[project.id]) {
-    return
+    return;
   }
   
   try {
-    // Set loading state for this project
-    loadingExaminers.value = { ...loadingExaminers.value, [project.id]: true }
+    loadingExaminers.value = { ...loadingExaminers.value, [project.id]: true };
     
-    const schoolId = userStore.currentUser.school
-    const projectMajor = project.major || ''
-    const supervisorId = project.userId
-    
-    console.log(`Loading examiners for project: ${project.id}, major: ${projectMajor}, supervisor: ${supervisorId}`)
-    
-    // Check if we have all lecturers loaded already
     if (lecturers.value.length === 0) {
-      // Need to load lecturers first
-      console.log('No lecturers loaded yet, loading them now')
-      await loadLecturers()
+      console.log('No lecturers loaded yet, loading them now');
+      await loadLecturers();
     }
     
-    console.log(`Total lecturers available: ${lecturers.value.length}`)
+    console.log(`Total lecturers available: ${lecturers.value.length}`);
     
-    // Debug: print all lecturer majors to see what's available
-    const lecturerMajors = lecturers.value
-      .map(l => Array.isArray(l.major) ? l.major : [])
-      .flat()
-      .filter(Boolean);
-    console.log('Available lecturer majors:', [...new Set(lecturerMajors)]);
+    // Use the shared filtering function
+    const matchingExaminers = filterEligibleLecturers(lecturers.value, project);
     
-    // First try: Exact case-insensitive match
-    let matchingExaminers = lecturers.value.filter(lecturer => {
-      // Skip the supervisor
-      if (lecturer.id === supervisorId) return false;
-      
-      // Skip if no majors
-      if (!Array.isArray(lecturer.major) || !projectMajor) return false;
-      
-      // Case-insensitive exact match with any of the lecturer's majors
-      const projectMajorLower = String(projectMajor).toLowerCase();
-      return lecturer.major.some(m => String(m).toLowerCase() === projectMajorLower);
-    });
+    console.log(`Found ${matchingExaminers.length} matching examiners for project ${project.id}`);
     
-    // Second try: If no exact matches, try partial match
-    if (matchingExaminers.length === 0 && projectMajor) {
-      console.log('No exact major matches, trying partial matches');
-      matchingExaminers = lecturers.value.filter(lecturer => {
-        // Skip the supervisor
-        if (lecturer.id === supervisorId) return false;
-        
-        // Skip if no majors
-        if (!Array.isArray(lecturer.major)) return false;
-        
-        // Check if any major contains project major or vice versa (case insensitive)
-        const projectMajorLower = String(projectMajor).toLowerCase();
-        return lecturer.major.some(m => {
-          const lecturerMajorLower = String(m).toLowerCase();
-          return lecturerMajorLower.includes(projectMajorLower) || 
-                 projectMajorLower.includes(lecturerMajorLower);
-        });
-      });
-    }
-    
-    // If still no matches, include all lecturers except the supervisor as a fallback
-    if (matchingExaminers.length === 0) {
-      console.log('No major matches found, including all lecturers as fallback');
-      matchingExaminers = lecturers.value.filter(lecturer => lecturer.id !== supervisorId);
-      
-      // Add a special "All Lecturers" indicator to the first element if there are matches
-      if (matchingExaminers.length > 0) {
-        matchingExaminers.unshift({
-          id: 'all_lecturers_header',
-          name: '--- All Available Lecturers ---',
-          major: [],
-          specifications: [],
-          isHeader: true
-        });
-      }
-    }
-    
-    console.log(`Found ${matchingExaminers.length} matching examiners for project ${project.id}`)
-    
-    // Store the result
+    // Store the result without the header
     availableExaminers.value = { 
       ...availableExaminers.value, 
       [project.id]: matchingExaminers 
-    }
+    };
   } catch (error) {
-    console.error('Error loading examiners:', error)
+    console.error('Error loading examiners:', error);
+  } finally {
+    loadingExaminers.value = { ...loadingExaminers.value, [project.id]: false };
+  }
+};
+
+// Update findExaminersWithScoring to use the shared function
+const findExaminersWithScoring = async (project, forceNew = false) => {
+  try {
+    examinerModalLoading.value = true;
+    
+    // Clear results if forcing new search
+    if (forceNew) {
+      rankedExaminers.value = [];
+    }
+    
+    // Check if we have project description
+    const projectDescription = project.Description || '';
+    
+    if (!projectDescription && !project.Title) {
+      console.warn("No project description or title available for classification");
+      examinerModalLoading.value = false;
+      return;
+    }
+    
+    // Use title as fallback if description is empty
+    const textToAnalyze = projectDescription || project.Title;
+    
+    console.log("\nProject Details:");
+    console.log("---------------");
+    console.log(`Project Name: ${project.Title}`);
+    console.log(`Project Description: ${projectDescription}`);
+    console.log(`Project Major: ${project.major}`);
+    console.log("---------------\n");
+    
+    // Use the shared filtering function
+    const eligibleLecturers = filterEligibleLecturers(lecturers.value, project);
+    console.log(`Found ${eligibleLecturers.length} eligible lecturers based on major`);
+    
+    // Prepare labels from filtered lecturer specifications
+    const lecturerLabels = eligibleLecturers.map(lecturer => {
+      // Get individual specifications
+      const specs = lecturer.specifications && lecturer.specifications.length 
+        ? lecturer.specifications
+        : ["general academic expertise"];
+        
+      return {
+        id: lecturer.id,
+        name: lecturer.name,
+        specs: specs
+      };
+    });
+
+    // Collect all unique specifications
+    const allSpecs = [...new Set(lecturerLabels.flatMap(lecturer => lecturer.specs))];
+    
+    console.log("Making API call with all specifications:", allSpecs);
+    
+    // Make API call with all specifications using multi-label = true
+    const result = await zeroShotClassification(
+      textToAnalyze,
+      allSpecs,
+      true // Enable multi-label classification
+    );
+    
+    console.log("API Response:", result);
+    
+    // Create a map of specification scores directly from the response
+    const specScoresMap = {};
+    if (result.labels && result.scores) {
+      result.labels.forEach((label, index) => {
+        specScoresMap[label] = result.scores[index];
+      });
+    }
+    
+    // Calculate scores for each lecturer using the score map
+    const detailedResults = lecturerLabels.map(lecturer => {
+      const specScores = lecturer.specs.map(spec => ({
+        spec,
+        score: specScoresMap[spec] || 0 // Default to 0 if not found
+      }));
+      
+      // Find highest single score (Best Match approach)
+      const highestScore = specScores.length > 0 
+        ? Math.max(...specScores.map(item => item.score)) 
+        : 0;
+      
+      // Calculate weighted score
+      // Sort specifications by score (highest first)
+      const sortedScores = [...specScores].sort((a, b) => b.score - a.score);
+      
+      // Apply weights: 60% to top score, 30% to second, 10% to third
+      let weightedScore = 0;
+      if (sortedScores.length > 0) {
+        weightedScore += sortedScores[0].score * 0.6; // Top score gets 60% weight
+        
+        if (sortedScores.length > 1) {
+          weightedScore += sortedScores[1].score * 0.3; // Second score gets 30% weight
+          
+          if (sortedScores.length > 2) {
+            weightedScore += sortedScores[2].score * 0.1; // Third score gets 10% weight
+          } else {
+            weightedScore += sortedScores[0].score * 0.1; // If only 2 specs, top gets extra weight
+          }
+        } else {
+          weightedScore += sortedScores[0].score * 0.4; // If only 1 spec, it gets full weight
+        }
+      }
+      
+      // Find top scoring specifications (scores above 0.5 threshold)
+      const matchingSpecs = specScores
+        .filter(spec => spec.score > 0.5)
+        .sort((a, b) => b.score - a.score);
+      
+      // Find the specification with the highest score
+      const bestMatch = sortedScores.length > 0 ? sortedScores[0] : null;
+      
+      return {
+        ...lecturer,
+        specScores,
+        highestScore,
+        weightedScore,
+        matchingSpecs,
+        bestMatch,
+        // Use either weighted or highest score based on the toggle
+        finalScore: useWeightedScoring.value ? weightedScore : highestScore
+      };
+    });
+    
+    // Sort by final score (either weighted or highest based on toggle)
+    const results = detailedResults.sort((a, b) => b.finalScore - a.finalScore);
+    
+    // Update the ranked examiners
+    rankedExaminers.value = results;
+    
+    // Cache the results in memory
+    const projectId = project.id;
+    examinerResultsCache.value[projectId] = results;
+    examinerResultsTimestamp.value[projectId] = Date.now();
+    
+    // Also cache in session storage for persistence
+    try {
+      sessionStorage.setItem(`examiner_results_${projectId}`, JSON.stringify(results));
+      sessionStorage.setItem(`examiner_results_timestamp_${projectId}`, Date.now().toString());
+    } catch (storageError) {
+      console.error('Error caching examiner results to session storage:', storageError);
+    }
+    
+    console.log("Classification Results:");
+    console.log("---------------------");
+    console.log("Using scoring method:", useWeightedScoring.value ? "Weighted Top-3" : "Best Match");
+    
+    // Log detailed results for each lecturer
+    results.forEach((examiner, index) => {
+      console.log(`\n${index + 1}. ${examiner.name}`);
+      console.log(`Overall Match: ${Math.round(examiner.finalScore * 100)}%`);
+      
+      if (useWeightedScoring.value) {
+        console.log(`(Weighted score: ${Math.round(examiner.weightedScore * 100)}%, Best match: ${Math.round(examiner.highestScore * 100)}%)`);
+      } else {
+        // For Best Match approach, show the specification with highest score
+        if (examiner.bestMatch) {
+          console.log(`Best matching specification: ${examiner.bestMatch.spec} (${Math.round(examiner.bestMatch.score * 100)}%)`);
+        }
+      }
+      console.log("Specification Breakdown:");
+      examiner.specScores.forEach(specScore => {
+        console.log(`  - ${specScore.spec}: ${Math.round(specScore.score * 100)}%`);
+      });
+      
+      if (examiner.matchingSpecs.length > 0) {
+        console.log("Strong Matches:");
+        examiner.matchingSpecs.forEach(match => {
+          console.log(`  * ${match.spec}: ${Math.round(match.score * 100)}%`);
+        });
+      }
+    });
+    
+    console.log("\n---------------------");
+    console.log("Best match:", results[0]?.name || "No matches found");
+    console.log("Using scoring method:", useWeightedScoring.value ? "Weighted Top-3" : "Best Match");
+    
+  } catch (error) {
+    console.error("Error finding examiners:", error);
+  } finally {
+    examinerModalLoading.value = false;
+  }
+}
+
+// Function to assign an examiner to a project
+const assignExaminer = async (examiner, project) => {
+  try {
+    const schoolId = userStore.currentUser.school
+    
+    // Show loading state
+    loadingExaminers.value = { ...loadingExaminers.value, [project.id]: true }
+    
+    console.log(`Assigning examiner ${examiner.name} to project ${project.Title}`)
+    
+    // Build the path to the project document
+    const projectDocPath = `schools/${schoolId}/projects/${selectedAcademicYear.value}/${project.major}/${project.majorDocId}/projectsPerYear/${project.id}`
+    const projectRef = doc(db, projectDocPath)
+    
+    // Update the project document with the examiner ID
+    await updateDoc(projectRef, {
+      examinerId: examiner.id,
+      examinerName: examiner.name,
+      examinerAssignedAt: serverTimestamp()
+    })
+    
+    // Update the local project object
+    const updatedProject = {
+      ...project,
+      examinerId: examiner.id,
+      examinerName: examiner.name
+    }
+    
+    // Update the projects array
+    const index = projects.value.findIndex(p => p.id === project.id)
+    if (index !== -1) {
+      projects.value[index] = updatedProject
+    }
+    
+    console.log(`Successfully assigned examiner ${examiner.name} to project ${project.Title}`)
+    
+    // Close the modal after successful assignment
+    showExaminerModal.value = false
+  } catch (error) {
+    console.error('Error assigning examiner:', error)
   } finally {
     // Clear loading state
     loadingExaminers.value = { ...loadingExaminers.value, [project.id]: false }
   }
 }
 
-// Find examiners button handler - prioritizes examiners with matching specifications
-const findExaminers = async (project) => {
-  // Make sure examiners are loaded first
-  if (!availableExaminers.value[project.id]) {
-    await loadExaminersForProject(project)
+// Add examiner selection handler
+const onExaminerSelected = async (event, project) => {
+  const examinerId = event.target.value
+  
+  // Skip if no selection or header item
+  if (!examinerId || examinerId.includes('header')) {
+    return
   }
   
+  // Find the selected examiner from the available examiners
+  const examiner = availableExaminers.value[project.id]?.find(e => e.id === examinerId)
+  
+  if (!examiner) {
+    console.warn('Selected examiner not found in available examiners')
+    return
+  }
+  
+  // Assign the selected examiner
+  await assignExaminer(examiner, project)
+}
+
+// Add the resetExaminer function in the script section, after the assignExaminer function
+const resetExaminer = async (project) => {
   try {
-    // Set loading state while finding best match
+    const schoolId = userStore.currentUser.school
+    
+    // Show loading state
     loadingExaminers.value = { ...loadingExaminers.value, [project.id]: true }
     
-    // Get available examiners for this project
-    const examiners = availableExaminers.value[project.id] || []
+    console.log(`Resetting examiner for project ${project.Title}`)
     
-    // Filter out header items
-    const realExaminers = examiners.filter(e => !e.isHeader)
+    // Build the path to the project document
+    const projectDocPath = `schools/${schoolId}/projects/${selectedAcademicYear.value}/${project.major}/${project.majorDocId}/projectsPerYear/${project.id}`
+    const projectRef = doc(db, projectDocPath)
     
-    if (realExaminers.length === 0) {
-      console.warn('No examiners available to find matches')
-      return
-    }
-    
-    console.log(`Finding best examiner match for project: ${project.Title}`)
-    
-    // Get project title words for keyword matching (excluding common words)
-    const projectTitle = project.Title || ''
-    const commonWords = ['the', 'and', 'or', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'of']
-    const titleWords = projectTitle.toLowerCase()
-      .split(/\s+/)
-      .filter(word => word.length > 2 && !commonWords.includes(word))
-    
-    console.log('Project keywords:', titleWords)
-    
-    // Score each examiner based on:
-    // 1. Major match (highest priority)
-    // 2. Specification matches with project title
-    // 3. Current workload (future enhancement)
-    const scoredExaminers = realExaminers.map(examiner => {
-      let score = 0
-      
-      if (Array.isArray(examiner.major) && project.major) {
-        const projectMajorLower = String(project.major).toLowerCase();
-        
-        // Major match (exact)
-        if (examiner.major.some(m => String(m).toLowerCase() === projectMajorLower)) {
-          score += 100;
-        }
-        // Major contains or is contained by (partial match)
-        else if (examiner.major.some(m => {
-          const majorLower = String(m).toLowerCase();
-          return majorLower.includes(projectMajorLower) || 
-                 projectMajorLower.includes(majorLower);
-        })) {
-          score += 50;
-        }
-      }
-      
-      // Specification matches with title keywords
-      if (examiner.specifications && examiner.specifications.length > 0) {
-        examiner.specifications.forEach(spec => {
-          const specLower = spec.toLowerCase()
-          
-          // Direct specification match in title
-          if (projectTitle.toLowerCase().includes(specLower)) {
-            score += 30
-          }
-          
-          // Word-by-word match
-          titleWords.forEach(word => {
-            if (specLower.includes(word) || word.includes(specLower)) {
-              score += 10
-            }
-          })
-        })
-      }
-      
-      return {
-        ...examiner,
-        score
-      }
+    // Update the project document to remove examiner data
+    await updateDoc(projectRef, {
+      examinerId: null,
+      examinerName: null,
+      examinerAssignedAt: null
     })
     
-    // Sort by score (descending)
-    scoredExaminers.sort((a, b) => b.score - a.score)
+    // Update the local project object
+    project.examinerId = null
+    project.examinerName = null
+    project.examinerAssignedAt = null
     
-    // Add scores to existing examiners
-    const enhancedExaminers = [...scoredExaminers]
-    
-    // If we have at least one match with a score, highlight the best match
-    if (enhancedExaminers.length > 0 && enhancedExaminers[0].score > 0) {
-      // Add a "Recommended" label to the top match
-      enhancedExaminers[0].name = `${enhancedExaminers[0].name} (Recommended)`
+    // Update the projects array
+    const index = projects.value.findIndex(p => p.id === project.id)
+    if (index !== -1) {
+      projects.value[index] = { ...project }
     }
     
-    // Create a completely new array to force Vue to re-render the dropdown
-    availableExaminers.value = { 
-      ...availableExaminers.value, 
-      [project.id]: [
-        // Add a header if we have recommendations
-        {
-          id: 'recommendations_header',
-          name: '--- Recommended Examiners ---',
-          major: [],
-          specifications: [],
-          isHeader: true
-        },
-        ...enhancedExaminers
-      ]
-    }
-    
-    console.log(`Found and ranked ${enhancedExaminers.length} examiners for project ${project.id}`)
+    console.log(`Successfully reset examiner for project ${project.Title}`)
   } catch (error) {
-    console.error('Error finding best examiner match:', error)
+    console.error('Error resetting examiner:', error)
   } finally {
     // Clear loading state
     loadingExaminers.value = { ...loadingExaminers.value, [project.id]: false }
   }
+}
+
+// Find examiners button handler - opens the modal
+const findExaminers = async (project) => {
+  try {
+    // Store the current project
+    currentProject.value = project;
+    
+    // Show the modal
+    showExaminerModal.value = true;
+    examinerModalLoading.value = true;
+    
+    // Load lecturers if not already loaded
+    if (lecturers.value.length === 0) {
+      await loadLecturers();
+    }
+    
+    // Check if we have cached results for this project
+    const projectId = project.id;
+    const cachedResults = examinerResultsCache.value[projectId];
+    const cachedTimestamp = examinerResultsTimestamp.value[projectId];
+    const isRecentCache = cachedTimestamp && (Date.now() - cachedTimestamp < 30 * 60 * 1000); // 30 minute cache
+    
+    // Also check session storage for persistence across refreshes
+    let sessionCachedResults = null;
+    let sessionCachedTimestamp = null;
+    try {
+      const sessionResults = sessionStorage.getItem(`examiner_results_${projectId}`);
+      const sessionTimestamp = sessionStorage.getItem(`examiner_results_timestamp_${projectId}`);
+      
+      if (sessionResults && sessionTimestamp) {
+        sessionCachedResults = JSON.parse(sessionResults);
+        sessionCachedTimestamp = parseInt(sessionTimestamp);
+      }
+    } catch (storageError) {
+      console.error('Error reading cached examiner results from session storage:', storageError);
+    }
+    
+    const useSessionCache = sessionCachedTimestamp && 
+      (Date.now() - sessionCachedTimestamp < 30 * 60 * 1000) && // 30 minute cache
+      sessionCachedResults;
+    
+    // Use memory cache first, then session storage cache if available and recent
+    if (cachedResults && isRecentCache) {
+      console.log(`Using memory-cached examiner results for project ${projectId}`);
+      rankedExaminers.value = cachedResults;
+      examinerModalLoading.value = false;
+    } else if (useSessionCache) {
+      console.log(`Using session-cached examiner results for project ${projectId}`);
+      rankedExaminers.value = sessionCachedResults;
+      // Also update memory cache
+      examinerResultsCache.value[projectId] = sessionCachedResults;
+      examinerResultsTimestamp.value[projectId] = sessionCachedTimestamp;
+      examinerModalLoading.value = false;
+    } else {
+      // No cache or expired, find examiners with API call
+      await findExaminersWithScoring(project);
+    }
+  } catch (error) {
+    console.error('Error finding examiners:', error);
+    examinerModalLoading.value = false;
+  }
+}
+
+// Function to force a new search ignoring cache
+const forceNewExaminerSearch = async () => {
+  if (!currentProject.value) return;
+  
+  try {
+    examinerModalLoading.value = true;
+    
+    // Clear the cache for this project
+    const projectId = currentProject.value.id;
+    
+    // Remove from memory cache
+    if (examinerResultsCache.value[projectId]) {
+      delete examinerResultsCache.value[projectId];
+    }
+    if (examinerResultsTimestamp.value[projectId]) {
+      delete examinerResultsTimestamp.value[projectId];
+    }
+    
+    // Remove from session storage
+    try {
+      sessionStorage.removeItem(`examiner_results_${projectId}`);
+      sessionStorage.removeItem(`examiner_results_timestamp_${projectId}`);
+    } catch (storageError) {
+      console.error('Error removing cached examiner results from session storage:', storageError);
+    }
+    
+    // Force new search
+    await findExaminersWithScoring(currentProject.value, true);
+  } catch (error) {
+    console.error('Error finding new examiner matches:', error);
+    examinerModalLoading.value = false;
+  }
+}
+
+// Add this new function to filter examiners
+const filterExaminers = (event, project) => {
+  const query = event.target.value.toLowerCase();
+  examinerSearchQueries.value[project.id] = query;
+  
+  // Update filtered results
+  if (availableExaminers.value[project.id]) {
+    const filtered = availableExaminers.value[project.id].filter(examiner => 
+      examiner.name.toLowerCase().includes(query)
+    );
+    filteredExaminers.value[project.id] = filtered;
+  }
+};
+
+// Add this new function to get filtered examiners
+const getFilteredExaminers = (projectId) => {
+  if (!availableExaminers.value[projectId]) return [];
+  
+  const query = examinerSearchQueries.value[projectId];
+  if (!query) return availableExaminers.value[projectId];
+  
+  return filteredExaminers.value[projectId] || availableExaminers.value[projectId];
+};
+
+// Add this for dropdown control
+const openExaminerDropdown = ref(null)
+
+// Toggle dropdown visibility
+const toggleExaminerDropdown = (project) => {
+  // Load examiners if not loaded
+  if (!availableExaminers.value[project.id]) {
+    loadExaminersForProject(project)
+  }
+  
+  // Toggle dropdown
+  if (openExaminerDropdown.value === project.id) {
+    openExaminerDropdown.value = null
+  } else {
+    openExaminerDropdown.value = project.id
+    // Reset search query when opening
+    if (!examinerSearchQueries.value[project.id]) {
+      examinerSearchQueries.value[project.id] = ''
+    }
+    // Focus the search input (using nextTick to ensure the DOM has updated)
+    nextTick(() => {
+      const searchInput = document.querySelector(`input[placeholder="Search examiner..."]`)
+      if (searchInput) searchInput.focus()
+    })
+  }
+}
+
+// Add this click outside listener to close dropdown when clicking elsewhere
+onMounted(() => {
+  document.addEventListener('click', (event) => {
+    if (openExaminerDropdown.value !== null) {
+      // Check if click is inside any dropdown container
+      const openDropdownContainer = document.querySelector(`.dropdown-container-${openExaminerDropdown.value}`)
+      if (openDropdownContainer && !openDropdownContainer.contains(event.target)) {
+        openExaminerDropdown.value = null
+      }
+    }
+  })
+})
+
+// Function to get the displayed name for the selected examiner dropdown
+const getSelectedExaminerName = (project) => {
+  // If dropdown is open, show the search query
+  if (openExaminerDropdown.value === project.id) {
+    return examinerSearchQueries.value[project.id] || '-'
+  }
+  
+  // If an examiner is selected in the dropdown but not saved yet
+  if (selectedExaminers.value[project.id]) {
+    return selectedExaminers.value[project.id].name
+  }
+  
+  // If project already has an assigned examiner (this shouldn't happen in this section, 
+  // but keeping for completeness)
+  if (project.examinerId) {
+    return project.examinerName || getUserName(project.examinerId) || '-'
+  }
+  
+  // Default state
+  return '-'
+}
+
+// Add ref for temporary selected examiners (before saving)
+const selectedExaminers = ref({})
+
+// Update selectExaminer function to store selection
+const selectExaminer = (examiner, project) => {
+  // Store the selected examiner
+  selectedExaminers.value[project.id] = examiner
+  // Close dropdown
+  openExaminerDropdown.value = null
+  // Assign the examiner to the project
+  assignExaminer(examiner, project)
 }
 </script> 
