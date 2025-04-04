@@ -57,22 +57,56 @@
             <span class="text-sm text-gray-500">(Total: {{ filteredProjects.length }})</span>
           </div>
           
-          <!-- Major Filters -->
-          <div v-if="uniqueProjectMajors.length > 0" class="flex flex-wrap gap-2">
-            <button
-              v-for="major in uniqueProjectMajors"
-              :key="major"
-              @click="toggleMajorFilter(major)"
-              class="px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-1.5 shadow-sm hover:shadow"
-              :class="[
-                selectedMajorFilters.has(major) 
-                  ? getMajorColorClasses(major).selected 
-                  : [getMajorColorClasses(major).bg, getMajorColorClasses(major).text, 'hover:bg-opacity-80'],
-              ]"
-            >
-              <span v-if="selectedMajorFilters.has(major)" class="w-2 h-2 rounded-full bg-white"></span>
-              {{ major }}
-            </button>
+          <!-- Major Filters and Scoring Method -->
+          <div class="flex justify-between items-center gap-4 mb-4">
+            <div v-if="uniqueProjectMajors.length > 0" class="flex flex-wrap gap-2">
+              <button
+                v-for="major in uniqueProjectMajors"
+                :key="major"
+                @click="toggleMajorFilter(major)"
+                class="px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-1.5 shadow-sm hover:shadow"
+                :class="[
+                  selectedMajorFilters.has(major) 
+                    ? getMajorColorClasses(major).selected 
+                    : [getMajorColorClasses(major).bg, getMajorColorClasses(major).text, 'hover:bg-opacity-80'],
+                ]"
+              >
+                <span v-if="selectedMajorFilters.has(major)" class="w-2 h-2 rounded-full bg-white"></span>
+                {{ major }}
+              </button>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="relative inline-flex items-center">
+                <div class="relative mr-2 group">
+                  <div class="cursor-help">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div class="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded shadow-lg">
+                    <div class="relative">
+                      <div class="space-y-1">
+                        <p><span class="font-semibold">Best Match:</span> Uses the highest matching score between project and examiner's expertise</p>
+                        <p><span class="font-semibold">Weighted Top-3:</span> Combines scores from top 3 matches (60%-30%-10% weights)</p>
+                      </div>
+                      <div class="absolute w-2 h-2 bg-gray-900 transform rotate-45 left-1/2 -translate-x-1/2 -bottom-1"></div>
+                    </div>
+                  </div>
+                </div>
+                <span class="mr-3 text-sm" :class="!useWeightedScoring ? 'font-semibold text-blue-600' : 'text-gray-400'">
+                  Best Match
+                </span>
+                <label class="inline-flex items-center cursor-pointer">
+                  <input type="checkbox" v-model="useWeightedScoring" class="sr-only peer" :disabled="showExaminerModal">
+                  <div class="relative w-14 h-7 bg-gray-100 border border-gray-200 rounded-full transition-colors duration-200" :class="{'bg-blue-50 border-blue-200': useWeightedScoring, 'bg-blue-50 border-blue-200': !useWeightedScoring}">
+                    <div class="absolute top-1 left-1 w-5 h-5 bg-blue-500 rounded-full transition-transform duration-200" :class="useWeightedScoring ? 'translate-x-7' : 'translate-x-0'"></div>
+                  </div>
+                </label>
+                <span class="ml-3 text-sm" :class="useWeightedScoring ? 'font-semibold text-blue-600' : 'text-gray-400'">
+                  Weighted Top-3
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -367,18 +401,7 @@
           <!-- Examiner Results Section -->
           <div class="space-y-4">
             <!-- Controls Section -->
-            <div class="flex items-center justify-between mb-4">
-              <div class="flex items-center">
-                <span class="mr-2 text-sm font-medium text-gray-700">Scoring Method:</span>
-                <label class="inline-flex items-center cursor-pointer">
-                  <input type="checkbox" v-model="useWeightedScoring" class="sr-only peer" @change="findExaminersWithScoring(currentProject)">
-                  <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                  <span class="ml-2 text-sm font-medium text-gray-700">
-                    {{ useWeightedScoring ? 'Weighted Top-3' : 'Best Match' }}
-                  </span>
-                </label>
-              </div>
-              
+            <div class="flex items-center justify-end mb-4">
               <!-- New Result button -->
               <button 
                 @click="forceNewExaminerSearch" 
@@ -1156,14 +1179,11 @@ const paginatedProjects = computed(() => {
   return filteredProjects.value.slice(start, end)
 })
 
-// Watch for changes
-watch(selectedAcademicYear, () => {
-  if (selectedAcademicYear.value) {
-    // Clear existing filters before fetching new projects
-    selectedMajorFilters.value = new Set()
-    // Reset major color map to ensure consistent color assignments for each year
-    majorColorMap.value = new Map()
-    fetchProjects()
+// Add watch for scoring method changes
+watch(useWeightedScoring, () => {
+  // If modal is open and we have a current project, refresh the results
+  if (showExaminerModal.value && currentProject.value) {
+    findExaminersWithScoring(currentProject.value, true)
   }
 })
 
@@ -1873,4 +1893,28 @@ const selectExaminer = (examiner, project) => {
   // Assign the examiner to the project
   assignExaminer(examiner, project)
 }
+
+// Watch for changes
+watch(selectedAcademicYear, () => {
+  if (selectedAcademicYear.value) {
+    // Clear existing filters before fetching new projects
+    selectedMajorFilters.value = new Set()
+    // Reset major color map to ensure consistent color assignments for each year
+    majorColorMap.value = new Map()
+    fetchProjects()
+  }
+})
+
+watch(filteredProjects, () => {
+  if (currentPage.value > totalPages.value) {
+    currentPage.value = totalPages.value || 1
+  }
+})
+
+// Add lazy loading for user data when page changes
+watch([currentPage, filteredProjects], () => {
+  if (initialLoadComplete.value) {
+    lazyLoadUserNames()
+  }
+})
 </script> 
