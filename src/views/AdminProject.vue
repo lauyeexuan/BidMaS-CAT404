@@ -140,9 +140,9 @@
                       class="bg-white border border-gray-300 text-gray-800 text-xs uppercase font-medium rounded-md px-2 py-1 hover:border-blue-500 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                       @change="currentPage = 1"
                     >
-                      <option value="all">All Assignments</option>
-                      <option value="assigned">Assigned Only</option>
-                      <option value="unassigned">Unassigned Only</option>
+                      <option value="all">All</option>
+                      <option value="assigned">Assigned</option>
+                      <option value="unassigned">Unassigned</option>
                     </select>
                   </div>
                 </th>
@@ -334,9 +334,19 @@
           <div 
             v-for="lecturer in lecturers" 
             :key="lecturer.id" 
-            class="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow p-4"
+            class="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow p-4 relative"
           >
-            <h3 class="font-medium text-lg text-gray-800 mb-1">{{ lecturer.name }}</h3>
+            <!-- Project Count Badge -->
+            <div class="absolute top-3 right-3 text-center">
+              <div class="text-2xl font-bold text-blue-600">
+                {{ projects.filter(p => p.examinerId === lecturer.id).length }}
+              </div>
+              <div class="text-xs text-gray-500 font-medium">
+                Examinations
+              </div>
+            </div>
+
+            <h3 class="font-medium text-lg text-gray-800 mb-1 pr-16">{{ lecturer.name }}</h3>
             <div class="mb-2">
               <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
                 {{ lecturer.major ? lecturer.major.join(', ') : 'Unknown' }}
@@ -549,7 +559,7 @@ const filteredExaminers = ref({});      // Store filtered results for each proje
 // Define color palette
 const colorPalette = [
   { bg: 'bg-pink-100', text: 'text-pink-800', selected: 'bg-pink-400 text-white' },
-  { bg: 'bg-teal-100', text: 'text-teal-800', selected: 'bg-teal-400 text-white' },
+  { bg: 'bg-lime-100', text: 'text-lime-800', selected: 'bg-lime-500 text-white' },
   { bg: 'bg-orange-100', text: 'text-orange-800', selected: 'bg-orange-400 text-white' },
   { bg: 'bg-purple-100', text: 'text-purple-800', selected: 'bg-purple-400 text-white' },
   { bg: 'bg-amber-100', text: 'text-amber-800', selected: 'bg-amber-400 text-white' },
