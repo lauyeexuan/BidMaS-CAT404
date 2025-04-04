@@ -344,7 +344,6 @@
           
           <!-- Project Information - Always visible -->
           <div class="mb-6 bg-gray-50 p-4 rounded-lg">
-            <h4 class="font-medium text-gray-700 mb-4">Project Details</h4>
             <div class="space-y-4">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -367,6 +366,32 @@
           
           <!-- Examiner Results Section -->
           <div class="space-y-4">
+            <!-- Controls Section -->
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center">
+                <span class="mr-2 text-sm font-medium text-gray-700">Scoring Method:</span>
+                <label class="inline-flex items-center cursor-pointer">
+                  <input type="checkbox" v-model="useWeightedScoring" class="sr-only peer" @change="findExaminersWithScoring(currentProject)">
+                  <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  <span class="ml-2 text-sm font-medium text-gray-700">
+                    {{ useWeightedScoring ? 'Weighted Top-3' : 'Best Match' }}
+                  </span>
+                </label>
+              </div>
+              
+              <!-- New Result button -->
+              <button 
+                @click="forceNewExaminerSearch" 
+                class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2"
+                :disabled="examinerModalLoading"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" :class="{ 'animate-spin': examinerModalLoading }">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                New Results
+              </button>
+            </div>
+
             <!-- Loading State for Recommendations Only -->
             <div v-if="examinerModalLoading" class="flex flex-col items-center justify-center py-8 space-y-3 bg-gray-50 rounded-lg">
               <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
@@ -429,30 +454,6 @@
                 </div>
               </div>
             </div>
-          </div>
-          
-          <!-- Controls Section -->
-          <div class="mt-6 flex items-center">
-            <span class="mr-2 text-sm font-medium text-gray-700">Scoring Method:</span>
-            <label class="inline-flex items-center cursor-pointer">
-              <input type="checkbox" v-model="useWeightedScoring" class="sr-only peer" @change="findExaminersWithScoring(currentProject)">
-              <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              <span class="ml-2 text-sm font-medium text-gray-700">
-                {{ useWeightedScoring ? 'Weighted Top-3' : 'Best Match' }}
-              </span>
-            </label>
-            
-            <!-- New Result button -->
-            <button 
-              @click="forceNewExaminerSearch" 
-              class="ml-auto px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2"
-              :disabled="examinerModalLoading"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" :class="{ 'animate-spin': examinerModalLoading }">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              New Results
-            </button>
           </div>
           
           <!-- Last updated info -->
