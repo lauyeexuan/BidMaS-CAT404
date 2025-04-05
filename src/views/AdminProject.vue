@@ -53,8 +53,42 @@
         <!-- Filter Section -->
         <div class="mb-6">
           <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-semibold text-gray-800">Projects by Major</h2>
+            <div class="flex items-center gap-4">
+              <h2 class="text-xl font-semibold text-gray-800">Projects by Major</h2>
+              <button
+                @click="batchSelectionActive = !batchSelectionActive"
+                class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+                :class="batchSelectionActive ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+              >
+                {{ batchSelectionActive ? 'Exit Selection' : 'Select Projects' }}
+              </button>
+            </div>
             <span class="text-sm text-gray-500">(Total: {{ filteredProjects.length }})</span>
+          </div>
+
+          <!-- Selection Banner -->
+          <div v-if="batchSelectionActive" class="mb-4">
+            <div class="inline-block bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div class="flex items-center gap-4">
+                <span class="text-blue-700 font-medium">{{ selectedProjectCount }} projects selected</span>
+                <div v-if="selectedProjectMajors.length > 0" class="flex gap-2">
+                  <span class="text-gray-500">from</span>
+                  <div class="flex flex-wrap gap-1">
+                    <span 
+                      v-for="major in selectedProjectMajors" 
+                      :key="major"
+                      class="px-2 py-0.5 rounded-full text-xs font-medium"
+                      :class="[
+                        getMajorColorClasses(major).bg,
+                        getMajorColorClasses(major).text
+                      ]"
+                    >
+                      {{ major }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           
           <!-- Major Filters and Scoring Method -->
@@ -121,6 +155,17 @@
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
+                <th v-if="batchSelectionActive" class="w-12 px-3 py-3">
+                  <div class="flex items-center">
+                    <input 
+                      type="checkbox" 
+                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      :checked="allCurrentPageSelected"
+                      :indeterminate="!allCurrentPageSelected && someCurrentPageSelected"
+                      @change="toggleAllCurrentPage"
+                    >
+                  </div>
+                </th>
                 <th class="w-12 px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   No.
                 </th>
@@ -152,7 +197,19 @@
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="(project, index) in paginatedProjects" :key="index">
+              <tr v-for="(project, index) in paginatedProjects" :key="index" 
+                  :class="{'bg-blue-50': selectedProjects.has(project.id)}"
+              >
+                <td v-if="batchSelectionActive" class="w-12 px-3 py-4">
+                  <div class="flex items-center">
+                    <input 
+                      type="checkbox" 
+                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      :checked="selectedProjects.has(project.id)"
+                      @change="toggleProjectSelection(project.id)"
+                    >
+                  </div>
+                </td>
                 <td class="w-12 px-2 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                   {{ (currentPage - 1) * itemsPerPage + index + 1 }}
                 </td>
@@ -307,13 +364,39 @@
         </div>
       </div>
 
-      <!-- Lecturers Section with Deferred Loading -->
+      <!-- Lecturers Section -->
       <div class="mt-8 bg-white rounded-lg shadow p-6">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl font-semibold text-gray-800">Lecturers</h2>
           <div v-if="loadingLecturers" class="flex items-center">
             <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2"></div>
             <span class="text-sm text-gray-600">Loading lecturers...</span>
+          </div>
+        </div>
+
+        <!-- Batch Assignment Info Banner -->
+        <div v-if="selectedProjects.size > 0" class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-blue-700">Select an eligible lecturer to assign as examiner for {{ selectedProjects.size }} projects</span>
+              <span class="text-gray-500">({{ eligibleLecturers.length }} eligible lecturers)</span>
+            </div>
+          </div>
+          <div v-if="selectedProjectMajors.length > 0" class="mt-2 flex gap-2 items-center">
+            <span class="text-gray-500 text-sm">Required majors:</span>
+            <div class="flex gap-1">
+              <span 
+                v-for="major in selectedProjectMajors" 
+                :key="major"
+                class="px-2 py-0.5 rounded-full text-xs font-medium"
+                :class="[
+                  getMajorColorClasses(major).bg,
+                  getMajorColorClasses(major).text
+                ]"
+              >
+                {{ major }}
+              </span>
+            </div>
           </div>
         </div>
         
@@ -334,38 +417,67 @@
           <div 
             v-for="lecturer in lecturers" 
             :key="lecturer.id" 
-            class="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow p-4 relative"
+            class="relative bg-white border rounded-lg transition-all duration-200"
+            :class="[
+              selectedProjects.size > 0 ? (
+                isLecturerEligible(lecturer) 
+                  ? 'border-blue-200 hover:shadow-lg hover:bg-yellow-50 cursor-pointer'
+                  : 'border-gray-200 opacity-40'
+              ) : 'border-gray-200 hover:shadow-md'
+            ]"
+            @click="selectedProjects.size > 0 && isLecturerEligible(lecturer) ? batchAssignExaminer(lecturer) : null"
           >
-            <!-- Project Count Badge -->
-            <div class="absolute top-3 right-3 text-center">
-              <div class="text-2xl font-bold text-blue-600">
-                {{ projects.filter(p => p.examinerId === lecturer.id).length }}
-              </div>
-              <div class="text-xs text-gray-500 font-medium">
-                Examinations
-              </div>
-            </div>
-
-            <h3 class="font-medium text-lg text-gray-800 mb-1 pr-16">{{ lecturer.name }}</h3>
-            <div class="mb-2">
-              <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                {{ lecturer.major ? lecturer.major.join(', ') : 'Unknown' }}
+            <!-- Eligibility Indicator -->
+            <div 
+              v-if="selectedProjects.size > 0"
+              class="absolute top-2 right-2 flex items-center gap-1"
+            >
+              <span 
+                v-if="isLecturerEligible(lecturer)"
+                class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+              >
+                Eligible
+              </span>
+              <span 
+                v-else
+                class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600"
+              >
+                Not Eligible
               </span>
             </div>
-            <div v-if="lecturer.specifications && lecturer.specifications.length > 0" class="mt-2">
-              <p class="text-xs text-gray-500 mb-1">Specializations:</p>
-              <div class="flex flex-wrap gap-1">
-                <span 
-                  v-for="(spec, index) in lecturer.specifications" 
-                  :key="index"
-                  class="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                >
-                  {{ spec }}
+
+            <div class="p-4">
+              <!-- Project Count Badge -->
+              <div class="text-center mb-3">
+                <div class="text-2xl font-bold text-blue-600">
+                  {{ projects.filter(p => p.examinerId === lecturer.id).length }}
+                </div>
+                <div class="text-xs text-gray-500 font-medium">
+                  Examinations
+                </div>
+              </div>
+
+              <h3 class="font-medium text-lg text-gray-800 mb-1">{{ lecturer.name }}</h3>
+              <div class="mb-2">
+                <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                  {{ lecturer.major ? (Array.isArray(lecturer.major) ? lecturer.major.join(', ') : lecturer.major) : 'Unknown' }}
                 </span>
               </div>
-            </div>
-            <div v-else class="mt-2 text-xs text-gray-400 italic">
-              No specializations listed
+              <div v-if="lecturer.specifications && lecturer.specifications.length > 0" class="mt-2">
+                <p class="text-xs text-gray-500 mb-1">Specializations:</p>
+                <div class="flex flex-wrap gap-1">
+                  <span 
+                    v-for="(spec, index) in lecturer.specifications" 
+                    :key="index"
+                    class="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                  >
+                    {{ spec }}
+                  </span>
+                </div>
+              </div>
+              <div v-else class="mt-2 text-xs text-gray-400 italic">
+                No specializations listed
+              </div>
             </div>
           </div>
         </div>
@@ -495,6 +607,18 @@
           </div>
         </div>
       </div>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div 
+      v-if="showToast" 
+      class="fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg transition-all duration-300 transform"
+      :class="{
+        'bg-green-100 text-green-800 border border-green-200': toastType === 'success',
+        'bg-red-100 text-red-800 border border-red-200': toastType === 'error'
+      }"
+    >
+      {{ toastMessage }}
     </div>
   </div>
 </template>
@@ -1608,12 +1732,16 @@ const assignExaminer = async (examiner, project) => {
       }
     }
     
+    // Show success notification
+    showNotification(`Successfully assigned ${examiner.name} as examiner for "${project.Title}"`)
+    
     console.log(`Successfully assigned examiner ${examiner.name} to project ${project.Title}`)
     
     // Close the modal after successful assignment
     showExaminerModal.value = false
   } catch (error) {
     console.error('Error assigning examiner:', error)
+    showNotification('Failed to assign examiner', 'error')
   } finally {
     // Clear loading state
     loadingExaminers.value = { ...loadingExaminers.value, [project.id]: false }
@@ -1927,4 +2055,186 @@ watch([currentPage, filteredProjects], () => {
     lazyLoadUserNames()
   }
 })
+
+// Add batch selection state
+const selectedProjects = ref(new Set())
+const batchSelectionActive = ref(false)
+
+// Add computed properties for batch selection
+const selectedProjectCount = computed(() => selectedProjects.value.size)
+
+const selectedProjectMajors = computed(() => {
+  const majors = new Set()
+  for (const projectId of selectedProjects.value) {
+    const project = projects.value.find(p => p.id === projectId)
+    if (project) {
+      majors.add(project.major)
+    }
+  }
+  return Array.from(majors)
+})
+
+const allCurrentPageSelected = computed(() => {
+  return paginatedProjects.value.every(project => selectedProjects.value.has(project.id))
+})
+
+const someCurrentPageSelected = computed(() => {
+  return paginatedProjects.value.some(project => selectedProjects.value.has(project.id))
+})
+
+// Add selection functions
+const toggleProjectSelection = (projectId) => {
+  if (!batchSelectionActive.value) return
+  if (selectedProjects.value.has(projectId)) {
+    selectedProjects.value.delete(projectId)
+  } else {
+    selectedProjects.value.add(projectId)
+  }
+}
+
+const toggleAllCurrentPage = () => {
+  if (allCurrentPageSelected.value) {
+    // Deselect all on current page
+    paginatedProjects.value.forEach(project => {
+      selectedProjects.value.delete(project.id)
+    })
+  } else {
+    // Select all on current page
+    paginatedProjects.value.forEach(project => {
+      selectedProjects.value.add(project.id)
+    })
+  }
+}
+
+const clearSelection = () => {
+  selectedProjects.value.clear()
+  batchSelectionActive.value = false
+}
+
+// Clear selection when exiting selection mode only
+watch(batchSelectionActive, (newValue) => {
+  if (!newValue) {
+    selectedProjects.value.clear()
+  }
+})
+
+// Clear selection when changing academic year
+watch(selectedAcademicYear, () => {
+  if (batchSelectionActive.value) {
+    clearSelection()
+  }
+})
+
+// Add computed properties for batch examiner assignment
+const selectedProjectDetails = computed(() => {
+  return Array.from(selectedProjects.value).map(projectId => {
+    return projects.value.find(p => p.id === projectId)
+  }).filter(Boolean) // Remove any undefined values
+})
+
+const selectedProjectSupervisors = computed(() => {
+  return new Set(selectedProjectDetails.value.map(project => project.userId))
+})
+
+const selectedProjectMajorSet = computed(() => {
+  return new Set(selectedProjectDetails.value.map(project => project.major))
+})
+
+// Function to check if a lecturer is eligible to examine selected projects
+const isLecturerEligible = (lecturer) => {
+  // Skip if lecturer is a supervisor of any selected project
+  if (selectedProjectSupervisors.value.has(lecturer.id)) {
+    return false
+  }
+
+  // Check if lecturer has all the required majors
+  const lecturerMajors = new Set(Array.isArray(lecturer.major) ? lecturer.major : [lecturer.major])
+  const requiredMajors = Array.from(selectedProjectMajorSet.value)
+  
+  return requiredMajors.every(major => lecturerMajors.has(major))
+}
+
+// Function to batch assign examiner
+const batchAssignExaminer = async (examiner) => {
+  try {
+    const schoolId = userStore.currentUser.school
+    loading.value = true
+
+    // Process each selected project
+    for (const project of selectedProjectDetails.value) {
+      // Build the path to the project document
+      const projectDocPath = `schools/${schoolId}/projects/${selectedAcademicYear.value}/${project.major}/${project.majorDocId}/projectsPerYear/${project.id}`
+      const projectRef = doc(db, projectDocPath)
+
+      // Update the project document with the examiner ID
+      await updateDoc(projectRef, {
+        examinerId: examiner.id,
+        examinerName: examiner.name,
+        examinerAssignedAt: serverTimestamp()
+      })
+
+      // Update the local project object
+      const index = projects.value.findIndex(p => p.id === project.id)
+      if (index !== -1) {
+        projects.value[index] = {
+          ...projects.value[index],
+          examinerId: examiner.id,
+          examinerName: examiner.name,
+          examinerAssignedAt: new Date().toISOString()
+        }
+      }
+    }
+
+    // Update cache and session storage
+    if (projectCache.value[selectedAcademicYear.value]) {
+      projectCache.value[selectedAcademicYear.value] = [...projects.value]
+    }
+
+    // Update session storage if this is the latest year
+    if (selectedAcademicYear.value === availableAcademicYears.value[0]?.yearId) {
+      try {
+        const projectsKey = `${SESSION_STORAGE_KEY_PROJECTS}${schoolId}_${selectedAcademicYear.value}`
+        sessionStorage.setItem(projectsKey, JSON.stringify(projects.value))
+      } catch (storageError) {
+        console.error('Error updating projects in session storage:', storageError)
+      }
+    }
+
+    // Show success notification
+    showNotification(`Successfully assigned ${examiner.name} as examiner for ${selectedProjects.value.size} projects`)
+
+    // Clear selection after successful assignment
+    clearSelection()
+    
+  } catch (error) {
+    console.error('Error batch assigning examiner:', error)
+    showNotification('Failed to assign examiner to projects', 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
+// Computed property for eligible lecturers
+const eligibleLecturers = computed(() => {
+  if (!lecturers.value || selectedProjects.value.size === 0) return []
+  
+  return lecturers.value.filter(isLecturerEligible)
+})
+
+// Toast notification state
+const showToast = ref(false)
+const toastMessage = ref('')
+const toastType = ref('success') // 'success' or 'error'
+
+// Function to show toast
+const showNotification = (message, type = 'success') => {
+  toastMessage.value = message
+  toastType.value = type
+  showToast.value = true
+  
+  // Auto hide after 3 seconds
+  setTimeout(() => {
+    showToast.value = false
+  }, 3000)
+}
 </script> 
