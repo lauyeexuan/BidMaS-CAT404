@@ -234,6 +234,35 @@ const createHeaderNotification = async (schoolId, academicYear, majorName, actio
 };
 
 /**
+ * Create notification for examiner assignment
+ * @param {string} schoolId - School ID
+ * @param {string} academicYear - Academic year
+ * @param {string} projectId - Project ID
+ * @param {string} projectTitle - Project title
+ * @param {string} examinerId - Examiner's user ID
+ * @returns {Promise<void>}
+ */
+const createExaminerNotification = async (schoolId, academicYear, projectId, projectTitle, examinerId) => {
+  try {
+    const notificationsRef = collection(db, 'schools', schoolId, 'notifications');
+    
+    // Create the notification document
+    await addDoc(notificationsRef, {
+      type: "examiner_assignment",
+      createdAt: Timestamp.now(),
+      readBy: {}, // Empty object to track which users have read this notification
+      academicYear,
+      projectId,
+      changeType: 'examiner_assigned',
+      details: `You have been assigned as an examiner for the project "${projectTitle}"`,
+      affectedUsers: [examinerId], // Only notify the assigned examiner
+    });
+  } catch (error) {
+    console.error('Error creating examiner notification:', error);
+  }
+};
+
+/**
  * Process milestone notifications in a non-blocking way
  * @param {string} schoolId - School ID
  * @param {string} academicYear - Academic year
@@ -271,6 +300,7 @@ export default {
   createNotification,
   createMilestoneNotifications,
   createHeaderNotification,
+  createExaminerNotification,
   processNotificationsAsync,
   formatDateForNotification,
   formatMilestoneForNotification,

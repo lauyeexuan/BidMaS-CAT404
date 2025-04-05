@@ -630,6 +630,7 @@ import { db } from '@/firebase'
 import { useUserStore } from '@/stores/userStore'
 import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
 import { zeroShotClassification } from '@/services/huggingFaceService'
+import notificationService from '@/services/notificationService'
 
 const userStore = useUserStore()
 
@@ -1692,6 +1693,15 @@ const assignExaminer = async (examiner, project) => {
       examinerAssignedAt: serverTimestamp()
     })
     
+    // Create notification for the examiner
+    await notificationService.createExaminerNotification(
+      schoolId,
+      selectedAcademicYear.value,
+      project.id,
+      project.Title,
+      examiner.id
+    )
+    
     // Update the local project object with examiner data
     const updatedProject = {
       ...project,
@@ -2172,6 +2182,15 @@ const batchAssignExaminer = async (examiner) => {
         examinerName: examiner.name,
         examinerAssignedAt: serverTimestamp()
       })
+
+      // Create notification for the examiner
+      await notificationService.createExaminerNotification(
+        schoolId,
+        selectedAcademicYear.value,
+        project.id,
+        project.Title,
+        examiner.id
+      )
 
       // Update the local project object
       const index = projects.value.findIndex(p => p.id === project.id)
