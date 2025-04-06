@@ -28,14 +28,22 @@
 
       <!-- Submissions Section -->
       <div class="bg-white p-5 rounded-lg shadow-md h-[150px] flex flex-col items-center justify-center">
-        <div class="flex gap-8">
+        <div class="flex gap-6">
           <div class="text-center">
             <div class="text-4xl font-bold text-blue-600 mb-1">{{ submissions.length }}</div>
             <p class="text-gray-600">submissions</p>
           </div>
           <div class="text-center">
-            <div class="text-4xl font-bold text-green-600 mb-1">{{ feedbackList.length }}</div>
-            <p class="text-gray-600">reviewed</p>
+            <div class="text-4xl font-bold text-green-600 mb-1">
+              {{ supervisorFeedbackCount }}
+            </div>
+            <p class="text-gray-600">supervisor reviewed</p>
+          </div>
+          <div class="text-center">
+            <div class="text-4xl font-bold text-purple-600 mb-1">
+              {{ examinerFeedbackCount }}
+            </div>
+            <p class="text-gray-600">examiner reviewed</p>
           </div>
         </div>
       </div>
@@ -141,7 +149,33 @@
 
       <!-- Submissions Grid View -->
       <div v-else>
-        <h2 class="text-xl font-semibold mb-6">Your Submissions</h2>
+        <h2 class="text-xl font-semibold mb-4">Your Submissions</h2>
+        
+        <!-- Role Tabs -->
+        <div class="mb-6">
+          <div class="border-b border-gray-200">
+            <nav class="-mb-px flex" aria-label="Tabs">
+              <button
+                @click="currentRole = 'supervisor'"
+                class="w-1/2 py-3 px-1 text-center border-b-2 font-medium text-sm"
+                :class="currentRole === 'supervisor' ? 
+                  'border-blue-500 text-blue-600' : 
+                  'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+              >
+                Supervisor Feedback
+              </button>
+              <button
+                @click="currentRole = 'examiner'"
+                class="w-1/2 py-3 px-1 text-center border-b-2 font-medium text-sm"
+                :class="currentRole === 'examiner' ? 
+                  'border-blue-500 text-blue-600' : 
+                  'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+              >
+                Examiner Feedback
+              </button>
+            </nav>
+          </div>
+        </div>
         
         <div class="grid grid-cols-2 gap-4">
           <div 
@@ -171,7 +205,7 @@
 </template>
 
 <script>
-import { ref, onMounted, computed, onUnmounted } from 'vue'
+import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import { useUserStore } from '@/stores/userStore'
 import { getMilestoneData } from '@/utils/milestones'
 import { formatDate } from '@/utils/milestoneHelpers'
@@ -185,9 +219,27 @@ export default {
     const milestoneData = ref(null)
     const submissions = ref([])
     const feedbackList = ref([])
+    const allFeedbackList = ref([])
     const selectedSubmission = ref(null)
     const unsubscribers = ref([])
+    const currentRole = ref('supervisor')
     
+    // Update computed properties to use allFeedbackList
+    const supervisorFeedbackCount = computed(() => {
+      return allFeedbackList.value.filter(f => f.role === 'supervisor').length
+    })
+    
+    const examinerFeedbackCount = computed(() => {
+      return allFeedbackList.value.filter(f => f.role === 'examiner').length
+    })
+
+    // Create a map of feedback by submission ID using filtered feedback
+    const feedbackMap = computed(() => {
+      return new Map(
+        feedbackList.value.map(feedback => [feedback.submissionId, feedback])
+      )
+    })
+
     // Helper function to safely format dates
     const safeFormatDate = (timestamp) => {
       if (!timestamp) return ''
@@ -196,13 +248,6 @@ export default {
       return formatDate(date)
     }
     
-    // Create a map of feedback by submission ID
-    const feedbackMap = computed(() => {
-      return new Map(
-        feedbackList.value.map(feedback => [feedback.submissionId, feedback])
-      )
-    })
-
     // Get feedback for a submission
     const getFeedback = (submissionId) => {
       return feedbackMap.value.get(submissionId)
@@ -252,15 +297,49 @@ export default {
       if (!userStore.currentUser?.school) return
 
       try {
+        // Clear any existing feedback listeners
+        unsubscribers.value.forEach(unsubscribe => {
+          if (unsubscribe._feedbackListener) {
+            unsubscribe()
+            const index = unsubscribers.value.indexOf(unsubscribe)
+            if (index > -1) {
+              unsubscribers.value.splice(index, 1)
+            }
+          }
+        })
+
         const feedbackRef = collection(db, 'schools', userStore.currentUser.school, 'feedback')
         const submissionIds = submissions.value.map(sub => sub.id)
         
         if (submissionIds.length === 0) return
 
-        const q = query(feedbackRef, where('submissionId', 'in', submissionIds))
+        // Query for all feedback (for stats)
+        const allFeedbackQuery = query(
+          feedbackRef,
+          where('submissionId', 'in', submissionIds)
+        )
         
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-          // Filter out draft feedback
+        // Query for role-specific feedback (for display)
+        const roleFeedbackQuery = query(
+          feedbackRef,
+          where('submissionId', 'in', submissionIds),
+          where('role', '==', currentRole.value)
+        )
+        
+        // Listener for all feedback (stats)
+        const allFeedbackUnsubscribe = onSnapshot(allFeedbackQuery, (snapshot) => {
+          allFeedbackList.value = snapshot.docs
+            .map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }))
+            .filter(feedback => !feedback.isDraft)
+        }, (error) => {
+          console.error('Error in all feedback listener:', error)
+        })
+        
+        // Listener for role-specific feedback (display)
+        const roleFeedbackUnsubscribe = onSnapshot(roleFeedbackQuery, (snapshot) => {
           feedbackList.value = snapshot.docs
             .map(doc => ({
               id: doc.id,
@@ -268,14 +347,22 @@ export default {
             }))
             .filter(feedback => !feedback.isDraft)
         }, (error) => {
-          console.error('Error in feedback listener:', error)
+          console.error('Error in role feedback listener:', error)
         })
         
-        unsubscribers.value.push(unsubscribe)
+        // Mark both unsubscribe functions as feedback listeners
+        allFeedbackUnsubscribe._feedbackListener = true
+        roleFeedbackUnsubscribe._feedbackListener = true
+        unsubscribers.value.push(allFeedbackUnsubscribe, roleFeedbackUnsubscribe)
       } catch (error) {
         console.error('Error setting up feedback listener:', error)
       }
     }
+
+    // Watch for role changes
+    watch(currentRole, () => {
+      setupFeedbackListener()
+    })
     
     // Helper function to format file size
     const formatFileSize = (bytes) => {
@@ -311,7 +398,10 @@ export default {
       formatDate: safeFormatDate,
       getFeedback,
       selectSubmission,
-      formatFileSize
+      formatFileSize,
+      currentRole,
+      supervisorFeedbackCount,
+      examinerFeedbackCount,
     }
   }
 }
