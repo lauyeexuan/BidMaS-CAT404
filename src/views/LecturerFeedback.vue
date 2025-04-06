@@ -583,7 +583,9 @@
       
       <!-- Submission Statistics Card -->
       <div class="bg-white p-4 rounded-lg shadow-md mb-4">
-        <h2 class="text-sm font-medium text-gray-500 mb-3">Current Milestone Submissions</h2>
+        <h2 class="text-sm font-medium text-gray-500 mb-3">
+          Current Milestone Submissions ({{ currentRole === 'supervisor' ? 'Supervisor' : 'Examiner' }})
+        </h2>
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1480,12 +1482,18 @@ export default {
         const submissionIndex = submissions.value.findIndex(s => s.id === selectedSubmission.value.id)
         if (submissionIndex !== -1) {
           submissions.value[submissionIndex].hasBeenReviewed = true
+          submissions.value[submissionIndex].isDraft = false
         }
         
         // Also update in allSubmissions
-        const allSubmissionIndex = allSubmissions.value.findIndex(s => s.id === selectedSubmission.value.id)
-        if (allSubmissionIndex !== -1) {
-          allSubmissions.value[allSubmissionIndex].hasBeenReviewed = true
+        const roleKey = currentRole.value
+        const roleSubmissions = allSubmissions.value[roleKey]
+        if (roleSubmissions) {
+          const allSubmissionIndex = roleSubmissions.findIndex(s => s.id === selectedSubmission.value.id)
+          if (allSubmissionIndex !== -1) {
+            roleSubmissions[allSubmissionIndex].hasBeenReviewed = true
+            roleSubmissions[allSubmissionIndex].isDraft = false
+          }
         }
 
         // Show success message and don't navigate away
@@ -1514,11 +1522,14 @@ export default {
               createdAt: new Date()
             }
 
-            await addDoc(notificationsRef, notificationData)
+            await addDoc(notificationsRef, notificationData)          
           } catch (notificationError) {
             // Just log the error but don't show to user since main functionality succeeded
             console.error('Error creating notification:', notificationError)
           }
+        }
+        else {
+          console.log('No new feedback notification created')
         }
 
       } catch (error) {
@@ -1644,7 +1655,8 @@ export default {
       return roleSubmissions.filter(submission => 
         submission.milestoneDescription === currentMilestoneDesc &&
         submission.major === currentDisplayMajor.value &&
-        submission.hasBeenReviewed
+        submission.hasBeenReviewed &&
+        !submission.isDraft
       ).length;
     });
 
