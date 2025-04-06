@@ -1198,6 +1198,7 @@ export default {
           yearId: assignedProject.value.year,
           majorId: assignedProject.value.major,
           lecturerId: projectData.userId || '',  // Lecturer ID from project
+          examinerId: projectData.examinerId || '',  // Examiner ID from project
           projectId: assignedProject.value.id,
           projectTitle: projectData.Title || 'Untitled Project',
           migratedAt: new Date()

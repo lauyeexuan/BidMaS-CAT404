@@ -43,6 +43,9 @@ schools (collection)
 │ ├─ isAssigned: boolean
 │ ├─ assignedTo: string
 │ ├─ assignedAt: timestamp
+│ ├─ examinerAssignedAt: timestamp
+│ ├─ examinerId: string
+│ ├─ examinerName: string
 │ ├─ bids (subcollection)
 │ │ └─ {bidId} (document)
 │ │ ├─ studentId: string

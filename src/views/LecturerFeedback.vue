@@ -2,13 +2,39 @@
   <div class="lecturer-feedback">
     <!-- Left Side Content (Main Content) -->
     <div class="w-3/4 mr-6">
-      <!-- Submissions Section -->
-      <div class="bg-white p-5 rounded-lg shadow-md">
+      <!-- Role Tabs -->
+      <div class="mb-4">
+        <div class="border-b border-gray-200">
+          <nav class="-mb-px flex" aria-label="Tabs">
+            <button
+              @click="currentRole = 'supervisor'"
+              class="w-1/2 py-3 px-1 text-center border-b-2 font-medium text-sm"
+              :class="currentRole === 'supervisor' ? 
+                'border-blue-500 text-blue-600' : 
+                'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+            >
+              Supervisor
+            </button>
+            <button
+              @click="currentRole = 'examiner'"
+              class="w-1/2 py-3 px-1 text-center border-b-2 font-medium text-sm"
+              :class="currentRole === 'examiner' ? 
+                'border-blue-500 text-blue-600' : 
+                'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+            >
+              Examiner
+            </button>
+          </nav>
+        </div>
+      </div>
+
+      <!-- Submissions Section - Used for both roles -->
+      <div class="bg-white p-4 rounded-lg shadow-md">
         <h2 class="text-2xl font-semibold mb-4">
           <template v-if="!showFeedbackView">
             <div class="flex justify-between items-center">
               <div>
-                Submissions
+                {{ currentRole === 'supervisor' ? 'Supervisor' : 'Examiner' }} Submissions
                 <span v-if="selectedMajor || selectedMilestoneFilter" class="text-lg font-normal text-gray-600">
                   {{ getFilterDescription }}
                 </span>
@@ -319,139 +345,118 @@
 
         <!-- Submissions List (Original Content) -->
         <template v-else>
-          <!-- Initial Loading State -->
-          <div v-if="submissionsLoading && !submissions.length" class="py-4">
-            <div class="animate-pulse space-y-4">
-              <div class="h-24 bg-gray-200 rounded"></div>
-              <div class="h-24 bg-gray-200 rounded"></div>
-              <div class="h-24 bg-gray-200 rounded"></div>
+          <transition
+            name="fade"
+            mode="out-in"
+          >
+            <!-- Initial Loading State -->
+            <div v-if="submissionsLoading && !submissions.length" class="py-4" key="loading">
+              <div class="animate-pulse space-y-4">
+                <div class="h-24 bg-gray-200 rounded"></div>
+                <div class="h-24 bg-gray-200 rounded"></div>
+                <div class="h-24 bg-gray-200 rounded"></div>
+              </div>
             </div>
-          </div>
 
-          <!-- Error State -->
-          <div v-else-if="submissionsError" class="text-red-500 py-4 text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p>{{ submissionsError }}</p>
-          </div>
+            <!-- Error State -->
+            <div v-else-if="submissionsError" class="text-red-500 py-4 text-center" key="error">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p>{{ submissionsError }}</p>
+            </div>
 
-          <!-- Empty State -->
-          <div v-else-if="!submissions.length" class="text-center py-8">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <p class="text-gray-500">No submissions found</p>
-            <p class="text-sm text-gray-400">
-              {{ selectedMajor || selectedMilestoneFilter ? 'Try adjusting your filters' : 'Waiting for student submissions' }}
-            </p>
-          </div>
+            <!-- Empty State -->
+            <div v-else-if="!submissions.length" class="text-center py-8" key="empty">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <p class="text-gray-500">No submissions found</p>
+              <p class="text-sm text-gray-400">
+                {{ selectedMajor || selectedMilestoneFilter ? 'Try adjusting your filters' : 'Waiting for student submissions' }}
+              </p>
+            </div>
 
-          <!-- Submission Cards with Virtual Scrolling -->
-          <div v-else class="relative">
-            <!-- Submission Grid -->
-            <div class="grid grid-cols-2 gap-3 mb-4">
-              <div
-                v-for="submission in paginatedSubmissions"
-                :key="submission.id"
-                class="border rounded-lg p-3 hover:shadow-md transition-shadow duration-200 cursor-pointer"
-                @click="handleSubmissionClick(submission)"
-              >
-                <div class="flex flex-col space-y-2">
-                  <!-- Top row: Filename, Major, and Review Status -->
-                  <div class="flex items-start justify-between">
-                    <div class="flex flex-col gap-1.5 max-w-[70%]">
-                      <div class="flex items-center gap-2">
-                        <h3 class="font-medium text-gray-900 leading-tight line-clamp-2">{{ submission.fileName }}</h3>
-                        <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full flex-shrink-0">
-                          {{ submission.major }}
-                        </span>
+            <!-- Submission Cards with Virtual Scrolling -->
+            <div v-else class="relative" key="submissions">
+              <!-- Submission Grid -->
+              <div class="grid grid-cols-2 gap-3 mb-4">
+                <div
+                  v-for="submission in paginatedSubmissions"
+                  :key="submission.id"
+                  class="border rounded-lg p-3 hover:shadow-md transition-shadow duration-200 cursor-pointer"
+                  @click="handleSubmissionClick(submission)"
+                >
+                  <div class="flex flex-col space-y-2">
+                    <!-- Top row: Filename, Major, and Review Status -->
+                    <div class="flex items-start justify-between">
+                      <div class="flex flex-col gap-1.5 max-w-[70%]">
+                        <div class="flex items-center gap-2">
+                          <h3 class="font-medium text-gray-900 leading-tight line-clamp-2">{{ submission.fileName }}</h3>
+                          <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full flex-shrink-0">
+                            {{ submission.major }}
+                          </span>
+                        </div>
+                        <span class="text-sm bg-blue-50 text-blue-700 px-2 py-0.5 rounded w-fit">{{ submission.studentName }}</span>
                       </div>
-                      <span class="text-sm bg-blue-50 text-blue-700 px-2 py-0.5 rounded w-fit">{{ submission.studentName }}</span>
+                      <span 
+                        class="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
+                        :class="{
+                          'bg-green-100 text-green-800': submission.hasBeenReviewed && !submission.isDraft,
+                          'bg-yellow-100 text-yellow-800': !submission.hasBeenReviewed,
+                          'bg-gray-100 text-gray-600': submission.hasBeenReviewed && submission.isDraft
+                        }"
+                      >
+                        {{ submission.hasBeenReviewed ? (submission.isDraft ? 'Draft' : 'Reviewed') : 'Pending' }}
+                      </span>
                     </div>
-                    <span 
-                      class="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
-                      :class="{
-                        'bg-green-100 text-green-800': submission.hasBeenReviewed && !submission.isDraft,
-                        'bg-yellow-100 text-yellow-800': !submission.hasBeenReviewed,
-                        'bg-gray-100 text-gray-600': submission.hasBeenReviewed && submission.isDraft
-                      }"
-                    >
-                      {{ submission.hasBeenReviewed ? (submission.isDraft ? 'Draft' : 'Reviewed') : 'Pending' }}
-                    </span>
-                  </div>
 
-                  <!-- Bottom section: Project Title, Milestone, and Date -->
-                  <div class="flex flex-col gap-1.5">
-                    <div class="flex items-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                      <p class="text-sm text-gray-700 font-medium truncate">{{ submission.projectTitle }}</p>
-                    </div>
-                    <div class="flex items-center justify-between">
+                    <!-- Bottom section: Project Title, Milestone, and Date -->
+                    <div class="flex flex-col gap-1.5">
                       <div class="flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
-                        <p class="text-xs text-gray-400 truncate">{{ submission.milestoneDescription }}</p>
+                        <p class="text-sm text-gray-700 font-medium truncate">{{ submission.projectTitle }}</p>
                       </div>
-                      <div class="flex items-center gap-1" v-if="submission.submittedAt">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <p class="text-xs text-gray-400">
-                          {{ submission.submittedAt?.toDate?.() ? formatDate(submission.submittedAt.toDate()) : 'Date not available' }}
-                        </p>
+                      <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                          </svg>
+                          <p class="text-xs text-gray-400 truncate">{{ submission.milestoneDescription }}</p>
+                        </div>
+                        <div class="flex items-center gap-1" v-if="submission.submittedAt">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <p class="text-xs text-gray-400">
+                            {{ submission.submittedAt?.toDate?.() ? formatDate(submission.submittedAt.toDate()) : 'Date not available' }}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Pagination Controls -->
-            <div v-if="totalPages > 1" class="flex justify-center items-center space-x-2 py-3">
-              <button 
-                @click="currentPage > 1 && (currentPage--)"
-                class="px-2 py-1 rounded transition-colors"
-                :class="currentPage === 1 ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-50'"
-                :disabled="currentPage === 1"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              
-              <template v-if="totalPages <= 7">
+              <!-- Pagination Controls -->
+              <div v-if="totalPages > 1" class="flex justify-center items-center space-x-2 py-3">
                 <button 
-                  v-for="page in totalPages" 
-                  :key="page"
-                  @click="currentPage = page"
-                  class="px-3 py-1 rounded transition-colors"
-                  :class="currentPage === page ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-blue-50'"
+                  @click="currentPage > 1 && (currentPage--)"
+                  class="px-2 py-1 rounded transition-colors"
+                  :class="currentPage === 1 ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-50'"
+                  :disabled="currentPage === 1"
                 >
-                  {{ page }}
-                </button>
-              </template>
-              
-              <template v-else>
-                <!-- First page -->
-                <button 
-                  @click="currentPage = 1"
-                  class="px-3 py-1 rounded transition-colors"
-                  :class="currentPage === 1 ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-blue-50'"
-                >
-                  1
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                  </svg>
                 </button>
                 
-                <!-- Ellipsis if needed -->
-                <span v-if="currentPage > 3" class="px-2">...</span>
-                
-                <!-- Pages around current -->
-                <template v-for="page in paginationRange" :key="page">
+                <template v-if="totalPages <= 7">
                   <button 
-                    v-if="page > 1 && page < totalPages"
+                    v-for="page in totalPages" 
+                    :key="page"
                     @click="currentPage = page"
                     class="px-3 py-1 rounded transition-colors"
                     :class="currentPage === page ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-blue-50'"
@@ -460,44 +465,70 @@
                   </button>
                 </template>
                 
-                <!-- Ellipsis if needed -->
-                <span v-if="currentPage < totalPages - 2" class="px-2">...</span>
+                <template v-else>
+                  <!-- First page -->
+                  <button 
+                    @click="currentPage = 1"
+                    class="px-3 py-1 rounded transition-colors"
+                    :class="currentPage === 1 ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-blue-50'"
+                  >
+                    1
+                  </button>
+                  
+                  <!-- Ellipsis if needed -->
+                  <span v-if="currentPage > 3" class="px-2">...</span>
+                  
+                  <!-- Pages around current -->
+                  <template v-for="page in paginationRange" :key="page">
+                    <button 
+                      v-if="page > 1 && page < totalPages"
+                      @click="currentPage = page"
+                      class="px-3 py-1 rounded transition-colors"
+                      :class="currentPage === page ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-blue-50'"
+                    >
+                      {{ page }}
+                    </button>
+                  </template>
+                  
+                  <!-- Ellipsis if needed -->
+                  <span v-if="currentPage < totalPages - 2" class="px-2">...</span>
+                  
+                  <!-- Last page -->
+                  <button 
+                    @click="currentPage = totalPages"
+                    class="px-3 py-1 rounded transition-colors"
+                    :class="currentPage === totalPages ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-blue-50'"
+                  >
+                    {{ totalPages }}
+                  </button>
+                </template>
                 
-                <!-- Last page -->
                 <button 
-                  @click="currentPage = totalPages"
-                  class="px-3 py-1 rounded transition-colors"
-                  :class="currentPage === totalPages ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-blue-50'"
+                  @click="currentPage < totalPages && (currentPage++)"
+                  class="px-2 py-1 rounded transition-colors"
+                  :class="currentPage === totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-50'"
+                  :disabled="currentPage === totalPages"
                 >
-                  {{ totalPages }}
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
                 </button>
-              </template>
+              </div>
               
-              <button 
-                @click="currentPage < totalPages && (currentPage++)"
-                class="px-2 py-1 rounded transition-colors"
-                :class="currentPage === totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-50'"
-                :disabled="currentPage === totalPages"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+              <!-- Items per page selector -->
+              <div class="flex justify-end items-center text-sm text-gray-500 mt-2">
+                <span class="mr-2">Items per page:</span>
+                <select 
+                  v-model="itemsPerPage" 
+                  class="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option :value="10">10</option>
+                  <option :value="25">25</option>
+                  <option :value="50">50</option>
+                </select>
+              </div>
             </div>
-            
-            <!-- Items per page selector -->
-            <div class="flex justify-end items-center text-sm text-gray-500 mt-2">
-              <span class="mr-2">Items per page:</span>
-              <select 
-                v-model="itemsPerPage" 
-                class="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option :value="10">10</option>
-                <option :value="25">25</option>
-                <option :value="50">50</option>
-              </select>
-            </div>
-          </div>
+          </transition>
         </template>
       </div>
     </div>
@@ -710,7 +741,8 @@ export default {
     const studentNameCache = ref({})
     const isBackgroundLoading = ref(false)
     const submissionsContainer = ref(null)
-    const statusFilter = ref('all') // Add the status filter ref
+    const statusFilter = ref('all')
+    const currentRole = ref('supervisor') // Add current role state
 
     // New state variables for feedback
     const showFeedbackView = ref(false)
@@ -735,6 +767,12 @@ export default {
     // Add pagination
     const currentPage = ref(1)
     const itemsPerPage = ref(10)
+    
+    // Add new ref for all submissions - make it an object for role-based storage
+    const allSubmissions = ref({
+      supervisor: [],
+      examiner: []
+    })
     
     const paginatedSubmissions = computed(() => {
       const startIdx = (currentPage.value - 1) * itemsPerPage.value
@@ -803,60 +841,6 @@ export default {
       [{ 'align': [] }],
       ['clean']
     ]
-
-    // Add new ref for all submissions
-    const allSubmissions = ref([])
-
-    // Define the submission card component
-    const submissionCard = {
-      props: {
-        source: {
-          type: Object,
-          required: true
-        }
-      },
-      template: `
-        <div class="border rounded-lg p-4 hover:shadow-md transition-shadow duration-200 mx-2">
-          <div class="flex justify-between items-start">
-            <div class="flex-grow">
-              <div class="flex items-center gap-2">
-                <h3 class="font-medium text-gray-900">{{ source.fileName }}</h3>
-                <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
-                  {{ source.major }}
-                </span>
-              </div>
-              <p class="text-sm text-gray-500 mt-1">
-                Submitted by {{ source.studentName }}
-              </p>
-              <div class="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                <p class="flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                  {{ source.projectTitle }}
-                </p>
-                <p class="flex items-center" v-if="source.submittedAt">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  {{ source.submittedAt?.toDate?.() ? formatDate(source.submittedAt.toDate()) : 'Date not available' }}
-                </p>
-              </div>
-            </div>
-            <a 
-              :href="source.downloadUrl"
-              target="_blank"
-              class="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm hover:bg-blue-100 transition-colors flex items-center gap-1"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              Download
-            </a>
-          </div>
-        </div>
-      `
-    }
 
     // Function to handle major selection
     const handleMajorSelect = (major) => {
@@ -990,9 +974,9 @@ export default {
           submissionsRef,
           where('yearId', '==', yearId),
           where('majorId', '==', majorId),
-          where('lecturerId', '==', userId),
+          where(currentRole.value === 'supervisor' ? 'lecturerId' : 'examinerId', '==', userId),
           orderBy('submittedAt', 'desc'),
-          limit(50) // Increase limit but use pagination for display
+          limit(50)
         )
         
         if (selectedMilestoneFilter.value) {
@@ -1045,24 +1029,28 @@ export default {
             
             const processedDocs = await Promise.all(processPromises)
             
-            // Update all submissions data
-            if (allSubmissions.value.length === 0) {
-              allSubmissions.value = [...processedDocs]
-            } else {
-              // Merge new submissions with existing ones
-              const updatedSubmissions = [...allSubmissions.value]
-              
-              processedDocs.forEach(newDoc => {
-                const existingIndex = updatedSubmissions.findIndex(s => s.id === newDoc.id)
-                if (existingIndex !== -1) {
-                  updatedSubmissions[existingIndex] = newDoc
-                } else {
-                  updatedSubmissions.push(newDoc)
-                }
-              })
-              
-              allSubmissions.value = updatedSubmissions
+            // Create a role-specific key for storage
+            const roleKey = currentRole.value
+            
+            // Update role-specific submissions data
+            if (!allSubmissions.value[roleKey]) {
+              allSubmissions.value[roleKey] = []
             }
+            
+            // Merge new submissions with existing ones for this role
+            const existingSubmissions = allSubmissions.value[roleKey] || []
+            const updatedSubmissions = [...existingSubmissions]
+            
+            processedDocs.forEach(newDoc => {
+              const existingIndex = updatedSubmissions.findIndex(s => s.id === newDoc.id)
+              if (existingIndex !== -1) {
+                updatedSubmissions[existingIndex] = newDoc
+              } else {
+                updatedSubmissions.push(newDoc)
+              }
+            })
+            
+            allSubmissions.value[roleKey] = updatedSubmissions
             
             // Update filtered submissions based on search and filters
             updateFilteredSubmissions()
@@ -1088,9 +1076,13 @@ export default {
     // Function to update filtered submissions
     const updateFilteredSubmissions = () => {
       const query = searchQuery.value.toLowerCase()
+      const roleKey = currentRole.value
+      
+      // Get submissions for the current role
+      const roleSubmissions = allSubmissions.value[roleKey] || []
       
       // Apply filters client-side
-      let filtered = [...allSubmissions.value]
+      let filtered = [...roleSubmissions]
       
       // Apply major filter
       if (selectedMajor.value) {
@@ -1143,6 +1135,27 @@ export default {
       updateFilteredSubmissions()
     })
     
+    // Watch for role changes to update the view
+    watch(currentRole, () => {
+      // Don't clear submissions immediately
+      submissionsLoading.value = true
+      
+      // Use setTimeout to allow the transition to happen
+      setTimeout(() => {
+        // Update submissions from the cached role data
+        submissions.value = allSubmissions.value[currentRole.value] || []
+        
+        // If we don't have data for this role yet, fetch it
+        if (!allSubmissions.value[currentRole.value]?.length) {
+          fetchSubmissions()
+        } else {
+          submissionsLoading.value = false
+          // Still fetch in background to ensure data is fresh
+          fetchSubmissions()
+        }
+      }, 200) // Match this with the transition duration
+    })
+    
     // Add status filter toggle function
     const toggleStatusFilter = (status) => {
       statusFilter.value = status
@@ -1151,7 +1164,8 @@ export default {
     }
     
     watch([selectedMajor, selectedMilestoneFilter], () => {
-      if (allSubmissions.value.length > 0) {
+      const roleKey = currentRole.value
+      if (allSubmissions.value[roleKey]?.length > 0) {
         // If we already have data, just apply filters client-side
         updateFilteredSubmissions()
       } else {
@@ -1610,8 +1624,10 @@ export default {
         return 0;
       }
       const currentMilestoneDesc = currentMilestoneData.value.upcomingMilestone.description;
+      const roleKey = currentRole.value;
+      const roleSubmissions = allSubmissions.value[roleKey] || [];
       
-      return allSubmissions.value.filter(submission => 
+      return roleSubmissions.filter(submission => 
         submission.milestoneDescription === currentMilestoneDesc &&
         submission.major === currentDisplayMajor.value
       ).length;
@@ -1622,13 +1638,66 @@ export default {
         return 0;
       }
       const currentMilestoneDesc = currentMilestoneData.value.upcomingMilestone.description;
+      const roleKey = currentRole.value;
+      const roleSubmissions = allSubmissions.value[roleKey] || [];
       
-      return allSubmissions.value.filter(submission => 
+      return roleSubmissions.filter(submission => 
         submission.milestoneDescription === currentMilestoneDesc &&
         submission.major === currentDisplayMajor.value &&
         submission.hasBeenReviewed
       ).length;
     });
+
+    // Define the submission card component
+    const submissionCard = {
+      props: {
+        source: {
+          type: Object,
+          required: true
+        }
+      },
+      template: `
+        <div class="border rounded-lg p-4 hover:shadow-md transition-shadow duration-200 mx-2">
+          <div class="flex justify-between items-start">
+            <div class="flex-grow">
+              <div class="flex items-center gap-2">
+                <h3 class="font-medium text-gray-900">{{ source.fileName }}</h3>
+                <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
+                  {{ source.major }}
+                </span>
+              </div>
+              <p class="text-sm text-gray-500 mt-1">
+                Submitted by {{ source.studentName }}
+              </p>
+              <div class="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                <p class="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  {{ source.projectTitle }}
+                </p>
+                <p class="flex items-center" v-if="source.submittedAt">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {{ source.submittedAt?.toDate?.() ? formatDate(source.submittedAt.toDate()) : 'Date not available' }}
+                </p>
+              </div>
+            </div>
+            <a 
+              :href="source.downloadUrl"
+              target="_blank"
+              class="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm hover:bg-blue-100 transition-colors flex items-center gap-1"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Download
+            </a>
+          </div>
+        </div>
+      `
+    }
 
     return {
       userStore,
@@ -1649,6 +1718,7 @@ export default {
       isBackgroundLoading,
       submissionCard,
       containerRef,
+      currentRole, // Add currentRole to returned object
       // Pagination
       paginatedSubmissions,
       currentPage,
@@ -1690,6 +1760,17 @@ export default {
 .lecturer-feedback {
   padding: 20px;
   display: flex;
+}
+
+/* Fade transition styles */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
 [data-virtual-list] {
