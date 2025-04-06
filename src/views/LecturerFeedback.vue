@@ -13,7 +13,7 @@
                 'border-blue-500 text-blue-600' : 
                 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
             >
-              Supervisor
+              As Supervisor
             </button>
             <button
               @click="currentRole = 'examiner'"
@@ -22,7 +22,7 @@
                 'border-blue-500 text-blue-600' : 
                 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
             >
-              Examiner
+              As Examiner
             </button>
           </nav>
         </div>
@@ -1444,7 +1444,8 @@ export default {
           rating: feedbackData.value.rating,
           advice: feedbackData.value.advice || '',
           updatedAt: new Date(),
-          isDraft: false
+          isDraft: false,
+          role: currentRole.value  // Add role field
         }
 
         // Handle file attachment
@@ -1562,7 +1563,8 @@ export default {
           rating: feedbackData.value.rating,
           advice: feedbackData.value.advice || '',
           updatedAt: new Date(),
-          isDraft: true
+          isDraft: true,
+          role: currentRole.value  // Add role field
         }
 
         // Handle file attachment
