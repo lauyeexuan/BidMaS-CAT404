@@ -819,8 +819,8 @@ export default {
           const parsedStats = JSON.parse(storedStats)
           const storageAge = now - (parsedStats.timestamp || 0)
           
-          // Use session storage if fresh (less than 2 minutes)
-          if (!force && storageAge < 120000) {
+          // Use session storage if fresh (less than 30 minutes)
+          if (!force && storageAge < 1800000) {
             console.log('Using submission stats from session storage, age:', storageAge, 'ms')
             submissionStatsCache.value[majorId] = parsedStats
             if (!isBackgroundLoad) {
@@ -886,8 +886,7 @@ export default {
           m.description === currentMilestone.description
         )
         
-        // OPTIMIZATION: Use a more efficient approach - get all submissions for this milestone first
-        // This is faster than querying each project's submissions separately
+        // Define projectsRef outside the conditional blocks so it's available everywhere
         const projectsRef = collection(
           db,
           'schools', school,
@@ -896,18 +895,41 @@ export default {
           'projectsPerYear'
         )
         
-        // Use limit to improve performance - we only need the assignment info
-        const projectsQuery = query(projectsRef, limit(100))
-        const projectsSnapshot = await getDocs(projectsQuery)
+        // Check if we have cached assigned project IDs
+        let assignedProjectIds = new Set();
+        const cachedProjectIds = getAssignedProjectIds(majorId);
         
-        // Build a map of project IDs to make lookups faster
-        const assignedProjectIds = new Set()
-        projectsSnapshot.docs.forEach(doc => {
-          const data = doc.data()
-          if (data.assignedTo) {
-            assignedProjectIds.add(doc.id)
+        if (cachedProjectIds) {
+          console.log(`Using cached assigned project IDs for ${majorId}`);
+          assignedProjectIds = new Set(cachedProjectIds);
+        } else {
+          // OPTIMIZATION: Use a more efficient approach - get all submissions for this milestone first
+          // This is faster than querying each project's submissions separately
+          
+          // Use limit to improve performance - we only need the assignment info
+          const projectsQuery = query(projectsRef, limit(100))
+          const projectsSnapshot = await getDocs(projectsQuery)
+          
+          // Build a map of project IDs to make lookups faster
+          projectsSnapshot.docs.forEach(doc => {
+            const data = doc.data()
+            if (data.assignedTo) {
+              assignedProjectIds.add(doc.id)
+            }
+          })
+          
+          // Save assignedProjectIds to session storage for further use
+          try {
+            const assignedProjectsKey = `${userStore.currentUser?.uid}_${majorId}_assignedProjects`
+            sessionStorage.setItem(assignedProjectsKey, JSON.stringify({
+              projectIds: Array.from(assignedProjectIds),
+              timestamp: Date.now()
+            }))
+            console.log(`Saved ${assignedProjectIds.size} assigned project IDs to session storage for ${majorId}`)
+          } catch (err) {
+            console.error('Error storing assigned project IDs in session storage:', err)
           }
-        })
+        }
         
         const totalAssigned = assignedProjectIds.size
         
@@ -1038,7 +1060,12 @@ export default {
         
         // Process this batch
         await Promise.all(
-          currentBatch.map(majorId => fetchSubmissionStats(majorId, true))
+          currentBatch.map(async majorId => {
+            // First, fetch and save assigned project IDs
+            await fetchAndSaveAssignedProjectIds(majorId);
+            // Then fetch submission stats
+            return fetchSubmissionStats(majorId, true);
+          })
         );
         
         // Schedule next batch with a small delay to avoid UI blocking
@@ -1049,6 +1076,92 @@ export default {
       
       // Start processing the first batch
       processBatch(0);
+    }
+
+    // Helper function to fetch and save assigned project IDs for a major
+    const fetchAndSaveAssignedProjectIds = async (majorId) => {
+      try {
+        if (!userStore.currentUser?.school) {
+          throw new Error('School information not found');
+        }
+        
+        const school = userStore.currentUser.school;
+        const academicYearData = await getLatestAcademicYear(school);
+        
+        if (!academicYearData?.yearId) {
+          throw new Error('Failed to determine academic year');
+        }
+        
+        const yearId = academicYearData.yearId;
+        const majorDocId = await getMajorDocId(school, yearId, majorId);
+        
+        if (!majorDocId) {
+          throw new Error('Major document not found');
+        }
+        
+        // Get all projects for this major
+        const projectsRef = collection(
+          db,
+          'schools', school,
+          'projects', yearId,
+          majorId, majorDocId,
+          'projectsPerYear'
+        );
+        
+        // Use limit to improve performance - we only need the assignment info
+        const projectsQuery = query(projectsRef, limit(100));
+        const projectsSnapshot = await getDocs(projectsQuery);
+        
+        // Build a map of project IDs to make lookups faster
+        const assignedProjectIds = new Set();
+        projectsSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.assignedTo) {
+            assignedProjectIds.add(doc.id);
+          }
+        });
+        
+        // Save assignedProjectIds to session storage
+        const assignedProjectsKey = `${userStore.currentUser?.uid}_${majorId}_assignedProjects`;
+        sessionStorage.setItem(assignedProjectsKey, JSON.stringify({
+          projectIds: Array.from(assignedProjectIds),
+          timestamp: Date.now()
+        }));
+        
+        console.log(`Saved ${assignedProjectIds.size} assigned project IDs to session storage for ${majorId}`);
+        return Array.from(assignedProjectIds);
+      } catch (err) {
+        console.error(`Error fetching and saving assigned project IDs for ${majorId}:`, err);
+        return [];
+      }
+    }
+
+    // Helper function to get assigned project IDs from session storage
+    const getAssignedProjectIds = (majorId) => {
+      try {
+        if (!userStore.currentUser?.uid) return null;
+        
+        const assignedProjectsKey = `${userStore.currentUser.uid}_${majorId}_assignedProjects`;
+        const storedData = sessionStorage.getItem(assignedProjectsKey);
+        
+        if (!storedData) return null;
+        
+        const parsedData = JSON.parse(storedData);
+        const now = Date.now();
+        const storageAge = now - (parsedData.timestamp || 0);
+        
+        // Return null if data is older than 30 minutes
+        if (storageAge > 1800000) {
+          console.log(`Assigned projects data for ${majorId} is too old (${storageAge}ms)`);
+          return null;
+        }
+        
+        console.log(`Retrieved ${parsedData.projectIds.length} assigned project IDs for ${majorId}`);
+        return parsedData.projectIds;
+      } catch (err) {
+        console.error('Error retrieving assigned project IDs from session storage:', err);
+        return null;
+      }
     }
 
     // Add watcher for selectedMajor
@@ -1461,7 +1574,10 @@ export default {
       fetchProjectStats,
       // Add new reactive variables to the return object
       showPlaceholders,
-      allContentLoaded
+      allContentLoaded,
+      // Add helper functions
+      getAssignedProjectIds,
+      fetchAndSaveAssignedProjectIds
     }
   }
 }
