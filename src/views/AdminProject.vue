@@ -458,9 +458,14 @@
               </div>
 
               <h3 class="font-medium text-lg text-gray-800 mb-1">{{ lecturer.name }}</h3>
-              <div class="mb-2">
+              <div v-if="lecturer.major" class="mb-2 flex flex-wrap gap-1">
+                <span v-for="(major, index) in (Array.isArray(lecturer.major) ? lecturer.major : [lecturer.major])" :key="index" class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                  {{ major }}
+                </span>
+              </div>
+              <div v-else class="mb-2">
                 <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                  {{ lecturer.major ? (Array.isArray(lecturer.major) ? lecturer.major.join(', ') : lecturer.major) : 'Unknown' }}
+                  Unknown
                 </span>
               </div>
               <div v-if="lecturer.specifications && lecturer.specifications.length > 0" class="mt-2">
