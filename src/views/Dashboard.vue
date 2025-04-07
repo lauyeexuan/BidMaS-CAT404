@@ -152,10 +152,10 @@
         </transition>
       </div>
       
-      <!-- Assigned Project Card -->
-      <div class="col-span-6 bg-white p-4 shadow rounded self-start min-h-[160px] relative">
+      <!-- Assigned Project Card - Reduced width -->
+      <div class="col-span-4 bg-white p-4 shadow rounded self-start min-h-[190px] relative">
         <div class="flex justify-between items-start">
-          <h2 class="text-sm font-medium text-gray-500 mb-2">Your Assigned Project</h2>
+          <h2 class="text-sm font-medium text-gray-500 mb-1">Your Assigned Project</h2>
         </div>
         
         <div v-if="projectLoading" class="py-4">
@@ -168,24 +168,37 @@
           <p class="text-red-500">{{ projectError }}</p>
         </div>
         
-        <div v-else-if="assignedProject" class="py-2">
+        <div v-else-if="assignedProject" class="py-1">
           <div class="relative">
             <div class="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-full"></div>
             
             <div class="pl-4">
+              <!-- Project Title -->
               <h3 class="text-lg font-semibold text-gray-800 mb-1">{{ assignedProject.Title }}</h3>
               
-              <div class="flex items-center text-gray-500 mb-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                <span>Supervisor: {{ assignedProject.lecturerName || 'Unknown' }}</span>
+              <!-- Supervisor and Examiner Information -->
+              <div class="flex flex-col space-y-1">
+                <!-- Supervisor -->
+                <div class="flex items-center text-gray-500 text-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  <span>Supervisor: {{ assignedProject.lecturerName || 'Unknown' }}</span>
+                </div>
+                
+                <!-- Examiner -->
+                <div v-if="assignedProject.examinerName" class="flex items-center text-gray-500 text-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                  </svg>
+                  <span>Examiner: {{ assignedProject.examinerName || 'Not assigned' }}</span>
+                </div>
               </div>
               
-              <div class="mt-2">
+              <div class="mt-1">
                 <button 
                   @click="openProjectDetailsWindow"
-                  class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                  class="px-4 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                 >
                   View Project Details
                 </button>
@@ -202,12 +215,26 @@
           <p class="text-sm text-gray-400 mt-1">Projects will be assigned after the bidding process.</p>
         </div>
       </div>
+      
+      <!-- Feedback Card -->
+      <router-link 
+        to="/feedback/student" 
+        class="col-span-2 bg-gradient-to-br from-indigo-500 to-purple-600 p-4 shadow rounded self-start min-h-[190px] relative block hover:shadow-lg transition-all duration-200 flex items-center justify-center"
+      >
+        <div class="flex flex-col items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-white mb-3 group-hover:scale-110 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+          </svg>
+          <span class="text-white font-medium text-lg">See Feedback</span>
+        </div>
+      </router-link>
     </div>
 
     <!-- Submission Portal -->
     <div v-if="upcomingMilestone && assignedProject" class="mt-6 grid grid-cols-12 gap-4">
-      <div class="col-span-8 bg-white p-5 shadow rounded">
-        <div class="flex justify-between items-center mb-4">
+      <!-- Submission Form - Reduced width -->
+      <div class="col-span-7 bg-white p-5 shadow rounded">
+        <div class="flex justify-between items-center mb-3">
           <h2 class="text-lg font-semibold">Submit Your Work</h2>
           <div class="text-sm text-gray-500">
             Due: {{ formatDate(upcomingMilestone.deadline) }}
@@ -215,7 +242,7 @@
         </div>
 
         <!-- Submission Form -->
-        <div class="space-y-4">
+        <div class="space-y-3">
           <div class="flex items-center justify-between">
             <div>
               <h3 class="text-sm font-medium text-gray-700">{{ upcomingMilestone.description }}</h3>
@@ -227,7 +254,7 @@
 
           <!-- File Upload Area -->
           <div 
-            class="border-2 border-dashed border-gray-300 rounded-lg p-5 text-center hover:border-blue-500 transition-colors cursor-pointer"
+            class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-500 transition-colors cursor-pointer"
             @click="triggerFileUpload"
             @dragover.prevent
             @drop.prevent="handleFileDrop"
@@ -241,7 +268,7 @@
             />
             
             <div v-if="!selectedFile && !uploading" class="space-y-2">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
               <p class="text-xs text-gray-600">Drag and drop your file here, or click to select</p>
@@ -302,31 +329,112 @@
               {{ uploading ? 'Uploading...' : 'Submit' }}
             </button>
           </div>
+        </div>
+      </div>
 
-          <!-- Previous Submissions -->
-          <div v-if="previousSubmissions.length > 0" class="mt-4">
-            <h3 class="text-sm font-medium text-gray-700 mb-2">Previous Submissions</h3>
-            <div class="space-y-1.5">
-              <div 
-                v-for="submission in previousSubmissions" 
-                :key="submission.id"
-                class="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
-              >
-                <div class="flex items-center space-x-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <!-- Previous Submissions - Moved to right side -->
+      <div class="col-span-5 bg-white p-5 shadow rounded">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold">Previous Submissions</h2>
+          <div class="flex items-center space-x-2">
+            <div class="text-xs text-gray-500">
+              {{ previousSubmissions.length }} submission{{ previousSubmissions.length !== 1 ? 's' : '' }}
+            </div>
+            <button 
+              v-if="previousSubmissions.length > 3"
+              @click="showAllSubmissions = true"
+              class="text-xs text-blue-600 hover:text-blue-800 transition-colors flex items-center"
+            >
+              See All
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="previousSubmissions.length > 0" class="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+          <div 
+            v-for="submission in previousSubmissions.slice(0, 3)" 
+            :key="submission.id"
+            class="group flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <div class="flex items-center space-x-3 min-w-0">
+              <div class="flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div class="min-w-0">
+                <p class="text-sm font-medium text-gray-700 truncate">{{ submission.fileName }}</p>
+                <p class="text-xs text-gray-500">{{ formatDate(submission.submittedAt) }}</p>
+              </div>
+            </div>
+            <a 
+              :href="submission.downloadUrl" 
+              target="_blank"
+              class="flex-shrink-0 ml-3 text-blue-600 hover:text-blue-800 transition-colors"
+              title="Download submission"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+            </a>
+          </div>
+        </div>
+        <div v-else class="text-center py-6">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <p class="text-sm text-gray-500">No previous submissions</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- All Submissions Modal -->
+    <div v-if="showAllSubmissions" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col">
+        <div class="flex items-center justify-between p-5 border-b">
+          <h2 class="text-xl font-semibold">All Submissions</h2>
+          <button 
+            @click="showAllSubmissions = false"
+            class="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        <div class="p-5 overflow-y-auto custom-scrollbar">
+          <div class="space-y-3">
+            <div 
+              v-for="submission in previousSubmissions" 
+              :key="submission.id"
+              class="group flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <div class="flex items-center space-x-4 min-w-0">
+                <div class="flex-shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  <span class="text-xs text-gray-700">{{ submission.fileName }}</span>
-                  <span class="text-[10px] text-gray-500">{{ formatDate(submission.submittedAt) }}</span>
                 </div>
-                <a 
-                  :href="submission.downloadUrl" 
-                  target="_blank"
-                  class="text-blue-600 hover:text-blue-800 text-xs"
-                >
-                  Download
-                </a>
+                <div class="min-w-0">
+                  <p class="text-base font-medium text-gray-700 truncate">{{ submission.fileName }}</p>
+                  <p class="text-sm text-gray-500">{{ formatDate(submission.submittedAt) }}</p>
+                  <p class="text-xs text-gray-400 mt-1">Milestone: {{ submission.milestoneDescription }}</p>
+                </div>
               </div>
+              <a 
+                :href="submission.downloadUrl" 
+                target="_blank"
+                class="flex-shrink-0 ml-4 text-blue-600 hover:text-blue-800 transition-colors"
+                title="Download submission"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </a>
             </div>
           </div>
         </div>
@@ -369,6 +477,7 @@ export default {
     const previousSubmissions = ref([])
     const acceptedFileTypes = '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.rar,.7z,.png,.jpg,.jpeg'
     const unsubscribeSubmissions = ref(null)  // Add unsubscribe ref
+    const showAllSubmissions = ref(false)
 
     // Computed property to filter out the upcoming milestone
     const otherMilestones = computed(() => {
@@ -1390,6 +1499,7 @@ export default {
       console.log('- oldUser:', oldUser ? { uid: oldUser.uid } : 'null');
       console.log('- isInitialMount:', isInitialMount.value);
       
+      
       // Store UIDs for comparison
       const newUid = newUser ? newUser.uid : null;
       const oldUid = oldUser ? oldUser.uid : null;
@@ -1507,7 +1617,8 @@ export default {
       handleFileSelect,
       handleFileDrop,
       removeSelectedFile,
-      submitFile
+      submitFile,
+      showAllSubmissions
     }
   }
 }
@@ -1515,6 +1626,25 @@ export default {
 
 <style scoped>
 /* Dashboard styles imported from assets/styles/dashboard.css */
+
+/* Custom scrollbar styles */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
 </style>
   
   
