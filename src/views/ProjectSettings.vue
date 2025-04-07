@@ -1554,8 +1554,8 @@ const saveMilestones = async () => {
         // Parse the date string (YYYY-MM-DD) into parts
         const [year, month, day] = m.deadline.split('-').map(Number);
         
-        // Create a JavaScript Date object using UTC to avoid timezone issues
-        const jsDate = new Date(Date.UTC(year, month - 1, day));
+        // Create a JavaScript Date object with time set to 11:59 PM
+        const jsDate = new Date(year, month - 1, day, 23, 59, 59);
         
         return {
           description: m.description.trim(),
