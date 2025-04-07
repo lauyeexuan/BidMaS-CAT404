@@ -76,7 +76,7 @@
                   type="text"
                   v-model="searchQuery"
                   placeholder="Search for filename, student or project"
-                  class="w-96 px-4 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  class="w-80 px-4 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -1262,7 +1262,9 @@ export default {
       }
       const milestones = milestoneDataMap.value[selectedMajor.value].allMilestones || [];
       console.log('Available milestones:', milestones); // Debug log
-      return milestones;
+      
+      // Filter out milestones that don't require submissions (like "Project Bidding Done")
+      return milestones.filter(milestone => milestone.description !== 'Project Bidding Done');
     });
 
     // Computed property for filter description
