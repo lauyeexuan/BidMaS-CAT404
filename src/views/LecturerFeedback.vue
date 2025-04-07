@@ -1479,6 +1479,21 @@ export default {
           await addDoc(feedbackRef, feedbackPayload)
         }
 
+        // Update the submission document with review status
+        const submissionRef = doc(db, 'schools', userStore.currentUser.school, 'submissions', selectedSubmission.value.id)
+        const submissionUpdate = {
+          isReviewed: true
+        }
+        
+        // Set role-specific review field
+        if (currentRole.value === 'supervisor') {
+          submissionUpdate.reviewedBySupervisor = true
+        } else if (currentRole.value === 'examiner') {
+          submissionUpdate.reviewedByExaminer = true
+        }
+        
+        await updateDoc(submissionRef, submissionUpdate)
+
         // Update the submission's review status in the local state
         const submissionIndex = submissions.value.findIndex(s => s.id === selectedSubmission.value.id)
         if (submissionIndex !== -1) {
@@ -1505,29 +1520,27 @@ export default {
           feedbackSuccess.value = '';
         }, 5000);
 
-        
-          try {
-            const notificationsRef = collection(db, 'schools', userStore.currentUser.school, 'notifications')
-            const notificationData = {
-              type: 'submission_reviewed',
-              changeType: 'submission_reviewed',
-              affectedUsers: [selectedSubmission.value.submittedBy],
-              details: `You have new ${currentRole.value} feedback update for your "${selectedSubmission.value.milestoneDescription}" milestone submission.`,
-              projectId: selectedSubmission.value.projectId,
-              majorId: selectedSubmission.value.majorId,
-              yearId: selectedSubmission.value.yearId,
-              reviewedBy: userStore.currentUser.uid,
-              reviewerName: userStore.currentUser.displayName || 'Your lecturer',
-              readBy: {},
-              createdAt: new Date()
-            }
-
-            await addDoc(notificationsRef, notificationData)          
-          } catch (notificationError) {
-            // Just log the error but don't show to user since main functionality succeeded
-            console.error('Error creating notification:', notificationError)
+        try {
+          const notificationsRef = collection(db, 'schools', userStore.currentUser.school, 'notifications')
+          const notificationData = {
+            type: 'submission_reviewed',
+            changeType: 'submission_reviewed',
+            affectedUsers: [selectedSubmission.value.submittedBy],
+            details: `You have new ${currentRole.value} feedback update for your "${selectedSubmission.value.milestoneDescription}" milestone submission.`,
+            projectId: selectedSubmission.value.projectId,
+            majorId: selectedSubmission.value.majorId,
+            yearId: selectedSubmission.value.yearId,
+            reviewedBy: userStore.currentUser.uid,
+            reviewerName: userStore.currentUser.displayName || 'Your lecturer',
+            readBy: {},
+            createdAt: new Date()
           }
-       
+
+          await addDoc(notificationsRef, notificationData)          
+        } catch (notificationError) {
+          // Just log the error but don't show to user since main functionality succeeded
+          console.error('Error creating notification:', notificationError)
+        }
 
       } catch (error) {
         console.error('Error saving feedback:', error)

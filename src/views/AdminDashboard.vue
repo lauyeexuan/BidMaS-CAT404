@@ -282,6 +282,12 @@
               </p>
             </div>
           </div>
+
+          <!-- Decorative Bar -->
+          <div class="h-3 mt-0.5 rounded-full overflow-hidden shadow-sm bg-gradient-to-r from-purple-600 via-fuchsia-500 to-pink-500 relative">
+            <div class="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent"></div>
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.2)_0%,transparent_50%)]"></div>
+          </div>
         </div>
 
         <!-- Right Column - Project Assignment Card -->
@@ -362,6 +368,126 @@
               <p class="text-sm text-gray-400 mt-1">Projects may not have been created yet.</p>
             </div>
           </div>
+
+          <!-- Feedback Overview Card -->
+          <div class="bg-white p-4 shadow rounded mt-4 min-h-[250px] relative">
+            <div class="flex justify-between items-center mb-3">
+              <h2 class="text-sm font-medium text-gray-500">Feedback Overview</h2>
+            </div>
+            
+            <div v-if="feedbackError" class="py-4">
+              <p class="text-red-500">{{ feedbackError }}</p>
+            </div>
+            
+            <div v-else-if="currentMilestoneFeedbackStats" class="py-2">
+              <div class="relative">
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-amber-500 rounded-full"></div>
+                
+                <div class="pl-4">
+                  <h3 class="text-lg font-semibold text-gray-800 mb-3">
+                    {{ currentMilestoneFeedbackStats.milestoneName }}
+                  </h3>
+                  
+                  <!-- Two Circular Progress Displays Side by Side -->
+                  <div class="flex justify-center space-x-8">
+                    <!-- First Progress Display -->
+                    <div class="flex flex-col items-center justify-center">
+                      <div class="relative w-28 h-28">
+                        <!-- Background Circle -->
+                        <svg class="w-full h-full" viewBox="0 0 100 100">
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            fill="none"
+                            stroke="#E2E8F0"
+                            stroke-width="8"
+                          />
+                          <!-- Progress Circle -->
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            fill="none"
+                            stroke="#F59E0B"
+                            stroke-width="8"
+                            stroke-linecap="round"
+                            :stroke-dasharray="`${currentMilestoneFeedbackStats.reviewRate * 2.83} 283`"
+                            transform="rotate(-90 50 50)"
+                          />
+                        </svg>
+                        <!-- Fraction Display -->
+                        <div class="absolute inset-0 flex items-center justify-center">
+                          <span class="text-xl font-bold text-gray-800">
+                            {{ currentMilestoneFeedbackStats.reviewedBySupervisor }}/{{ currentMilestoneFeedbackStats.totalSubmissions }}
+                          </span>
+                        </div>
+                      </div>
+                      <!-- Review Status Text -->
+                      <p class="mt-3 text-center text-sm text-gray-600">
+                        {{ currentMilestoneFeedbackStats.reviewedBySupervisor }} out of {{ currentMilestoneFeedbackStats.totalSubmissions }} 
+                        {{ currentMilestoneFeedbackStats.totalSubmissions === 1 ? 'submission' : 'submissions' }}
+                        {{ currentMilestoneFeedbackStats.reviewedBySupervisor < 2 ? 'has' : 'have' }} been reviewed by supervisor.
+                      </p>
+                    </div>
+                    
+                    <!-- Second Progress Display (Examiner Reviews) -->
+                    <div class="flex flex-col items-center justify-center">
+                      <div class="relative w-28 h-28">
+                        <!-- Background Circle -->
+                        <svg class="w-full h-full" viewBox="0 0 100 100">
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            fill="none"
+                            stroke="#E2E8F0"
+                            stroke-width="8"
+                          />
+                          <!-- Progress Circle -->
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            fill="none"
+                            stroke="#F59E0B"
+                            stroke-width="8"
+                            stroke-linecap="round"
+                            :stroke-dasharray="`${currentMilestoneFeedbackStats.examinerReviewRate * 2.83} 283`"
+                            transform="rotate(-90 50 50)"
+                          />
+                        </svg>
+                        <!-- Fraction Display -->
+                        <div class="absolute inset-0 flex items-center justify-center">
+                          <span class="text-xl font-bold text-gray-800">
+                            {{ currentMilestoneFeedbackStats.reviewedByExaminer }}/{{ currentMilestoneFeedbackStats.totalSubmissions }}
+                          </span>
+                        </div>
+                      </div>
+                      <!-- Review Status Text -->
+                      <p class="mt-3 text-center text-sm text-gray-600">
+                        
+                          {{ currentMilestoneFeedbackStats.reviewedByExaminer }} out of {{ currentMilestoneFeedbackStats.totalSubmissions }} 
+                          {{ currentMilestoneFeedbackStats.totalSubmissions === 1 ? 'submission' : 'submissions' }}
+                          {{ currentMilestoneFeedbackStats.reviewedByExaminer < 2 ? 'has' : 'have' }} been reviewed by examiner.
+                        
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div v-else class="py-4 text-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <p class="text-gray-500">No feedback data available.</p>
+              <p class="text-sm text-gray-400 mt-1">
+                {{ currentUpcomingMilestone ? 'No submissions for this milestone yet.' : 'No current milestone found.' }}
+              </p>
+            </div>
+          </div>
         </div>
       </template>
     </div>
@@ -409,6 +535,12 @@ export default {
 
     // Replace single unsubscribe with a map of unsubscribe functions
     const unsubscribeMilestonesMap = ref({})
+
+    // Feedback data
+    const feedbackLoading = ref(true)
+    const feedbackError = ref(null)
+    const currentMilestoneFeedbackStats = ref(null)
+    const feedbackStatsCache = ref({})
 
     // Add new functions for session storage handling
     const storeMilestoneData = (majorId, milestones) => {
@@ -660,37 +792,10 @@ export default {
         const primaryMajor = selectedMajor.value || schoolMajors.value[0];
         console.log('Loading primary major first:', primaryMajor);
 
-        // Check session storage for primary major
-        const cachedPrimaryMilestones = getMilestonesFromSessionStorage(primaryMajor);
-        if (cachedPrimaryMilestones) {
-          console.log(`Using cached milestones for primary major: ${primaryMajor}`);
-          allMilestones.value = cachedPrimaryMilestones.map(milestone => ({
-            ...milestone,
-            major: primaryMajor
-          }));
-        } else {
-          // Fetch from Firestore for primary major
-          console.log(`Fetching milestones for primary major: ${primaryMajor}`);
-          const majorCollectionRef = collection(db, 'schools', school, 'projects', yearId, primaryMajor);
-          const majorDocsQuery = query(majorCollectionRef, limit(1));
-          const majorDocsSnapshot = await getDocs(majorDocsQuery);
-          
-          if (!majorDocsSnapshot.empty) {
-            const majorDoc = majorDocsSnapshot.docs[0];
-            const majorData = majorDoc.data();
-            const milestones = majorData.milestones || [];
-            const processedMilestones = milestones.map(milestone => ({
-              ...milestone,
-              major: primaryMajor
-            }));
-            
-            // Store in session storage and update state
-            storeMilestoneData(primaryMajor, processedMilestones);
-            allMilestones.value = processedMilestones;
-          }
-        }
+        // Set up real-time listener for the primary major
+        await setupMilestoneListener(school, yearId, primaryMajor);
 
-        // After loading primary major, load others in background
+        // After setting up primary major, set up listeners for other majors in background
         const otherMajors = schoolMajors.value.filter(majorId => majorId !== primaryMajor);
         console.log('Loading other majors in background:', otherMajors);
 
@@ -698,33 +803,7 @@ export default {
         setTimeout(() => {
           otherMajors.forEach(async majorId => {
             try {
-              const cachedMilestones = getMilestonesFromSessionStorage(majorId);
-              if (cachedMilestones) {
-                console.log(`Using cached milestones for major: ${majorId}`);
-                allMilestones.value = [...allMilestones.value, ...cachedMilestones.map(milestone => ({
-                  ...milestone,
-                  major: majorId
-                }))];
-                return;
-              }
-
-              console.log(`Background fetching milestones for major: ${majorId}`);
-              const majorCollectionRef = collection(db, 'schools', school, 'projects', yearId, majorId);
-              const majorDocsQuery = query(majorCollectionRef, limit(1));
-              const majorDocsSnapshot = await getDocs(majorDocsQuery);
-              
-              if (!majorDocsSnapshot.empty) {
-                const majorDoc = majorDocsSnapshot.docs[0];
-                const majorData = majorDoc.data();
-                const milestones = majorData.milestones || [];
-                const processedMilestones = milestones.map(milestone => ({
-                  ...milestone,
-                  major: majorId
-                }));
-                
-                storeMilestoneData(majorId, processedMilestones);
-                allMilestones.value = [...allMilestones.value, ...processedMilestones];
-              }
+              await setupMilestoneListener(school, yearId, majorId);
             } catch (err) {
               console.error(`Error loading background milestones for major ${majorId}:`, err);
             }
@@ -736,6 +815,67 @@ export default {
         error.value = `Failed to load milestone data: ${err.message}`;
       } finally {
         loading.value = false;
+      }
+    }
+
+    // Add new function to set up real-time listener for milestones
+    const setupMilestoneListener = async (school, yearId, majorId) => {
+      try {
+        // Clean up existing listener if any
+        if (unsubscribeMilestonesMap.value[majorId]) {
+          unsubscribeMilestonesMap.value[majorId]();
+          delete unsubscribeMilestonesMap.value[majorId];
+        }
+
+        // Get major doc ID
+        const majorDocId = await getMajorDocId(school, yearId, majorId);
+        if (!majorDocId) {
+          throw new Error('Major document not found');
+        }
+
+        // Create reference to the major document
+        const majorDocRef = doc(
+          db,
+          'schools', school,
+          'projects', yearId,
+          majorId, majorDocId
+        );
+
+        // Set up real-time listener
+        const unsubscribe = onSnapshot(majorDocRef, (docSnapshot) => {
+          if (docSnapshot.exists()) {
+            const docData = docSnapshot.data();
+            if (docData.milestones && Array.isArray(docData.milestones)) {
+              const processedMilestones = docData.milestones.map(milestone => ({
+                ...milestone,
+                major: majorId
+              }));
+
+              // Update allMilestones while preserving other majors' data
+              allMilestones.value = [
+                ...allMilestones.value.filter(m => m.major !== majorId),
+                ...processedMilestones
+              ];
+
+              // Store in session storage
+              storeMilestoneData(majorId, processedMilestones);
+
+              // If this is the selected major, trigger a refresh of feedback stats
+              if (majorId === selectedMajor.value) {
+                fetchFeedbackStats(majorId, false, true);
+              }
+            }
+          }
+        }, (err) => {
+          console.error(`Error in milestone listener for ${majorId}:`, err);
+        });
+
+        // Store the unsubscribe function
+        unsubscribeMilestonesMap.value[majorId] = unsubscribe;
+
+      } catch (err) {
+        console.error(`Error setting up milestone listener for ${majorId}:`, err);
+        throw err;
       }
     }
 
@@ -783,108 +923,76 @@ export default {
 
     // Function to fetch submission statistics for the current milestone
     const fetchSubmissionStats = async (majorId, isBackgroundLoad = false, force = false) => {
-      if (!majorId) return
+      if (!majorId) return;
       
-      console.log('Starting fetchSubmissionStats for major:', majorId, 'background:', isBackgroundLoad)
+      console.log('===== STARTING fetchSubmissionStats for major:', majorId, 'background:', isBackgroundLoad, 'force:', force);
       
+      const previousValue = currentMilestoneSubmissionStats.value;
+      
+      // Always update the selected major
       if (!isBackgroundLoad) {
-        selectedSubmissionMajor.value = majorId
+        selectedSubmissionMajor.value = majorId;
       }
       
-      // Skip if recently loaded (within 30 seconds) unless forced
-      const now = Date.now()
-      
-      // Check cache with better timestamp expiration logic
+      // First check if we have cached data for this major and use it immediately
       if (submissionStatsCache.value[majorId]) {
-        console.log('Found cached submission stats for major:', majorId)
+        console.log(`Cache found for major ${majorId}:`, submissionStatsCache.value[majorId]);
         
-        // Use cached data immediately
+        // Always update the UI with cached data immediately to prevent flashing
         if (!isBackgroundLoad) {
-          currentMilestoneSubmissionStats.value = submissionStatsCache.value[majorId]
+          currentMilestoneSubmissionStats.value = submissionStatsCache.value[majorId];
         }
         
-        // If not forced and cache is fresh (less than 30 seconds), don't refresh
-        const cacheAge = now - (submissionStatsCache.value[majorId].timestamp || 0)
-        if (!force && cacheAge < 30000) {
-          console.log('Using fresh cache for submission stats, age:', cacheAge, 'ms')
-          return
+        // Skip if cache is fresh (less than 5 seconds) and not forced
+        const now = Date.now();
+        const cacheAge = now - (submissionStatsCache.value[majorId].timestamp || 0);
+        if (!force && cacheAge < 5000) {
+          console.log('Using fresh cache for submission stats, age:', cacheAge, 'ms');
+          return;
         }
+      } else if (!isBackgroundLoad && previousValue) {
+        // If no cache exists but we had a previous value, keep showing it
+        // This prevents the "no data" message from flashing
+        console.log('No cache for this major, but keeping previous stats displayed during fetch');
+        submissionLoading.value = false;
       }
       
-      // Also check session storage (provides persistence between page loads)
-      const sessionStorageKey = `${userStore.currentUser?.uid}_${majorId}_submissionStats`
-      try {
-        const storedStats = sessionStorage.getItem(sessionStorageKey)
-        if (storedStats) {
-          const parsedStats = JSON.parse(storedStats)
-          const storageAge = now - (parsedStats.timestamp || 0)
-          
-          // Use session storage if fresh (less than 30 minutes)
-          if (!force && storageAge < 1800000) {
-            console.log('Using submission stats from session storage, age:', storageAge, 'ms')
-            submissionStatsCache.value[majorId] = parsedStats
-            if (!isBackgroundLoad) {
-              currentMilestoneSubmissionStats.value = parsedStats
-            }
-            return
-          }
-        }
-      } catch (err) {
-        console.error('Error reading submission stats from session storage:', err)
-      }
-      
-      if (!isBackgroundLoad) {
-        submissionLoading.value = true
-        submissionError.value = null
-        currentMilestoneSubmissionStats.value = null
+      // Start loading in the background without clearing current data
+      if (!isBackgroundLoad && !currentMilestoneSubmissionStats.value) {
+        submissionError.value = null;
       }
       
       try {
         if (!userStore.currentUser?.school) {
-          throw new Error('School information not found')
+          throw new Error('School information not found');
         }
         
-        const school = userStore.currentUser.school
-        const academicYearData = await getLatestAcademicYear(school)
+        const school = userStore.currentUser.school;
+        console.log(`Fetching for school: ${school}`);
+        
+        const academicYearData = await getLatestAcademicYear(school);
         
         if (!academicYearData?.yearId) {
-          throw new Error('Failed to determine academic year')
+          throw new Error('Failed to determine academic year');
         }
         
-        const yearId = academicYearData.yearId
-        const majorDocId = await getMajorDocId(school, yearId, majorId)
+        const yearId = academicYearData.yearId;
+        console.log(`Using academic year: ${yearId}`);
+        
+        const majorDocId = await getMajorDocId(school, yearId, majorId);
+        console.log(`Major doc ID for ${majorId}: ${majorDocId}`);
         
         if (!majorDocId) {
-          throw new Error('Major document not found')
+          throw new Error('Major document not found');
         }
         
-        // Get current milestone index first to avoid loading unnecessary data
-        const majorMilestones = await getMilestones(school, yearId, majorId, majorDocId)
-        const now = new Date()
-        const sortedMilestones = [...majorMilestones].sort((a, b) => {
-          const dateA = a.deadline instanceof Date ? a.deadline : a.deadline.toDate()
-          const dateB = b.deadline instanceof Date ? b.deadline : b.deadline.toDate()
-          return dateA - dateB
-        })
-        
-        let currentMilestone = sortedMilestones.find(milestone => {
-          const deadlineDate = milestone.deadline instanceof Date ? 
-            milestone.deadline : 
-            milestone.deadline.toDate()
-          return deadlineDate > now
-        })
-        
-        if (!currentMilestone && sortedMilestones.length > 0) {
-          currentMilestone = sortedMilestones[sortedMilestones.length - 1]
+        // Get current milestone from the same source as milestone card
+        const milestone = currentUpcomingMilestone.value;
+        if (!milestone) {
+          throw new Error('No current milestone found');
         }
         
-        if (!currentMilestone) {
-          throw new Error('No current milestone found')
-        }
-        
-        const milestoneIndex = majorMilestones.findIndex(m => 
-          m.description === currentMilestone.description
-        )
+        console.log(`Checking submissions for milestone: ${milestone.description}`);
         
         // Define projectsRef outside the conditional blocks so it's available everywhere
         const projectsRef = collection(
@@ -893,144 +1001,154 @@ export default {
           'projects', yearId,
           majorId, majorDocId,
           'projectsPerYear'
-        )
+        );
         
         // Check if we have cached assigned project IDs
         let assignedProjectIds = new Set();
         const cachedProjectIds = getAssignedProjectIds(majorId);
         
         if (cachedProjectIds) {
-          console.log(`Using cached assigned project IDs for ${majorId}`);
+          console.log(`Using cached assigned project IDs for ${majorId}: ${cachedProjectIds.length} projects`);
           assignedProjectIds = new Set(cachedProjectIds);
         } else {
           // OPTIMIZATION: Use a more efficient approach - get all submissions for this milestone first
           // This is faster than querying each project's submissions separately
           
           // Use limit to improve performance - we only need the assignment info
-          const projectsQuery = query(projectsRef, limit(100))
-          const projectsSnapshot = await getDocs(projectsQuery)
+          const projectsQuery = query(projectsRef, limit(100));
+          console.log(`Fetching projects for major ${majorId}`);
+          const projectsSnapshot = await getDocs(projectsQuery);
+          console.log(`Found ${projectsSnapshot.size} total projects for major ${majorId}`);
           
           // Build a map of project IDs to make lookups faster
           projectsSnapshot.docs.forEach(doc => {
-            const data = doc.data()
+            const data = doc.data();
             if (data.assignedTo) {
-              assignedProjectIds.add(doc.id)
+              assignedProjectIds.add(doc.id);
             }
-          })
+          });
+          
+          console.log(`Found ${assignedProjectIds.size} assigned projects for major ${majorId}`);
           
           // Save assignedProjectIds to session storage for further use
           try {
-            const assignedProjectsKey = `${userStore.currentUser?.uid}_${majorId}_assignedProjects`
+            const assignedProjectsKey = `${userStore.currentUser?.uid}_${majorId}_assignedProjects`;
             sessionStorage.setItem(assignedProjectsKey, JSON.stringify({
               projectIds: Array.from(assignedProjectIds),
               timestamp: Date.now()
-            }))
-            console.log(`Saved ${assignedProjectIds.size} assigned project IDs to session storage for ${majorId}`)
+            }));
+            console.log(`Saved ${assignedProjectIds.size} assigned project IDs to session storage for ${majorId}`);
           } catch (err) {
-            console.error('Error storing assigned project IDs in session storage:', err)
+            console.error('Error storing assigned project IDs in session storage:', err);
           }
         }
         
-        const totalAssigned = assignedProjectIds.size
+        const totalAssigned = assignedProjectIds.size;
+        console.log(`Total assigned projects for ${majorId}: ${totalAssigned}`);
         
-        // If no assigned projects, return early with zero stats
+        // If no assigned projects, return stats with zeros
         if (totalAssigned === 0) {
+          console.log(`No assigned projects for ${majorId}, returning empty stats`);
           const emptyStats = {
-            milestoneName: currentMilestone.description,
-            milestoneIndex: milestoneIndex,
+            milestoneName: milestone.description,
             totalAssigned: 0,
             projectsWithSubmissions: 0,
             projectsWithoutSubmissions: 0,
             submissionRate: 0,
             timestamp: Date.now()
-          }
+          };
           
-          submissionStatsCache.value[majorId] = emptyStats
-          
-          // Store in session storage
-          try {
-            sessionStorage.setItem(sessionStorageKey, JSON.stringify(emptyStats))
-          } catch (err) {
-            console.error('Error storing submission stats in session storage:', err)
-          }
+          // Cache in memory
+          submissionStatsCache.value[majorId] = emptyStats;
           
           if (!isBackgroundLoad) {
-            currentMilestoneSubmissionStats.value = emptyStats
+            currentMilestoneSubmissionStats.value = emptyStats;
           }
           
-          return
+          return;
         }
         
         // OPTIMIZATION: Use a batched approach with a single query for all submissions
-        // by querying the "milestoneIndex" across all projects
-        // This is a significant performance improvement over the original approach
-        let projectsWithSubmissions = 0
+        let projectsWithSubmissions = 0;
         
         // Use Promise.all for concurrent requests with a limit on batch size
-        const batchSize = 10 // Process 10 projects at a time to avoid overwhelming Firestore
-        const batches = []
-        const projectIds = Array.from(assignedProjectIds)
+        const batchSize = 10; // Process 10 projects at a time to avoid overwhelming Firestore
+        const batches = [];
+        const projectIds = Array.from(assignedProjectIds);
         
         for (let i = 0; i < projectIds.length; i += batchSize) {
-          const batch = projectIds.slice(i, i + batchSize)
-          batches.push(batch)
+          const batch = projectIds.slice(i, i + batchSize);
+          batches.push(batch);
         }
+        
+        console.log(`Created ${batches.length} batches for querying submissions`);
+        console.log(`Looking for milestone description: ${milestone.description}`);
         
         // Process batches sequentially to avoid too many parallel requests
         for (const batch of batches) {
+          console.log(`Processing batch of ${batch.length} projects`);
+          
           const batchQueries = batch.map(projectId => {
-            const projectRef = doc(projectsRef, projectId)
-            const submissionsRef = collection(projectRef, 'submissions')
-            // OPTIMIZATION: Limit to 1 result, we only need to know if any exist
+            const projectRef = doc(projectsRef, projectId);
+            const submissionsRef = collection(projectRef, 'submissions');
+            // Query by milestone description instead of index
             const submissionsQuery = query(
               submissionsRef,
-              where('milestoneIndex', '==', milestoneIndex),
+              where('milestoneDescription', '==', milestone.description),
               limit(1)
-            )
-            return getDocs(submissionsQuery).then(snapshot => !snapshot.empty)
-          })
+            );
+            return getDocs(submissionsQuery).then(snapshot => {
+              const hasSubmission = !snapshot.empty;
+              console.log(`Project ${projectId} has submission: ${hasSubmission}`);
+              return hasSubmission;
+            });
+          });
           
-          const batchResults = await Promise.all(batchQueries)
-          projectsWithSubmissions += batchResults.filter(Boolean).length
+          const batchResults = await Promise.all(batchQueries);
+          const batchSubmissions = batchResults.filter(Boolean).length;
+          projectsWithSubmissions += batchSubmissions;
+          console.log(`Found ${batchSubmissions} submissions in this batch`);
         }
         
-        const submissionRate = Math.round((projectsWithSubmissions / totalAssigned) * 100)
+        console.log(`Total projects with submissions for ${majorId}: ${projectsWithSubmissions} out of ${totalAssigned}`);
+        
+        const submissionRate = Math.round((projectsWithSubmissions / totalAssigned) * 100);
         
         const statsObject = {
-          milestoneName: currentMilestone.description,
-          milestoneIndex: milestoneIndex,
+          milestoneName: milestone.description,
           totalAssigned: totalAssigned,
           projectsWithSubmissions: projectsWithSubmissions,
           projectsWithoutSubmissions: totalAssigned - projectsWithSubmissions,
           submissionRate: submissionRate,
           timestamp: Date.now()
-        }
+        };
         
-        // Cache in memory
-        submissionStatsCache.value[majorId] = statsObject
+        console.log(`Final stats object for ${majorId}:`, statsObject);
         
-        // Store in session storage
-        try {
-          sessionStorage.setItem(sessionStorageKey, JSON.stringify(statsObject))
-        } catch (err) {
-          console.error('Error storing submission stats in session storage:', err)
-        }
+        // After getting stats, only cache in memory, not session storage
+        submissionStatsCache.value[majorId] = statsObject;
         
         if (!isBackgroundLoad) {
-          currentMilestoneSubmissionStats.value = statsObject
+          currentMilestoneSubmissionStats.value = statsObject;
+          console.log(`Updated UI with new stats for ${majorId}`);
         }
         
       } catch (err) {
+        console.error(`Error loading submission stats for major ${majorId}:`, err);
+        
         if (!isBackgroundLoad) {
-          submissionError.value = `Failed to load submission data: ${err.message}`
+          // Only show error if we have no data to show and this isn't a background load
+          if (!currentMilestoneSubmissionStats.value) {
+            submissionError.value = `Failed to load submission data: ${err.message}`;
+          }
         }
-        console.error(`Error loading submission stats for major ${majorId}:`, err)
       } finally {
         if (!isBackgroundLoad) {
-          submissionLoading.value = false
+          submissionLoading.value = false;
         }
+        console.log(`===== COMPLETED fetchSubmissionStats for major: ${majorId}`);
       }
-    }
+    };
 
     // Function to pre-load submission statistics for all majors
     const preloadAllSubmissionStats = async () => {
@@ -1164,6 +1282,47 @@ export default {
       }
     }
 
+    // Function to pre-load feedback statistics for all majors
+    const preloadAllFeedbackStats = async () => {
+      if (!schoolMajors.value || schoolMajors.value.length === 0) return
+      
+      console.log('Pre-loading feedback statistics for all majors')
+      
+      // Prioritize majors without cached data
+      const majorsToLoad = schoolMajors.value
+        .filter(majorId => majorId !== selectedMajor.value)
+        .sort((a, b) => {
+          // Sort by cache status - uncached majors first
+          const aIsCached = !!feedbackStatsCache.value[a];
+          const bIsCached = !!feedbackStatsCache.value[b];
+          if (aIsCached !== bIsCached) return aIsCached ? 1 : -1;
+          return 0;
+        });
+      
+      // Process in batches to avoid overwhelming the browser/Firestore
+      const processBatch = async (startIndex) => {
+        if (startIndex >= majorsToLoad.length) return;
+        
+        // Process maximum 2 majors at a time
+        const batchSize = 2;
+        const endIndex = Math.min(startIndex + batchSize, majorsToLoad.length);
+        const currentBatch = majorsToLoad.slice(startIndex, endIndex);
+        
+        // Process this batch
+        await Promise.all(
+          currentBatch.map(majorId => fetchFeedbackStats(majorId, true))
+        );
+        
+        // Schedule next batch with a small delay to avoid UI blocking
+        setTimeout(() => {
+          processBatch(endIndex);
+        }, 100);
+      };
+      
+      // Start processing the first batch
+      processBatch(0);
+    }
+
     // Add watcher for selectedMajor
     watch(selectedMajor, async (newMajor, oldMajor) => {
       if (!newMajor) return
@@ -1173,7 +1332,17 @@ export default {
       }
 
       console.log('Selected major changed to:', newMajor)
-      await fetchSubmissionStats(newMajor)
+      
+      // Check if we have cached data first
+      if (feedbackStatsCache.value[newMajor]) {
+        console.log('Using cached feedback stats for major:', newMajor)
+        currentMilestoneFeedbackStats.value = feedbackStatsCache.value[newMajor]
+      }
+      
+      await Promise.all([
+        fetchSubmissionStats(newMajor),
+        fetchFeedbackStats(newMajor)
+      ])
     })
 
     // Function to fetch project statistics for a specific major
@@ -1377,6 +1546,170 @@ export default {
       }
     })
 
+    // Function to fetch feedback statistics for the current milestone
+    const fetchFeedbackStats = async (majorId, isBackgroundLoad = false, force = false) => {
+      if (!majorId) return;
+      
+      console.log('Starting fetchFeedbackStats for major:', majorId, 'background:', isBackgroundLoad);
+      
+      const previousValue = currentMilestoneFeedbackStats.value;
+      
+      // Skip if recently loaded (within 5 seconds) unless forced
+      const now = Date.now();
+      
+      // Check if we have cached data for this major and use it immediately
+      if (feedbackStatsCache.value[majorId]) {
+        console.log('Found cached feedback stats for major:', majorId);
+        
+        // Always update the UI with cached data immediately to prevent flashing
+        if (!isBackgroundLoad) {
+          currentMilestoneFeedbackStats.value = feedbackStatsCache.value[majorId];
+        }
+        
+        // If not forced and cache is fresh (less than 5 seconds), don't refresh
+        const cacheAge = now - (feedbackStatsCache.value[majorId].timestamp || 0);
+        if (!force && cacheAge < 5000) {
+          console.log('Using fresh cache for feedback stats, age:', cacheAge, 'ms');
+          return;
+        }
+      } else if (!isBackgroundLoad && previousValue) {
+        // If no cache exists but we had a previous value, keep showing it
+        // This prevents the "no data" message from flashing
+        console.log('No cache for this major, but keeping previous feedback stats displayed during fetch');
+        feedbackLoading.value = false;
+      }
+      
+      // Start loading in the background without clearing current data
+      if (!isBackgroundLoad && !currentMilestoneFeedbackStats.value) {
+        feedbackError.value = null;
+      }
+      
+      try {
+        if (!userStore.currentUser?.school) {
+          throw new Error('School information not found');
+        }
+        
+        const school = userStore.currentUser.school;
+        const academicYearData = await getLatestAcademicYear(school);
+        
+        if (!academicYearData?.yearId) {
+          throw new Error('Failed to determine academic year');
+        }
+        
+        // Get current milestone for the specific major
+        const majorMilestones = allMilestones.value.filter(m => m.major === majorId);
+        if (!majorMilestones || majorMilestones.length === 0) {
+          throw new Error('No milestones found for this major');
+        }
+
+        const now = new Date();
+        const sortedMilestones = [...majorMilestones].sort((a, b) => {
+          const dateA = a.deadline instanceof Date ? a.deadline : a.deadline.toDate();
+          const dateB = b.deadline instanceof Date ? b.deadline : b.deadline.toDate();
+          return dateA - dateB;
+        });
+
+        let currentMilestone = sortedMilestones.find(milestone => {
+          const deadlineDate = milestone.deadline instanceof Date ? 
+            milestone.deadline : 
+            milestone.deadline.toDate();
+          return deadlineDate > now;
+        });
+
+        if (!currentMilestone && sortedMilestones.length > 0) {
+          currentMilestone = sortedMilestones[sortedMilestones.length - 1];
+        }
+
+        if (!currentMilestone) {
+          throw new Error('No current milestone found');
+        }
+        
+        // Query the flattened submissions collection
+        const submissionsRef = collection(db, 'schools', school, 'submissions');
+        
+        // Create a query to find submissions for the current major and milestone
+        const submissionsQuery = query(
+          submissionsRef,
+          where('majorId', '==', majorId),
+          where('milestoneDescription', '==', currentMilestone.description)
+        );
+        
+        const submissionsSnapshot = await getDocs(submissionsQuery);
+        
+        // Count total submissions and reviewed submissions
+        let totalSubmissions = 0;
+        let reviewedBySupervisor = 0;
+        let reviewedByExaminer = 0;
+        
+        submissionsSnapshot.forEach(doc => {
+          const data = doc.data();
+          totalSubmissions++;
+          
+          // Check if the submission has been reviewed by supervisor
+          if (data.isReviewed === true && data.reviewedBySupervisor === true) {
+            reviewedBySupervisor++;
+          }
+          
+          // Check if the submission has been reviewed by examiner
+          if (data.isReviewed === true && data.reviewedByExaminer === true) {
+            reviewedByExaminer++;
+          }
+        });
+        
+        const reviewRate = totalSubmissions > 0 ? Math.round((reviewedBySupervisor / totalSubmissions) * 100) : 0;
+        const examinerReviewRate = totalSubmissions > 0 ? Math.round((reviewedByExaminer / totalSubmissions) * 100) : 0;
+        
+        const statsObject = {
+          milestoneName: currentMilestone.description,
+          totalSubmissions: totalSubmissions,
+          reviewedBySupervisor: reviewedBySupervisor,
+          reviewedByExaminer: reviewedByExaminer,
+          reviewRate: reviewRate,
+          examinerReviewRate: examinerReviewRate,
+          timestamp: Date.now()
+        };
+        
+        console.log('Feedback stats object:', statsObject);
+        
+        // Cache in memory only
+        feedbackStatsCache.value[majorId] = statsObject;
+        
+        if (!isBackgroundLoad) {
+          currentMilestoneFeedbackStats.value = statsObject;
+        }
+        
+      } catch (err) {
+        console.error(`Error loading feedback stats for major ${majorId}:`, err);
+        
+        if (!isBackgroundLoad) {
+          // Only show error if we have no data to show
+          if (!currentMilestoneFeedbackStats.value) {
+            feedbackError.value = `Failed to load feedback data: ${err.message}`;
+          }
+        }
+      } finally {
+        if (!isBackgroundLoad) {
+          feedbackLoading.value = false;
+        }
+      }
+    };
+
+    // Function to clear old feedback stats from session storage
+    const clearOldFeedbackStats = () => {
+      try {
+        if (!userStore.currentUser?.uid) return;
+        
+        // Clear feedback stats for all majors
+        schoolMajors.value.forEach(majorId => {
+          const sessionStorageKey = `${userStore.currentUser.uid}_${majorId}_feedbackStats`;
+          sessionStorage.removeItem(sessionStorageKey);
+          console.log(`Cleared old feedback stats for ${majorId}`);
+        });
+      } catch (err) {
+        console.error('Error clearing old feedback stats:', err);
+      }
+    }
+
     // Modified onMounted function for instant loading with cached data
     onMounted(async () => {
       console.log('AdminDashboard mounted')
@@ -1389,6 +1722,9 @@ export default {
 
         // First fetch all majors for the school
         await fetchSchoolMajors()
+
+        // Clear old feedback stats to ensure we get fresh data with all fields
+        clearOldFeedbackStats();
 
         // Set default selected majors if not already set
         if (schoolMajors.value.length > 0) {
@@ -1502,11 +1838,26 @@ export default {
           }
         };
         
+        // Function to update UI with fresh feedback data
+        const updateFeedbackData = async () => {
+          if (!selectedMajor.value) return;
+          try {
+            console.log('Loading fresh feedback data');
+            await fetchFeedbackStats(selectedMajor.value, false, true); // Force refresh
+            console.log('Feedback data refreshed');
+          } catch (err) {
+            console.error('Error updating feedback data:', err);
+          } finally {
+            feedbackLoading.value = false;
+          }
+        };
+        
         // Load data in background and update UI as each piece becomes available
         Promise.all([
           updateMilestoneData(),
           updateSubmissionData(),
-          updateProjectData()
+          updateProjectData(),
+          updateFeedbackData() // Add feedback data update
         ]).then(() => {
           // All data is now fresh
           console.log('All dashboard data refreshed');
@@ -1517,6 +1868,7 @@ export default {
           // Preload other majors in background
           if (selectedMajor.value) {
             preloadAllSubmissionStats();
+            preloadAllFeedbackStats(); // Add feedback stats preloading
           }
           preloadAllProjectStats();
           
@@ -1543,6 +1895,34 @@ export default {
         }
       }
     })
+
+    // Add cleanup in onUnmounted
+    onUnmounted(() => {
+      // Clean up all milestone listeners
+      Object.values(unsubscribeMilestonesMap.value).forEach(unsubscribe => {
+        if (typeof unsubscribe === 'function') {
+          unsubscribe();
+        }
+      });
+      unsubscribeMilestonesMap.value = {};
+    });
+
+    // Add watcher for currentUpcomingMilestone
+    watch(currentUpcomingMilestone, async (newMilestone, oldMilestone) => {
+      if (!newMilestone || !selectedMajor.value) return;
+      
+      // Only refresh if the milestone description has changed
+      if (!oldMilestone || newMilestone.description !== oldMilestone.description) {
+        console.log('Current milestone changed, refreshing submission stats');
+        // Clear memory cache for the current major
+        submissionStatsCache.value[selectedMajor.value] = null;
+        // Clear session storage cache
+        const sessionStorageKey = `${userStore.currentUser?.uid}_${selectedMajor.value}_submissionStats`;
+        sessionStorage.removeItem(sessionStorageKey);
+        // Force refresh submission stats
+        await fetchSubmissionStats(selectedMajor.value, false, true);
+      }
+    });
 
     return {
       allMilestones,
@@ -1575,6 +1955,10 @@ export default {
       // Add new reactive variables to the return object
       showPlaceholders,
       allContentLoaded,
+      // Add feedback-related variables
+      feedbackLoading,
+      feedbackError,
+      currentMilestoneFeedbackStats,
       // Add helper functions
       getAssignedProjectIds,
       fetchAndSaveAssignedProjectIds
