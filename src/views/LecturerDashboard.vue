@@ -284,97 +284,83 @@
         
         <!-- Right Column -->
         <div class="col-span-6">
-          <!-- Assigned Project Card -->
-          <div class="bg-white p-4 shadow rounded relative">
-            <div class="flex justify-between items-start">
-              <h2 class="text-sm font-medium text-gray-500 mb-2">Your Projects Overview</h2>
-            </div>
-            
-            <div v-if="projectLoading" class="animate-pulse">
-              <!-- Project Stats Skeleton -->
-              <div class="relative pl-4">
-                <div class="absolute left-0 top-0 bottom-0 w-1 bg-gray-200 rounded-full"></div>
-                <div class="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
-                <!-- Stats Grid Skeleton -->
-                <div class="grid grid-cols-3 gap-4 mb-4">
-                  <div class="bg-gray-50 p-3 rounded-lg">
-                    <div class="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
-                    <div class="h-3 bg-gray-200 rounded w-20 mx-auto"></div>
+          <!-- Project Cards Container -->
+          <div class="grid grid-cols-12 gap-4">
+            <!-- Assigned Project Card -->
+            <div class="col-span-8 bg-white p-4 shadow rounded relative h-[195px]">
+              <div class="flex justify-between items-start">
+                <h2 class="text-sm font-medium text-gray-500 mb-2">Your Projects Overview</h2>
+              </div>
+              
+              <div v-if="projectLoading" class="animate-pulse">
+                <!-- Project Stats Skeleton -->
+                <div class="relative pl-4">
+                  <div class="absolute left-0 top-0 bottom-0 w-1 bg-gray-200 rounded-full"></div>
+                  <div class="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
+                  <!-- Stats Grid Skeleton -->
+                  <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                      <div class="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
+                      <div class="h-3 bg-gray-200 rounded w-20 mx-auto"></div>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                      <div class="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
+                      <div class="h-3 bg-gray-200 rounded w-20 mx-auto"></div>
+                    </div>
                   </div>
-                  <div class="bg-gray-50 p-3 rounded-lg">
-                    <div class="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
-                    <div class="h-3 bg-gray-200 rounded w-20 mx-auto"></div>
-                  </div>
-                  <div class="bg-gray-50 p-3 rounded-lg">
-                    <div class="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
-                    <div class="h-3 bg-gray-200 rounded w-20 mx-auto"></div>
-                  </div>
-                </div>
-                <!-- Progress Bar Skeleton -->
-                <div class="mt-2">
-                  <div class="flex justify-between mb-1">
-                    <div class="h-3 bg-gray-200 rounded w-24"></div>
-                    <div class="h-3 bg-gray-200 rounded w-12"></div>
-                  </div>
-                  <div class="w-full bg-gray-200 rounded-full h-2.5"></div>
                 </div>
               </div>
-            </div>
-            
-            <div v-else-if="projectError" class="py-4">
-              <p class="text-red-500">{{ projectError }}</p>
-            </div>
-            
-            <div v-else-if="lecturerProjectStats.total > 0" class="py-2">
-              <div class="relative">
-                <div class="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-full"></div>
-                
-                <div class="pl-4">
-                  <h3 class="text-lg font-semibold text-gray-800 mb-3">Project Statistics</h3>
+              
+              <div v-else-if="projectError" class="py-4">
+                <p class="text-red-500">{{ projectError }}</p>
+              </div>
+              
+              <div v-else-if="lecturerProjectStats.total > 0" class="py-2">
+                <div class="relative">
+                  <div class="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-full"></div>
                   
-                  <div class="grid grid-cols-3 gap-4 mb-4">
-                    <!-- Total Projects -->
-                    <div class="bg-blue-50 p-3 rounded-lg text-center">
-                      <p class="text-2xl font-bold text-blue-700">{{ lecturerProjectStats.total }}</p>
-                      <p class="text-sm text-blue-600">Total Projects</p>
+                  <div class="pl-4">
+                    <div class="grid grid-cols-2 gap-4 mb-3">
+                      <!-- Assigned Projects -->
+                      <div class="bg-green-50 p-2.5 rounded-lg text-center">
+                        <p class="text-2xl font-bold text-green-700">{{ lecturerProjectStats.assigned }}</p>
+                        <p class="text-sm text-green-600">Supervised</p>
+                      </div>
+                      
+                      <!-- Unassigned Projects -->
+                      <div class="bg-amber-50 p-2.5 rounded-lg text-center">
+                        <p class="text-2xl font-bold text-amber-700">{{ lecturerProjectStats.unassigned }}</p>
+                        <p class="text-sm text-amber-600">Unassigned</p>
+                      </div>
                     </div>
                     
-                    <!-- Assigned Projects -->
-                    <div class="bg-green-50 p-3 rounded-lg text-center">
-                      <p class="text-2xl font-bold text-green-700">{{ lecturerProjectStats.assigned }}</p>
-                      <p class="text-sm text-green-600">Assigned</p>
-                    </div>
-                    
-                    <!-- Unassigned Projects -->
-                    <div class="bg-amber-50 p-3 rounded-lg text-center">
-                      <p class="text-2xl font-bold text-amber-700">{{ lecturerProjectStats.unassigned }}</p>
-                      <p class="text-sm text-amber-600">Unassigned</p>
-                    </div>
-                  </div>
-                  
-                  <!-- Assignment Rate Progress Bar -->
-                  <div class="mt-2">
-                    <div class="flex justify-between items-center mb-1">
-                      <span class="text-sm font-medium text-gray-700">Assignment Rate</span>
-                      <span class="text-sm font-medium text-gray-700">{{ lecturerProjectStats.assignmentRate }}%</span>
-                    </div>
-                    <div class="w-full bg-gray-200 rounded-full h-2.5">
-                      <div 
-                        class="bg-blue-600 h-2.5 rounded-full" 
-                        :style="`width: ${lecturerProjectStats.assignmentRate}%`"
-                      ></div>
+                    <!-- Assignment Rate Progress Bar -->
+                    <div class="mt-3">
+                      <div class="flex justify-between items-center mb-1">
+                        <span class="text-sm font-medium text-gray-700">Assignment Rate</span>
+                        <span class="text-sm font-medium text-gray-700">{{ lecturerProjectStats.assignmentRate }}%</span>
+                      </div>
+                      <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          class="bg-blue-600 h-2 rounded-full" 
+                          :style="`width: ${lecturerProjectStats.assignmentRate}%`"
+                        ></div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            
-            <div v-else class="py-4 text-center">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <p class="text-gray-500">No projects created yet.</p>
-              <p class="text-sm text-gray-400 mt-1">Create projects for students to bid on.</p>
+
+            <!-- Examined Projects Card -->
+            <div class="col-span-4 bg-white p-4 shadow rounded relative h-[195px]">
+              <div class="relative h-full flex flex-col items-center justify-center">
+                <!-- Content -->
+                <div class="text-center">
+                  <p class="text-5xl font-bold mb-3" style="color: #c75284">6</p>
+                  <p class="text-sm" style="color: #c3447a">Examined Projects</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
