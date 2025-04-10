@@ -355,9 +355,15 @@
             <!-- Examined Projects Card -->
             <div class="col-span-4 bg-white p-4 shadow rounded relative h-[195px]">
               <div class="relative h-full flex flex-col items-center justify-center">
-                <!-- Content -->
-                <div class="text-center">
-                  <p class="text-5xl font-bold mb-3" style="color: #c75284">6</p>
+                <div v-if="examinedProjectsLoading" class="text-center animate-pulse">
+                  <div class="h-12 w-12 bg-gray-200 rounded-full mx-auto mb-3"></div>
+                  <div class="h-4 bg-gray-200 rounded w-24 mx-auto"></div>
+                </div>
+                <div v-else-if="examinedProjectsError" class="text-center text-red-500">
+                  <p>{{ examinedProjectsError }}</p>
+                </div>
+                <div v-else class="text-center">
+                  <p class="text-5xl font-bold mb-3" style="color: #c75284">{{ examinedProjectsCount }}</p>
                   <p class="text-sm" style="color: #c3447a">Examined Projects</p>
                 </div>
               </div>
@@ -396,8 +402,15 @@
       const lastFetchTimes = ref({
         milestones: 0,
         submissions: 0,
-        projects: 0
+        projects: 0,
+        examined: 0
       })
+
+      // Add these refs after the other refs in the setup function
+      const examinedProjectsLoading = ref(true)
+      const examinedProjectsError = ref(null)
+      const examinedProjectsCount = ref(0)
+      const examinedProjectsUnsubscribers = ref([])
 
       // Modify storeMilestoneData to include a last changed timestamp
       const storeMilestoneData = (majorId, majorMilestones) => {
@@ -1253,6 +1266,162 @@
         }
       }, { immediate: true });
   
+      // Function to get session storage key for examined projects
+      const getExaminedProjectsStorageKey = (uid) => {
+        return `examined_projects_${uid}`;
+      };
+
+      // Function to store examined projects count in session storage
+      const storeExaminedProjectsCount = (uid, count) => {
+        if (!uid) return;
+        try {
+          const key = getExaminedProjectsStorageKey(uid);
+          sessionStorage.setItem(key, JSON.stringify({
+            count,
+            timestamp: Date.now()
+          }));
+        } catch (err) {
+          console.error('Error storing examined projects count:', err);
+        }
+      };
+
+      // Function to get examined projects count from session storage
+      const getStoredExaminedProjectsCount = (uid) => {
+        if (!uid) return null;
+        try {
+          const key = getExaminedProjectsStorageKey(uid);
+          const stored = sessionStorage.getItem(key);
+          if (!stored) return null;
+          
+          const data = JSON.parse(stored);
+          // Check if data is less than 30 minutes old
+          if (Date.now() - data.timestamp < 30 * 60 * 1000) {
+            return data.count;
+          }
+          return null;
+        } catch (err) {
+          console.error('Error getting examined projects count:', err);
+          return null;
+        }
+      };
+
+      // Function to set up real-time listeners for examined projects
+      const setupExaminedProjectsListeners = async (force = false) => {
+        // Skip if recently loaded (within 10 seconds) unless forced
+        const now = Date.now();
+        if (!force && now - lastFetchTimes.value.examined < 10000) return;
+
+        // Only show loading if no data is currently available
+        if (examinedProjectsCount.value === 0) {
+          examinedProjectsLoading.value = true;
+        }
+        examinedProjectsError.value = null;
+
+        try {
+          if (!userStore.isAuthenticated || !userStore.currentUser) {
+            examinedProjectsError.value = 'User not authenticated';
+            return;
+          }
+
+          // Get user data
+          const { school, uid } = userStore.currentUser;
+          
+          if (!school) {
+            examinedProjectsError.value = 'Missing school information';
+            return;
+          }
+
+          // Try to get count from session storage first
+          const storedCount = getStoredExaminedProjectsCount(uid);
+          if (storedCount !== null && !force) {
+            examinedProjectsCount.value = storedCount;
+            examinedProjectsLoading.value = false;
+          }
+          
+          // Get latest academic year
+          const academicYearData = await getLatestAcademicYear(school);
+          
+          if (!academicYearData?.yearId) {
+            examinedProjectsError.value = 'Failed to determine academic year';
+            return;
+          }
+          
+          const yearId = academicYearData.yearId;
+          
+          // Check if we have lecturer majors
+          if (!lecturerMajors.value || lecturerMajors.value.length === 0) {
+            examinedProjectsError.value = 'No majors assigned to lecturer';
+            return;
+          }
+
+          // Clear existing listeners
+          examinedProjectsUnsubscribers.value.forEach(unsubscribe => unsubscribe());
+          examinedProjectsUnsubscribers.value = [];
+          
+          // Create an array to store all major document ID fetch promises
+          const majorDocIdPromises = lecturerMajors.value.map(majorId => 
+            getMajorDocId(school, yearId, majorId)
+          );
+          
+          // Fetch all major document IDs in parallel
+          const majorDocIds = await Promise.all(majorDocIdPromises);
+
+          // Object to store counts per major
+          const majorCounts = {};
+          
+          // Set up listeners for each major
+          lecturerMajors.value.forEach((majorId, index) => {
+            const majorDocId = majorDocIds[index];
+            if (!majorDocId) return; // Skip if no docId found
+            
+            const projectsRef = collection(
+              db,
+              'schools', school,
+              'projects', yearId,
+              majorId, majorDocId,
+              'projectsPerYear'
+            );
+            
+            const projectsQuery = query(
+              projectsRef,
+              where('examinerId', '==', uid)
+            );
+            
+            // Set up real-time listener
+            const unsubscribe = onSnapshot(projectsQuery, (snapshot) => {
+              // Update the count for this major
+              majorCounts[majorId] = snapshot.size;
+              
+              // Calculate total count across all majors
+              const totalCount = Object.values(majorCounts).reduce((sum, count) => sum + count, 0);
+              
+              // Update the examined projects count
+              examinedProjectsCount.value = totalCount;
+
+              // Store the updated count in session storage
+              storeExaminedProjectsCount(uid, totalCount);
+              
+              // Update last fetch time
+              lastFetchTimes.value.examined = Date.now();
+
+              // Once we have data, turn off loading
+              examinedProjectsLoading.value = false;
+            }, (error) => {
+              console.error('Error in examined projects listener:', error);
+              examinedProjectsError.value = `Error receiving updates: ${error.message}`;
+              examinedProjectsLoading.value = false;
+            });
+            
+            // Store the unsubscribe function
+            examinedProjectsUnsubscribers.value.push(unsubscribe);
+          });
+          
+        } catch (err) {
+          examinedProjectsError.value = `Failed to set up examined projects listeners: ${err.message}`;
+          examinedProjectsLoading.value = false;
+        }
+      };
+  
       // Modify the onMounted hook to ensure proper initialization order
       onMounted(async () => {
         const startTime = Date.now();
@@ -1312,7 +1481,8 @@
             // Primary major's data first
             fetchMilestonesData(),
             fetchSubmissionStats(primaryMajor, false),
-            fetchLecturerProjects()
+            fetchLecturerProjects(),
+            setupExaminedProjectsListeners()
           ];
 
           // Mark initial load as complete once any data is available
@@ -1357,6 +1527,9 @@
         // Clean up all milestone listeners
         milestoneUnsubscribers.value.forEach(unsubscribe => unsubscribe());
         milestoneUnsubscribers.value = [];
+        // Clean up examined projects listeners
+        examinedProjectsUnsubscribers.value.forEach(unsubscribe => unsubscribe());
+        examinedProjectsUnsubscribers.value = [];
       });
   
       // Optimized helper function to compare milestone arrays
@@ -1413,7 +1586,11 @@
         currentMilestoneSubmissionStats,
         preloadAllSubmissionStats,
         storeMilestoneData,
-        lastFetchTimes
+        lastFetchTimes,
+        examinedProjectsLoading,
+        examinedProjectsError,
+        examinedProjectsCount,
+        examinedProjectsUnsubscribers
       }
     }
   }
