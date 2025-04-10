@@ -1535,6 +1535,9 @@ const fetchUserProjects = async (schoolId, userId, academicYearId) => {
     // Start loading state
     myProjectsLoading.value = true
     
+    // Clear existing projects array before fetching
+    projects.value = []
+    
     // Try to load cached data first
     const cacheKey = `projects-${schoolId}-${userId}-${academicYearId}`
     const cachedData = sessionStorage.getItem(cacheKey)
@@ -1563,12 +1566,6 @@ const fetchUserProjects = async (schoolId, userId, academicYearId) => {
       } catch (error) {
         console.error('Error parsing cached data:', error)
       }
-    }
-    
-    // Clear existing projects if no valid cache was found
-    if (projects.value.length === 0) {
-      // No valid cache available
-      projects.value = []
     }
     
     // Clean up any existing listeners
@@ -4178,6 +4175,11 @@ watch(selectedAcademicYear, async (newYear) => {
     myProjectsLoaded.value = false
     allProjectsLoaded.value = false
     bidsLoaded.value = false
+    
+    // Clear existing project arrays
+    projects.value = []
+    allProjects.value = []
+    projectBids.value = []
 
     // Add debug logging
     console.log('Academic year changed to:', newYear)
