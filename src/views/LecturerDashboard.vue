@@ -1271,22 +1271,23 @@
         return `examined_projects_${uid}`;
       };
 
-      // Function to store examined projects count in session storage
-      const storeExaminedProjectsCount = (uid, count) => {
+      // Function to store examined projects data in session storage
+      const storeExaminedProjectsData = (uid, data) => {
         if (!uid) return;
         try {
           const key = getExaminedProjectsStorageKey(uid);
           sessionStorage.setItem(key, JSON.stringify({
-            count,
+            count: data.count,
+            projectIds: data.projectIds,
             timestamp: Date.now()
           }));
         } catch (err) {
-          console.error('Error storing examined projects count:', err);
+          console.error('Error storing examined projects data:', err);
         }
       };
 
-      // Function to get examined projects count from session storage
-      const getStoredExaminedProjectsCount = (uid) => {
+      // Function to get examined projects data from session storage
+      const getStoredExaminedProjectsData = (uid) => {
         if (!uid) return null;
         try {
           const key = getExaminedProjectsStorageKey(uid);
@@ -1296,11 +1297,14 @@
           const data = JSON.parse(stored);
           // Check if data is less than 30 minutes old
           if (Date.now() - data.timestamp < 30 * 60 * 1000) {
-            return data.count;
+            return {
+              count: data.count,
+              projectIds: data.projectIds || []
+            };
           }
           return null;
         } catch (err) {
-          console.error('Error getting examined projects count:', err);
+          console.error('Error getting examined projects data:', err);
           return null;
         }
       };
@@ -1331,10 +1335,10 @@
             return;
           }
 
-          // Try to get count from session storage first
-          const storedCount = getStoredExaminedProjectsCount(uid);
-          if (storedCount !== null && !force) {
-            examinedProjectsCount.value = storedCount;
+          // Try to get data from session storage first
+          const storedData = getStoredExaminedProjectsData(uid);
+          if (storedData !== null && !force) {
+            examinedProjectsCount.value = storedData.count;
             examinedProjectsLoading.value = false;
           }
           
@@ -1366,8 +1370,8 @@
           // Fetch all major document IDs in parallel
           const majorDocIds = await Promise.all(majorDocIdPromises);
 
-          // Object to store counts per major
-          const majorCounts = {};
+          // Object to store counts and project IDs per major
+          const majorData = {};
           
           // Set up listeners for each major
           lecturerMajors.value.forEach((majorId, index) => {
@@ -1389,17 +1393,28 @@
             
             // Set up real-time listener
             const unsubscribe = onSnapshot(projectsQuery, (snapshot) => {
-              // Update the count for this major
-              majorCounts[majorId] = snapshot.size;
+              // Update the data for this major
+              majorData[majorId] = {
+                count: snapshot.size,
+                projectIds: snapshot.docs.map(doc => ({
+                  id: doc.id,
+                  majorId,
+                  majorDocId
+                }))
+              };
               
-              // Calculate total count across all majors
-              const totalCount = Object.values(majorCounts).reduce((sum, count) => sum + count, 0);
+              // Calculate total count and collect all project IDs
+              const totalExaminedCount = Object.values(majorData).reduce((sum, data) => sum + data.count, 0);
+              const allProjectIds = Object.values(majorData).reduce((ids, data) => [...ids, ...data.projectIds], []);
               
               // Update the examined projects count
-              examinedProjectsCount.value = totalCount;
+              examinedProjectsCount.value = totalExaminedCount;
 
-              // Store the updated count in session storage
-              storeExaminedProjectsCount(uid, totalCount);
+              // Store the updated data in session storage
+              storeExaminedProjectsData(uid, {
+                count: totalExaminedCount,
+                projectIds: allProjectIds
+              });
               
               // Update last fetch time
               lastFetchTimes.value.examined = Date.now();

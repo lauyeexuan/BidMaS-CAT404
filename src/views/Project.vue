@@ -235,6 +235,90 @@
             <div v-else class="text-center py-8 text-gray-500">
               No projects created yet. Click "Add New Project" to get started.
             </div>
+
+            <!-- My Examined Projects Section - Only for lecturers -->
+            <div v-if="userStore.currentUser.role === 'lecturer'" class="mt-12">
+              <div class="flex items-center gap-4 mb-6">
+                <h2 class="text-2xl font-semibold text-gray-900">My Examined Projects</h2>
+                <span class="text-sm text-gray-500">(Total: {{ examinedProjects.length }})</span>
+              </div>
+
+              <!-- Examined Projects Table -->
+              <div class="overflow-x-auto">
+                <!-- Loading state -->
+                <div v-if="examinedProjectsLoading" class="text-center py-8">
+                  <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2"></div>
+                  <p class="text-gray-600">Loading examined projects...</p>
+                </div>
+                
+                <!-- Examined projects table -->
+                <table v-else class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="w-16 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        No.
+                      </th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Title
+                      </th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Major
+                      </th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Student
+                      </th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Supervisor
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    <template v-if="examinedProjects.length > 0">
+                      <tr v-for="(project, index) in examinedProjects" :key="project.id">
+                        <td class="w-16 px-3 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                          {{ index + 1 }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {{ project.Title }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                          <span 
+                            class="px-2 py-1 rounded-full text-xs"
+                            :class="[
+                              getMajorColorClasses(project.major).bg,
+                              getMajorColorClasses(project.major).text
+                            ]"
+                          >
+                            {{ project.major }}
+                          </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <span v-if="project.studentId" class="px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            {{ project.studentName }}
+                          </span>
+                          <span v-else class="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                            Not assigned
+                          </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <span v-if="project.supervisorId" class="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                            {{ project.supervisorName }}
+                          </span>
+                          <span v-else class="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                            Not available
+                          </span>
+                        </td>
+                      </tr>
+                    </template>
+                    <tr v-else>
+                      <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                        No examined projects found.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
 
           <!-- Bids Tab -->
@@ -1530,13 +1614,13 @@ const projectListeners = ref(new Map())
 const myProjectsLoading = ref(false)
 
 // Modify fetchUserProjects to use real-time listeners instead of one-time fetches
-const fetchUserProjects = async (schoolId, userId, academicYearId) => {
+const fetchUserProjects = async (schoolId, userId, yearId) => {
   try {
     // Start loading state
     myProjectsLoading.value = true
     
     // Try to load cached data first
-    const cacheKey = `projects-${schoolId}-${userId}-${academicYearId}`
+    const cacheKey = `projects-${schoolId}-${userId}-${yearId}`
     const cachedData = sessionStorage.getItem(cacheKey)
     
     if (cachedData) {
@@ -1590,7 +1674,7 @@ const fetchUserProjects = async (schoolId, userId, academicYearId) => {
     // Step 1: Create an array of promises for fetching major documents in parallel
     const majorPromises = availableMajors.value.map(async (major) => {
       try {
-        const majorRef = collection(db, 'schools', schoolId, 'projects', academicYearId, major)
+        const majorRef = collection(db, 'schools', schoolId, 'projects', yearId, major)
         const majorDocs = await getDocs(majorRef)
         
         if (!majorDocs.empty) {
@@ -1628,7 +1712,7 @@ const fetchUserProjects = async (schoolId, userId, academicYearId) => {
             'schools', 
             schoolId, 
             'projects', 
-            academicYearId, 
+            yearId, 
             major, 
             majorDocId,
             'projectsPerYear'
@@ -1716,7 +1800,7 @@ const fetchUserProjects = async (schoolId, userId, academicYearId) => {
         currentProjects.forEach(project => {
           checkProjectBids(
             schoolId, 
-            academicYearId, 
+            yearId, 
             project.major, 
             majorDocMap.get(project.major), 
             project.id, 
@@ -1735,6 +1819,13 @@ const fetchUserProjects = async (schoolId, userId, academicYearId) => {
       processBatch()
     }, 500)
     
+    // Call fetchExaminedProjects if user is a lecturer
+    if (userStore.currentUser.role === 'lecturer') {
+      console.log("Fetching examined projects for lecturer")
+      fetchExaminedProjects().catch(error => {
+        console.error('Error fetching examined projects:', error)
+      })
+    }
   } catch (error) {
     console.error('Error fetching user projects:', error)
     showToast('Failed to load projects', 'error')
@@ -1743,14 +1834,14 @@ const fetchUserProjects = async (schoolId, userId, academicYearId) => {
 }
 
 // Helper function to check for bids and set up bid listeners
-const checkProjectBids = async (schoolId, academicYearId, major, majorDocId, projectId, projectsMap) => {
+const checkProjectBids = async (schoolId, yearId, major, majorDocId, projectId, projectsMap) => {
   try {
     const bidsRef = collection(
       db, 
       'schools', 
       schoolId, 
       'projects', 
-      academicYearId, 
+      yearId, 
       major, 
       majorDocId,
       'projectsPerYear',
@@ -3728,247 +3819,6 @@ async function checkAndProcessDeadlines() {
   }
 }
 
-// This is the only onMounted hook we need to keep
-onMounted(async () => {
-  try {
-    console.log("Starting improved loading sequence...")
-    const startTime = performance.now()
-    
-    // Set loading state just once at the beginning
-    loading.value = true
-    
-    // First, start the essential data fetches in parallel
-    const availableYearsPromise = fetchAvailableYears()
-    const userMajorsPromise = fetchUserMajors() 
-    
-    // Wait for the critical data needed to determine what to load next
-    await Promise.all([availableYearsPromise, userMajorsPromise])
-    
-    if (selectedAcademicYear.value) {
-      // Start loading basic settings right away
-      await fetchBasicSettings()
-      
-      console.log("Loading active tab data for", activeTab.value)
-      const schoolId = userStore.currentUser.school
-      let userId = userStore.currentUser.id || userStore.currentUser.uid || userStore.currentUser._id || userStore.currentUser.userId
-      if (!userId) {
-        userId = "unknown-user-" + Date.now()
-      }
-      
-      // Only load the active tab first to show content ASAP
-      if (activeTab.value === 'myProjects') {
-        myProjectsLoading.value = true
-        
-        // Check for cached data first for immediate display
-        const cacheKey = `projects-${schoolId}-${userId}-${selectedAcademicYear.value}`
-        const cachedData = sessionStorage.getItem(cacheKey)
-        
-        if (cachedData) {
-          try {
-            // Parse the cached data and check if it's still valid
-            const parsedCache = JSON.parse(cachedData)
-            const cacheTimestamp = parsedCache.timestamp || 0
-            const currentTime = Date.now()
-            const cacheAge = currentTime - cacheTimestamp
-            
-            // Use cache if it's less than 10 minutes old
-            const maxCacheAge = 10 * 60 * 1000 // 10 minutes in milliseconds
-            
-            if (cacheAge < maxCacheAge) {
-              // Show cached data immediately
-              projects.value = parsedCache.data || []
-              console.log(`Using cached projects data on initial load (${Math.round(cacheAge / 1000)}s old)`)
-              
-              // We can show content immediately
-              loading.value = false
-              myProjectsLoading.value = false
-              
-              // Fetch fresh data in the background
-              setTimeout(() => {
-                fetchUserProjects(schoolId, userId, selectedAcademicYear.value).then(() => {
-                  myProjectsLoaded.value = true
-                  console.log("Updated projects with fresh data")
-                }).catch(error => {
-                  console.error('Error fetching fresh projects data:', error)
-                })
-              }, 100)
-            } else {
-              console.log(`Cache expired (${Math.round(cacheAge / 60000)}m old), fetching fresh data`)
-              // Cache expired, fetch data normally
-              await fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
-              myProjectsLoaded.value = true
-              myProjectsLoading.value = false
-              
-              // Show content after first tab is ready
-              loading.value = false
-            }
-          } catch (error) {
-            console.error('Error parsing cached data on initial load:', error)
-            // Fallback to normal loading
-            await fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
-            myProjectsLoaded.value = true
-            myProjectsLoading.value = false
-            
-            // Show content after first tab is ready
-            loading.value = false
-          }
-        } else {
-          // No cache, fetch data normally
-          await fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
-          myProjectsLoaded.value = true
-          myProjectsLoading.value = false
-          
-          // Show content after first tab is ready
-          loading.value = false
-        }
-      } else if (activeTab.value === 'allProjects') {
-        allProjectsLoading.value = true
-        await fetchAllProjects()
-        allProjectsLoaded.value = true
-        allProjectsLoading.value = false
-        
-        // Show content immediately after first tab is ready
-        loading.value = false
-        
-        // Load other tabs in background with delay
-        setTimeout(() => {
-          // Add debug log to confirm the background loading is starting
-          console.log("DEBUG: Starting background loading for other tabs from allProjects tab", {
-            isMyProjectsLoaded: myProjectsLoaded.value,
-            isBidsLoaded: bidsLoaded.value,
-            isAllProjectsLoaded: allProjectsLoaded.value
-          })
-          
-          // Load my projects in background
-          if (!myProjectsLoaded.value) {
-            console.log("DEBUG: Background loading: my projects tab")
-            projects.value = []
-            
-            // Ensure we're using the same loader function as the tab would use
-            myProjectsLoading.value = true
-            fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
-              .then(() => {
-                myProjectsLoaded.value = true
-                myProjectsLoading.value = false
-                console.log("DEBUG: Background loaded: my projects tab complete")
-              })
-              .catch(error => {
-                console.error('Error background loading my projects:', error)
-                myProjectsLoading.value = false
-              })
-          } else {
-            console.log("DEBUG: My projects tab already loaded, skipping background load")
-          }
-          
-          // Load bids in background
-          if (!bidsLoaded.value) {
-            console.log("DEBUG: Background loading: bids tab")
-            projectBids.value = []
-            
-            // Ensure we're using the same loader function as the tab would use
-            bidsLoading.value = true
-            fetchProjectBids()
-              .then(async () => {
-                console.log("DEBUG: Bids data fetched, setting up listeners")
-                await setupAllBidsListeners()
-                bidsLoaded.value = true
-                bidsLoading.value = false
-                console.log("DEBUG: Background loaded: bids tab complete")
-              })
-              .catch(error => {
-                console.error('Error background loading bids:', error)
-                bidsLoading.value = false
-              })
-          } else {
-            console.log("DEBUG: Bids tab already loaded, skipping background load")
-          }
-        }, 1000)
-      } else if (activeTab.value === 'bids') {
-        bidsLoading.value = true
-        await fetchProjectBids()
-        // Always set up listeners for bids tab to ensure real-time updates
-        console.log("Setting up bid listeners for initial load");
-        await setupAllBidsListeners()
-        bidsLoaded.value = true
-        bidsLoading.value = false
-        
-        // Show content immediately after first tab is ready
-        loading.value = false
-        
-        // Load other tabs in background
-        setTimeout(() => {
-          // Add debug log to confirm the background loading is starting
-          console.log("DEBUG: Starting background loading for other tabs from bids tab", {
-            isMyProjectsLoaded: myProjectsLoaded.value,
-            isBidsLoaded: bidsLoaded.value,
-            isAllProjectsLoaded: allProjectsLoaded.value
-          })
-          
-          // Load my projects in background
-          if (!myProjectsLoaded.value) {
-            console.log("DEBUG: Background loading: my projects tab")
-            projects.value = []
-            
-            // Ensure we're using the same loader function as the tab would use
-            myProjectsLoading.value = true
-            fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
-              .then(() => {
-                myProjectsLoaded.value = true
-                myProjectsLoading.value = false
-                console.log("DEBUG: Background loaded: my projects tab complete")
-              })
-              .catch(error => {
-                console.error('Error background loading my projects:', error)
-                myProjectsLoading.value = false
-              })
-          } else {
-            console.log("DEBUG: My projects tab already loaded, skipping background load")
-          }
-          
-          // Load all projects in background
-          if (!allProjectsLoaded.value) {
-            console.log("DEBUG: Background loading: all projects tab")
-            allProjects.value = []
-            
-            // Ensure we're using the same loader function as the tab would use
-            allProjectsLoading.value = true
-            fetchAllProjects()
-              .then(() => {
-                allProjectsLoaded.value = true
-                allProjectsLoading.value = false
-                console.log("DEBUG: Background loaded: all projects tab complete")
-              })
-              .catch(error => {
-                console.error('Error background loading all projects:', error)
-                allProjectsLoading.value = false
-              })
-          } else {
-            console.log("DEBUG: All projects tab already loaded, skipping background load")
-          }
-        }, 1000)
-      }
-      
-      // Process deadlines in background
-      checkAndProcessDeadlines().catch(error => {
-        console.error('Error processing deadlines:', error)
-      })
-      
-      const endTime = performance.now()
-      console.log(`Initial tab loading completed in ${(endTime - startTime).toFixed(2)}ms`)
-    } else {
-      console.log('Missing required data:', {
-        hasAcademicYear: !!selectedAcademicYear.value,
-        hasSelectedMajor: !!selectedMajor.value
-      })
-      loading.value = false
-    }
-  } catch (error) {
-    console.error("Error during page initialization:", error)
-    showToast('Failed to load page data', 'error')
-    loading.value = false
-  }
-})
-
 // Add new function to open student details
 const openStudentDetails = (studentId) => {
   selectedStudentId.value = studentId
@@ -4396,6 +4246,350 @@ const clearProjectCache = (showMessage = true) => {
     }
   }
 }
+
+// Examined Projects data
+const examinedProjects = ref([])
+const examinedProjectsLoading = ref(false)
+const examinedProjectsLoaded = ref(false)
+
+// This is the only onMounted hook we need to keep
+onMounted(async () => {
+  try {
+    console.log("Starting improved loading sequence...")
+    const startTime = performance.now()
+    
+    // Set loading state just once at the beginning
+    loading.value = true
+    
+    // First, start the essential data fetches in parallel
+    const availableYearsPromise = fetchAvailableYears()
+    const userMajorsPromise = fetchUserMajors() 
+    
+    // Wait for the critical data needed to determine what to load next
+    await Promise.all([availableYearsPromise, userMajorsPromise])
+    
+    if (selectedAcademicYear.value) {
+      // Start loading basic settings right away
+      await fetchBasicSettings()
+      
+      console.log("Loading active tab data for", activeTab.value)
+      const schoolId = userStore.currentUser.school
+      let userId = userStore.currentUser.id || userStore.currentUser.uid || userStore.currentUser._id || userStore.currentUser.userId
+      if (!userId) {
+        userId = "unknown-user-" + Date.now()
+      }
+      
+      // Only load the active tab first to show content ASAP
+      if (activeTab.value === 'myProjects') {
+        myProjectsLoading.value = true
+        
+        // Check for cached data first for immediate display
+        const cacheKey = `projects-${schoolId}-${userId}-${selectedAcademicYear.value}`
+        const cachedData = sessionStorage.getItem(cacheKey)
+        
+        if (cachedData) {
+          try {
+            // Parse the cached data and check if it's still valid
+            const parsedCache = JSON.parse(cachedData)
+            const cacheTimestamp = parsedCache.timestamp || 0
+            const currentTime = Date.now()
+            const cacheAge = currentTime - cacheTimestamp
+            
+            // Use cache if it's less than 10 minutes old
+            const maxCacheAge = 10 * 60 * 1000 // 10 minutes in milliseconds
+            
+            if (cacheAge < maxCacheAge) {
+              // Show cached data immediately
+              projects.value = parsedCache.data || []
+              console.log(`Using cached projects data on initial load (${Math.round(cacheAge / 1000)}s old)`)
+              
+              // We can show content immediately
+              loading.value = false
+              myProjectsLoading.value = false
+              
+              // Fetch fresh data in the background
+              setTimeout(() => {
+                fetchUserProjects(schoolId, userId, selectedAcademicYear.value).then(() => {
+                  myProjectsLoaded.value = true
+                  console.log("Updated projects with fresh data")
+                }).catch(error => {
+                  console.error('Error fetching fresh projects data:', error)
+                })
+              }, 100)
+            } else {
+              console.log(`Cache expired (${Math.round(cacheAge / 60000)}m old), fetching fresh data`)
+              // Cache expired, fetch data normally
+              await fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
+              myProjectsLoaded.value = true
+              myProjectsLoading.value = false
+              
+              // Show content after first tab is ready
+              loading.value = false
+            }
+          } catch (error) {
+            console.error('Error parsing cached data on initial load:', error)
+            // Fallback to normal loading
+            await fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
+            myProjectsLoaded.value = true
+            myProjectsLoading.value = false
+            
+            // Show content after first tab is ready
+            loading.value = false
+          }
+        } else {
+          // No cache, fetch data normally
+          await fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
+          myProjectsLoaded.value = true
+          myProjectsLoading.value = false
+          
+          // Show content after first tab is ready
+          loading.value = false
+        }
+      } else if (activeTab.value === 'allProjects') {
+        allProjectsLoading.value = true
+        await fetchAllProjects()
+        allProjectsLoaded.value = true
+        allProjectsLoading.value = false
+        
+        // Show content immediately after first tab is ready
+        loading.value = false
+        
+        // Load other tabs in background with delay
+        setTimeout(() => {
+          // Add debug log to confirm the background loading is starting
+          console.log("DEBUG: Starting background loading for other tabs from allProjects tab", {
+            isMyProjectsLoaded: myProjectsLoaded.value,
+            isBidsLoaded: bidsLoaded.value,
+            isAllProjectsLoaded: allProjectsLoaded.value
+          })
+          
+          // Load my projects in background
+          if (!myProjectsLoaded.value) {
+            console.log("DEBUG: Background loading: my projects tab")
+            projects.value = []
+            
+            // Ensure we're using the same loader function as the tab would use
+            myProjectsLoading.value = true
+            fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
+              .then(() => {
+                myProjectsLoaded.value = true
+                myProjectsLoading.value = false
+                console.log("DEBUG: Background loaded: my projects tab complete")
+              })
+              .catch(error => {
+                console.error('Error background loading my projects:', error)
+                myProjectsLoading.value = false
+              })
+          } else {
+            console.log("DEBUG: My projects tab already loaded, skipping background load")
+          }
+          
+          // Load bids in background
+          if (!bidsLoaded.value) {
+            console.log("DEBUG: Background loading: bids tab")
+            projectBids.value = []
+            
+            // Ensure we're using the same loader function as the tab would use
+            bidsLoading.value = true
+            fetchProjectBids()
+              .then(async () => {
+                console.log("DEBUG: Bids data fetched, setting up listeners")
+                await setupAllBidsListeners()
+                bidsLoaded.value = true
+                bidsLoading.value = false
+                console.log("DEBUG: Background loaded: bids tab complete")
+              })
+              .catch(error => {
+                console.error('Error background loading bids:', error)
+                bidsLoading.value = false
+              })
+          } else {
+            console.log("DEBUG: Bids tab already loaded, skipping background load")
+          }
+        }, 1000)
+      } else if (activeTab.value === 'bids') {
+        bidsLoading.value = true
+        await fetchProjectBids()
+        // Always set up listeners for bids tab to ensure real-time updates
+        console.log("Setting up bid listeners for initial load");
+        await setupAllBidsListeners()
+        bidsLoaded.value = true
+        bidsLoading.value = false
+        
+        // Show content immediately after first tab is ready
+        loading.value = false
+        
+        // Load other tabs in background
+        setTimeout(() => {
+          // Add debug log to confirm the background loading is starting
+          console.log("DEBUG: Starting background loading for other tabs from bids tab", {
+            isMyProjectsLoaded: myProjectsLoaded.value,
+            isBidsLoaded: bidsLoaded.value,
+            isAllProjectsLoaded: allProjectsLoaded.value
+          })
+          
+          // Load my projects in background
+          if (!myProjectsLoaded.value) {
+            console.log("DEBUG: Background loading: my projects tab")
+            projects.value = []
+            
+            // Ensure we're using the same loader function as the tab would use
+            myProjectsLoading.value = true
+            fetchUserProjects(schoolId, userId, selectedAcademicYear.value)
+              .then(() => {
+                myProjectsLoaded.value = true
+                myProjectsLoading.value = false
+                console.log("DEBUG: Background loaded: my projects tab complete")
+              })
+              .catch(error => {
+                console.error('Error background loading my projects:', error)
+                myProjectsLoading.value = false
+              })
+          } else {
+            console.log("DEBUG: My projects tab already loaded, skipping background load")
+          }
+          
+          // Load all projects in background
+          if (!allProjectsLoaded.value) {
+            console.log("DEBUG: Background loading: all projects tab")
+            allProjects.value = []
+            
+            // Ensure we're using the same loader function as the tab would use
+            allProjectsLoading.value = true
+            fetchAllProjects()
+              .then(() => {
+                allProjectsLoaded.value = true
+                allProjectsLoading.value = false
+                console.log("DEBUG: Background loaded: all projects tab complete")
+              })
+              .catch(error => {
+                console.error('Error background loading all projects:', error)
+                allProjectsLoading.value = false
+              })
+          } else {
+            console.log("DEBUG: All projects tab already loaded, skipping background load")
+          }
+        }, 1000)
+      }
+      
+      // Process deadlines in background
+      checkAndProcessDeadlines().catch(error => {
+        console.error('Error processing deadlines:', error)
+      })
+      
+      const endTime = performance.now()
+      console.log(`Initial tab loading completed in ${(endTime - startTime).toFixed(2)}ms`)
+    } else {
+      console.log('Missing required data:', {
+        hasAcademicYear: !!selectedAcademicYear.value,
+        hasSelectedMajor: !!selectedMajor.value
+      })
+      loading.value = false
+    }
+  } catch (error) {
+    console.error("Error during page initialization:", error)
+    showToast('Failed to load page data', 'error')
+    loading.value = false
+  }
+})
+
+// Function to fetch examined projects
+const fetchExaminedProjects = async () => {
+  try {
+    examinedProjectsLoading.value = true;
+    const userId = userStore.currentUser.id || userStore.currentUser.uid;
+    const schoolId = userStore.currentUser.school;
+    
+    if (!userId || !schoolId) {
+      console.error('Missing user information');
+      examinedProjectsLoading.value = false;
+      return;
+    }
+    
+    // Get the session storage key for examined projects
+    const storageKey = `examined_projects_${userId}`;
+    const storedData = sessionStorage.getItem(storageKey);
+    
+    if (storedData) {
+      try {
+        const parsedData = JSON.parse(storedData);
+        
+        // Check if the stored data is still valid (less than 30 minutes old)
+        if (parsedData && parsedData.timestamp && Date.now() - parsedData.timestamp < 30 * 60 * 1000) {
+          console.log('Using cached examined projects data');
+          
+          // Get project details for each examined project ID
+          if (parsedData.projectIds && parsedData.projectIds.length > 0) {
+            // Create an array to hold all project detail promises
+            const projectDetailsPromises = parsedData.projectIds.map(async (projectInfo) => {
+              try {
+                // Build the path to the project document
+                const projectDocPath = `schools/${schoolId}/projects/${selectedAcademicYear.value}/${projectInfo.majorId}/${projectInfo.majorDocId}/projectsPerYear/${projectInfo.id}`;
+                const projectDocRef = doc(db, projectDocPath);
+                const projectDoc = await getDoc(projectDocRef);
+                
+                if (projectDoc.exists()) {
+                  const projectData = projectDoc.data();
+                  
+                  // Get supervisor details if available
+                  let supervisorName = 'N/A';
+                  if (projectData.userId) {
+                    supervisorName = await getUserName(projectData.userId);
+                  }
+                  
+                  // Get student details if available
+                  let studentName = 'N/A';
+                  if (projectData.assignedTo) {
+                    studentName = await getUserName(projectData.assignedTo);
+                  }
+                  
+                  return {
+                    id: projectInfo.id,
+                    majorId: projectInfo.majorId,
+                    majorDocId: projectInfo.majorDocId,
+                    Title: projectData.Title || 'Unknown Title',
+                    major: projectInfo.majorId || 'Unknown Major',
+                    supervisorId: projectData.userId || null,
+                    supervisorName,
+                    studentId: projectData.assignedTo || null,
+                    studentName
+                  };
+                }
+                return null;
+              } catch (error) {
+                console.error(`Error fetching project details for ${projectInfo.id}:`, error);
+                return null;
+              }
+            });
+            
+            // Wait for all project details to be fetched
+            const projectsDetails = await Promise.all(projectDetailsPromises);
+            
+            // Filter out null values and update the reactive variable
+            examinedProjects.value = projectsDetails.filter(project => project !== null);
+          } else {
+            examinedProjects.value = [];
+          }
+          
+          examinedProjectsLoaded.value = true;
+          examinedProjectsLoading.value = false;
+          return;
+        }
+      } catch (error) {
+        console.error('Error parsing stored examined projects data:', error);
+      }
+    }
+    
+    // If no valid cached data, set empty array and stop loading
+    console.log('No valid examined projects data in cache');
+    examinedProjects.value = [];
+    examinedProjectsLoaded.value = true;
+    examinedProjectsLoading.value = false;
+  } catch (error) {
+    console.error('Error fetching examined projects:', error);
+    examinedProjectsLoading.value = false;
+  }
+};
 </script>
 
 <style scoped>
