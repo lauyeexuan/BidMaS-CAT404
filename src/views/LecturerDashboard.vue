@@ -1,202 +1,235 @@
 <template>
-    <!-- Dashboard Content -->
-    <div class="relative">
-      <!-- Dashboard Cards -->
-      <div class="mt-6 grid grid-cols-12 gap-4">
-        <!-- Left Column -->
-        <div class="col-span-6 flex flex-col gap-4">
-          <!-- Milestone Card with Expandable Content -->
-          <div 
-            class="bg-white p-4 shadow rounded relative transition-all duration-200 overflow-hidden flex flex-col"
-            :class="{'shadow-lg': showAllMilestones}"
-          >
-            <!-- Card Header -->
-            <div>
-              <!-- Remove the first Current Milestone and major selector -->
-            </div>
-            
-            <div @click="toggleAllMilestones" class="cursor-pointer">
-              <div class="flex justify-between items-center mb-2">
-                <h2 class="text-sm font-medium text-gray-500 flex items-center">
-                  Current Milestone
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    class="h-4 w-4 ml-2 transition-transform duration-300" 
-                    :class="{'rotate-180': showAllMilestones}"
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
-                  >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </h2>
-                <!-- Major Selector Tabs -->
-                <div class="flex space-x-2" @click.stop>
-                  <button
-                    v-for="major in lecturerMajors"
-                    :key="major"
-                    @click.stop="selectedMajor = major"
-                    class="px-3 py-1 text-xs rounded-full transition-colors"
-                    :class="selectedMajor === major ? 
-                      'bg-blue-100 text-blue-800 font-medium' : 
-                      'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-                  >
-                    {{ major }}
-                  </button>
-                </div>
-              </div>
-            
-              <div v-if="loading" class="animate-pulse">
-                <!-- Milestone Card Skeleton -->
-                <div class="relative pl-4">
-                  <div class="absolute left-0 top-0 bottom-0 w-1 bg-gray-200 rounded-full"></div>
-                  <div class="h-6 bg-gray-200 rounded w-3/4 mb-3"></div>
-                  <div class="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                  <div class="mt-3">
-                    <div class="w-full bg-gray-200 rounded-full h-2"></div>
-                    <div class="flex justify-between mt-1">
-                      <div class="h-3 bg-gray-200 rounded w-20"></div>
-                      <div class="h-3 bg-gray-200 rounded w-16"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div v-else-if="error" class="py-2">
-                <p class="text-red-500">{{ error }}</p>
-              </div>
-              <div v-else-if="currentUpcomingMilestone" class="cursor-pointer">
-                <!-- Milestone content with enhanced styling -->
-                <div class="relative">
-                  <!-- Decorative element -->
-                  <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-full"></div>
-                  
-                  <div class="pl-4">
-                    <h3 class="text-lg font-semibold text-blue-800 mb-1">{{ currentUpcomingMilestone.description }}</h3>
-                    <div class="flex items-center text-gray-500">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span>{{ formatDate(currentUpcomingMilestone.deadline) }}</span>
-                    </div>
-                    
-                    <!-- Days remaining indicator -->
-                    <div class="mt-3 flex items-center">
-                      <div class="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          class="bg-blue-600 h-2 rounded-full" 
-                          :style="`width: ${getDaysRemainingPercentage(currentUpcomingMilestone)}%`"
-                        ></div>
-                      </div>
-                      <span class="ml-2 text-xs font-medium" :class="getDaysRemainingClass(currentUpcomingMilestone)">
-                        {{ getDaysRemainingText(currentUpcomingMilestone) }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div v-else class="py-2">
-                <p class="text-gray-500">No upcoming milestones found.</p>
-              </div>
-            </div>
-            
-            <!-- Quick Actions -->
-            <div v-if="currentUpcomingMilestone" class="flex gap-2 mt-2">
-              <button class="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200">
-                <span class="flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Template
-                </span>
-              </button>
-              <button class="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200">
-                <span class="flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Guidelines
-                </span>
-              </button>
-            </div>
-            
-            <!-- Expandable Milestone List -->
-            <transition
-              enter-active-class="transition-all duration-500 ease-out"
-              enter-from-class="max-h-0 opacity-0 overflow-hidden"
-              enter-to-class="max-h-[300px] opacity-100"
-              leave-active-class="transition-all duration-300 ease-in"
-              leave-from-class="max-h-[300px] opacity-100"
-              leave-to-class="max-h-0 opacity-0 overflow-hidden"
-            >
-              <div v-if="showAllMilestones && filteredMilestones && filteredMilestones.length > 0" class="mt-4 pt-4 border-t border-gray-200 overflow-auto flex-grow">
-                <div class="flex justify-between items-center mb-3">
-                  <h3 class="font-medium text-gray-800">All Milestones</h3>
-                  <button 
-                    @click="toggleAllMilestones" 
-                    class="text-gray-400 hover:text-gray-600"
-                    aria-label="Close milestones panel"
-                  >
-                  </button>
-                </div>
-                
-                <div class="milestone-list-container">
-                  <transition-group 
-                    name="milestone-list" 
-                    tag="div"
-                    class="space-y-3"
-                  >
-                    <div 
-                      v-for="(milestone, index) in otherMilestones" 
-                      :key="index"
-                      class="p-3 rounded-md transition-all duration-200 relative overflow-hidden"
-                      :class="isMilestonePast(milestone) ? 'bg-gray-50 hover:bg-gray-100' : 'bg-blue-50 hover:bg-blue-100'"
-                    >
-                      <!-- Decorative element -->
-                      <div 
-                        class="absolute left-0 top-0 bottom-0 w-1 rounded-full"
-                        :class="isMilestonePast(milestone) ? 'bg-gray-400' : 'bg-blue-500'"
-                      ></div>
-                      
-                      <div class="flex justify-between items-start pl-3">
-                        <div>
-                          <p class="font-medium" :class="isMilestonePast(milestone) ? 'text-gray-600' : 'text-blue-700'">
-                            {{ milestone.description }}
-                          </p>
-                          <p class="text-sm flex items-center mt-1" :class="isMilestonePast(milestone) ? 'text-gray-500' : 'text-blue-600'">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            {{ formatDate(milestone.deadline) }}
-                          </p>
-                        </div>
-                        <div 
-                          class="text-xs px-2 py-1 rounded-full"
-                          :class="isMilestonePast(milestone) ? 'bg-gray-200 text-gray-700' : 'bg-blue-200 text-blue-800'"
-                        >
-                          {{ isMilestonePast(milestone) ? 'Past' : 'Upcoming' }}
-                        </div>
-                      </div>
-                    </div>
-                  </transition-group>
-                </div>
-              </div>
-            </transition>
+  <!-- Dashboard Content -->
+  <div class="relative">
+    <!-- Dashboard Cards -->
+    <div class="mt-6 grid grid-cols-12 gap-4">
+      <!-- Left Column -->
+      <div class="col-span-6 flex flex-col gap-4">
+        <!-- Milestone Card with Expandable Content -->
+        <div 
+          class="bg-white p-4 shadow rounded relative transition-all duration-200 overflow-hidden flex flex-col"
+          :class="{'shadow-lg': showAllMilestones}"
+        >
+          <!-- Card Header -->
+          <div>
+            <!-- Remove the first Current Milestone and major selector -->
           </div>
           
-          <!-- Submission Info Card -->
-          <div class="bg-white p-4 shadow rounded relative">
+          <div @click="toggleAllMilestones" class="cursor-pointer">
             <div class="flex justify-between items-center mb-2">
-              <h2 class="text-sm font-medium text-gray-500">Milestone Submissions</h2>
+              <h2 class="text-sm font-medium text-gray-500 flex items-center">
+                Current Milestone
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  class="h-4 w-4 ml-2 transition-transform duration-300" 
+                  :class="{'rotate-180': showAllMilestones}"
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </h2>
+              <!-- Major Selector Tabs -->
+              <div class="flex space-x-2" @click.stop>
+                <button
+                  v-for="major in lecturerMajors"
+                  :key="major"
+                  @click.stop="selectedMajor = major"
+                  class="px-3 py-1 text-xs rounded-full transition-colors"
+                  :class="selectedMajor === major ? 
+                    'bg-blue-100 text-blue-800 font-medium' : 
+                    'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                >
+                  {{ major }}
+                </button>
+              </div>
             </div>
-            
-            <div v-if="submissionLoading" class="animate-pulse">
-              <!-- Submission Stats Skeleton -->
+          
+            <div v-if="loading" class="animate-pulse">
+              <!-- Milestone Card Skeleton -->
               <div class="relative pl-4">
                 <div class="absolute left-0 top-0 bottom-0 w-1 bg-gray-200 rounded-full"></div>
-                <div class="h-6 bg-gray-200 rounded w-2/3 mb-4"></div>
-                <!-- Circular Progress Skeleton -->
+                <div class="h-6 bg-gray-200 rounded w-3/4 mb-3"></div>
+                <div class="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                <div class="mt-3">
+                  <div class="w-full bg-gray-200 rounded-full h-2"></div>
+                  <div class="flex justify-between mt-1">
+                    <div class="h-3 bg-gray-200 rounded w-20"></div>
+                    <div class="h-3 bg-gray-200 rounded w-16"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else-if="error" class="py-2">
+              <p class="text-red-500">{{ error }}</p>
+            </div>
+            <div v-else-if="currentUpcomingMilestone" class="cursor-pointer">
+              <!-- Milestone content with enhanced styling -->
+              <div class="relative">
+                <!-- Decorative element -->
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-full"></div>
+                
+                <div class="pl-4">
+                  <h3 class="text-lg font-semibold text-blue-800 mb-1">{{ currentUpcomingMilestone.description }}</h3>
+                  <div class="flex items-center text-gray-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>{{ formatDate(currentUpcomingMilestone.deadline) }}</span>
+                  </div>
+                  
+                  <!-- Days remaining indicator -->
+                  <div class="mt-3 flex items-center">
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        class="bg-blue-600 h-2 rounded-full" 
+                        :style="`width: ${getDaysRemainingPercentage(currentUpcomingMilestone)}%`"
+                      ></div>
+                    </div>
+                    <span class="ml-2 text-xs font-medium" :class="getDaysRemainingClass(currentUpcomingMilestone)">
+                      {{ getDaysRemainingText(currentUpcomingMilestone) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="py-2">
+              <p class="text-gray-500">No upcoming milestones found.</p>
+            </div>
+          </div>
+          
+          <!-- Quick Actions -->
+          <div v-if="currentUpcomingMilestone" class="flex gap-2 mt-2">
+            <button class="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200">
+              <span class="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Template
+              </span>
+            </button>
+            <button class="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200">
+              <span class="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Guidelines
+              </span>
+            </button>
+          </div>
+          
+          <!-- Expandable Milestone List -->
+          <transition
+            enter-active-class="transition-all duration-500 ease-out"
+            enter-from-class="max-h-0 opacity-0 overflow-hidden"
+            enter-to-class="max-h-[300px] opacity-100"
+            leave-active-class="transition-all duration-300 ease-in"
+            leave-from-class="max-h-[300px] opacity-100"
+            leave-to-class="max-h-0 opacity-0 overflow-hidden"
+          >
+            <div v-if="showAllMilestones && filteredMilestones && filteredMilestones.length > 0" class="mt-4 pt-4 border-t border-gray-200 overflow-auto flex-grow">
+              <div class="flex justify-between items-center mb-3">
+                <h3 class="font-medium text-gray-800">All Milestones</h3>
+                <button 
+                  @click="toggleAllMilestones" 
+                  class="text-gray-400 hover:text-gray-600"
+                  aria-label="Close milestones panel"
+                >
+                </button>
+              </div>
+              
+              <div class="milestone-list-container">
+                <transition-group 
+                  name="milestone-list" 
+                  tag="div"
+                  class="space-y-3"
+                >
+                  <div 
+                    v-for="(milestone, index) in otherMilestones" 
+                    :key="index"
+                    class="p-3 rounded-md transition-all duration-200 relative overflow-hidden"
+                    :class="isMilestonePast(milestone) ? 'bg-gray-50 hover:bg-gray-100' : 'bg-blue-50 hover:bg-blue-100'"
+                  >
+                    <!-- Decorative element -->
+                    <div 
+                      class="absolute left-0 top-0 bottom-0 w-1 rounded-full"
+                      :class="isMilestonePast(milestone) ? 'bg-gray-400' : 'bg-blue-500'"
+                    ></div>
+                    
+                    <div class="flex justify-between items-start pl-3">
+                      <div>
+                        <p class="font-medium" :class="isMilestonePast(milestone) ? 'text-gray-600' : 'text-blue-700'">
+                          {{ milestone.description }}
+                        </p>
+                        <p class="text-sm flex items-center mt-1" :class="isMilestonePast(milestone) ? 'text-gray-500' : 'text-blue-600'">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          {{ formatDate(milestone.deadline) }}
+                        </p>
+                      </div>
+                      <div 
+                        class="text-xs px-2 py-1 rounded-full"
+                        :class="isMilestonePast(milestone) ? 'bg-gray-200 text-gray-700' : 'bg-blue-200 text-blue-800'"
+                      >
+                        {{ isMilestonePast(milestone) ? 'Past' : 'Upcoming' }}
+                      </div>
+                    </div>
+                  </div>
+                </transition-group>
+              </div>
+            </div>
+          </transition>
+        </div>
+        
+        <!-- Submission Info Card -->
+        <div class="bg-white p-4 shadow rounded relative">
+          <div class="flex justify-between items-center mb-2">
+            <h2 class="text-sm font-medium text-gray-500">Milestone Submissions</h2>
+          </div>
+          
+          <div v-if="submissionLoading" class="animate-pulse">
+            <!-- Submission Stats Skeleton -->
+            <div class="relative pl-4">
+              <div class="absolute left-0 top-0 bottom-0 w-1 bg-gray-200 rounded-full"></div>
+              <div class="h-6 bg-gray-200 rounded w-2/3 mb-4"></div>
+              <!-- Circular Progress Skeleton -->
+              <div class="flex flex-col items-center justify-center py-3">
+                <div class="relative w-32 h-32">
+                  <svg class="w-full h-full" viewBox="0 0 100 100">
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="45"
+                      fill="none"
+                      stroke="#E2E8F0"
+                      stroke-width="8"
+                    />
+                  </svg>
+                </div>
+                <div class="h-4 bg-gray-200 rounded w-32 mt-3"></div>
+              </div>
+            </div>
+          </div>
+          
+          <div v-else-if="submissionError" class="py-3">
+            <p class="text-red-500">{{ submissionError }}</p>
+          </div>
+          
+          <div v-else-if="currentMilestoneSubmissionStats" class="py-1">
+            <div class="relative">
+              <div class="absolute left-0 top-0 bottom-0 w-1 bg-purple-500 rounded-full"></div>
+              
+              <div class="pl-4">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">
+                  {{ currentMilestoneSubmissionStats.milestoneName }}
+                </h3>
+                
+                <!-- Circular Progress Display -->
                 <div class="flex flex-col items-center justify-center py-3">
                   <div class="relative w-32 h-32">
+                    <!-- Background Circle -->
                     <svg class="w-full h-full" viewBox="0 0 100 100">
                       <circle
                         cx="50"
@@ -206,959 +239,606 @@
                         stroke="#E2E8F0"
                         stroke-width="8"
                       />
+                      <!-- Progress Circle -->
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="45"
+                        fill="none"
+                        stroke="#7C3AED"
+                        stroke-width="8"
+                        stroke-linecap="round"
+                        :stroke-dasharray="`${currentMilestoneSubmissionStats.submissionRate * 2.83} 283`"
+                        transform="rotate(-90 50 50)"
+                      />
                     </svg>
-                  </div>
-                  <div class="h-4 bg-gray-200 rounded w-32 mt-3"></div>
-                </div>
-              </div>
-            </div>
-            
-            <div v-else-if="submissionError" class="py-3">
-              <p class="text-red-500">{{ submissionError }}</p>
-            </div>
-            
-            <div v-else-if="currentMilestoneSubmissionStats" class="py-1">
-              <div class="relative">
-                <div class="absolute left-0 top-0 bottom-0 w-1 bg-purple-500 rounded-full"></div>
-                
-                <div class="pl-4">
-                  <h3 class="text-lg font-semibold text-gray-800 mb-2">
-                    {{ currentMilestoneSubmissionStats.milestoneName }}
-                  </h3>
-                  
-                  <!-- Circular Progress Display -->
-                  <div class="flex flex-col items-center justify-center py-3">
-                    <div class="relative w-32 h-32">
-                      <!-- Background Circle -->
-                      <svg class="w-full h-full" viewBox="0 0 100 100">
-                        <circle
-                          cx="50"
-                          cy="50"
-                          r="45"
-                          fill="none"
-                          stroke="#E2E8F0"
-                          stroke-width="8"
-                        />
-                        <!-- Progress Circle -->
-                        <circle
-                          cx="50"
-                          cy="50"
-                          r="45"
-                          fill="none"
-                          stroke="#7C3AED"
-                          stroke-width="8"
-                          stroke-linecap="round"
-                          :stroke-dasharray="`${currentMilestoneSubmissionStats.submissionRate * 2.83} 283`"
-                          transform="rotate(-90 50 50)"
-                        />
-                      </svg>
-                      <!-- Fraction Display -->
-                      <div class="absolute inset-0 flex items-center justify-center">
-                        <span class="text-2xl font-bold text-gray-800">
-                          {{ currentMilestoneSubmissionStats.projectsWithSubmissions }}/{{ currentMilestoneSubmissionStats.totalAssigned }}
-                        </span>
-                      </div>
+                    <!-- Fraction Display -->
+                    <div class="absolute inset-0 flex items-center justify-center">
+                      <span class="text-2xl font-bold text-gray-800">
+                        {{ currentMilestoneSubmissionStats.projectsWithSubmissions }}/{{ currentMilestoneSubmissionStats.totalAssigned }}
+                      </span>
                     </div>
-                    <!-- Submission Status Text -->
-                    <p class="mt-3 text-center text-gray-600">
-                      {{ currentMilestoneSubmissionStats.projectsWithSubmissions }} out of {{ currentMilestoneSubmissionStats.totalAssigned }} 
-                      {{ currentMilestoneSubmissionStats.totalAssigned === 1 ? 'student' : 'students' }}
-                      {{ currentMilestoneSubmissionStats.projectsWithSubmissions < 2 ? 'has' : 'have' }} submitted their work.
-                    </p>
                   </div>
+                  <!-- Submission Status Text -->
+                  <p class="mt-3 text-center text-gray-600">
+                    {{ currentMilestoneSubmissionStats.projectsWithSubmissions }} out of {{ currentMilestoneSubmissionStats.totalAssigned }} 
+                    {{ currentMilestoneSubmissionStats.totalAssigned === 1 ? 'student' : 'students' }}
+                    {{ currentMilestoneSubmissionStats.projectsWithSubmissions < 2 ? 'has' : 'have' }} submitted their work.
+                  </p>
                 </div>
               </div>
-            </div>
-            
-            <div v-else class="py-3 text-center">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              <p class="text-gray-500">No submission data available.</p>
-              <p class="text-sm text-gray-400 mt-1">
-                {{ currentUpcomingMilestone ? 'No assigned projects for this milestone yet.' : 'No current milestone found.' }}
-              </p>
             </div>
           </div>
+          
+          <div v-else class="py-3 text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <p class="text-gray-500">No submission data available.</p>
+            <p class="text-sm text-gray-400 mt-1">
+              {{ currentUpcomingMilestone ? 'No assigned projects for this milestone yet.' : 'No current milestone found.' }}
+            </p>
+          </div>
         </div>
-        
-        <!-- Right Column -->
-        <div class="col-span-6">
-          <!-- Project Cards Container -->
-          <div class="grid grid-cols-12 gap-4">
-            <!-- Assigned Project Card -->
-            <div class="col-span-8 bg-white p-4 shadow rounded relative h-[195px]">
-              <div class="flex justify-between items-start">
-                <h2 class="text-sm font-medium text-gray-500 mb-2">Your Projects Overview</h2>
-              </div>
-              
-              <div v-if="projectLoading" class="animate-pulse">
-                <!-- Project Stats Skeleton -->
-                <div class="relative pl-4">
-                  <div class="absolute left-0 top-0 bottom-0 w-1 bg-gray-200 rounded-full"></div>
-                  <div class="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
-                  <!-- Stats Grid Skeleton -->
-                  <div class="grid grid-cols-2 gap-4 mb-4">
-                    <div class="bg-gray-50 p-3 rounded-lg">
-                      <div class="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
-                      <div class="h-3 bg-gray-200 rounded w-20 mx-auto"></div>
-                    </div>
-                    <div class="bg-gray-50 p-3 rounded-lg">
-                      <div class="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
-                      <div class="h-3 bg-gray-200 rounded w-20 mx-auto"></div>
-                    </div>
+      </div>
+      
+      <!-- Right Column -->
+      <div class="col-span-6">
+        <!-- Project Cards Container -->
+        <div class="grid grid-cols-12 gap-4">
+          <!-- Assigned Project Card -->
+          <div class="col-span-8 bg-white p-4 shadow rounded relative h-[195px]">
+            <div class="flex justify-between items-start">
+              <h2 class="text-sm font-medium text-gray-500 mb-2">Your Projects Overview</h2>
+            </div>
+            
+            <div v-if="projectLoading" class="animate-pulse">
+              <!-- Project Stats Skeleton -->
+              <div class="relative pl-4">
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-gray-200 rounded-full"></div>
+                <div class="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
+                <!-- Stats Grid Skeleton -->
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                  <div class="bg-gray-50 p-3 rounded-lg">
+                    <div class="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
+                    <div class="h-3 bg-gray-200 rounded w-20 mx-auto"></div>
+                  </div>
+                  <div class="bg-gray-50 p-3 rounded-lg">
+                    <div class="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
+                    <div class="h-3 bg-gray-200 rounded w-20 mx-auto"></div>
                   </div>
                 </div>
               </div>
-              
-              <div v-else-if="projectError" class="py-4">
-                <p class="text-red-500">{{ projectError }}</p>
-              </div>
-              
-              <div v-else-if="lecturerProjectStats.total > 0" class="py-2">
-                <div class="relative">
-                  <div class="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-full"></div>
-                  
-                  <div class="pl-4">
-                    <div class="grid grid-cols-2 gap-4 mb-3">
-                      <!-- Assigned Projects -->
-                      <div class="bg-green-50 p-2.5 rounded-lg text-center">
-                        <p class="text-2xl font-bold text-green-700">{{ lecturerProjectStats.assigned }}</p>
-                        <p class="text-sm text-green-600">Supervised</p>
-                      </div>
-                      
-                      <!-- Unassigned Projects -->
-                      <div class="bg-amber-50 p-2.5 rounded-lg text-center">
-                        <p class="text-2xl font-bold text-amber-700">{{ lecturerProjectStats.unassigned }}</p>
-                        <p class="text-sm text-amber-600">Unassigned</p>
-                      </div>
+            </div>
+            
+            <div v-else-if="projectError" class="py-4">
+              <p class="text-red-500">{{ projectError }}</p>
+            </div>
+            
+            <div v-else-if="lecturerProjectStats.total > 0" class="py-2">
+              <div class="relative">
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-full"></div>
+                
+                <div class="pl-4">
+                  <div class="grid grid-cols-2 gap-4 mb-3">
+                    <!-- Assigned Projects -->
+                    <div class="bg-green-50 p-2.5 rounded-lg text-center">
+                      <p class="text-2xl font-bold text-green-700">{{ lecturerProjectStats.assigned }}</p>
+                      <p class="text-sm text-green-600">Supervised</p>
                     </div>
                     
-                    <!-- Assignment Rate Progress Bar -->
-                    <div class="mt-3">
-                      <div class="flex justify-between items-center mb-1">
-                        <span class="text-sm font-medium text-gray-700">Assignment Rate</span>
-                        <span class="text-sm font-medium text-gray-700">{{ lecturerProjectStats.assignmentRate }}%</span>
-                      </div>
-                      <div class="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          class="bg-blue-600 h-2 rounded-full" 
-                          :style="`width: ${lecturerProjectStats.assignmentRate}%`"
-                        ></div>
-                      </div>
+                    <!-- Unassigned Projects -->
+                    <div class="bg-amber-50 p-2.5 rounded-lg text-center">
+                      <p class="text-2xl font-bold text-amber-700">{{ lecturerProjectStats.unassigned }}</p>
+                      <p class="text-sm text-amber-600">Unassigned</p>
+                    </div>
+                  </div>
+                  
+                  <!-- Assignment Rate Progress Bar -->
+                  <div class="mt-3">
+                    <div class="flex justify-between items-center mb-1">
+                      <span class="text-sm font-medium text-gray-700">Assignment Rate</span>
+                      <span class="text-sm font-medium text-gray-700">{{ lecturerProjectStats.assignmentRate }}%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        class="bg-blue-600 h-2 rounded-full" 
+                        :style="`width: ${lecturerProjectStats.assignmentRate}%`"
+                      ></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
 
-            <!-- Examined Projects Card -->
-            <div class="col-span-4 bg-white p-4 shadow rounded relative h-[195px]">
-              <div class="relative h-full flex flex-col items-center justify-center">
-                <div v-if="examinedProjectsLoading" class="text-center animate-pulse">
-                  <div class="h-12 w-12 bg-gray-200 rounded-full mx-auto mb-3"></div>
-                  <div class="h-4 bg-gray-200 rounded w-24 mx-auto"></div>
-                </div>
-                <div v-else-if="examinedProjectsError" class="text-center text-red-500">
-                  <p>{{ examinedProjectsError }}</p>
-                </div>
-                <div v-else class="text-center">
-                  <p class="text-5xl font-bold mb-3" style="color: #c75284">{{ examinedProjectsCount }}</p>
-                  <p class="text-sm" style="color: #c3447a">Examined Projects</p>
-                </div>
+          <!-- Examined Projects Card -->
+          <div class="col-span-4 bg-white p-4 shadow rounded relative h-[195px]">
+            <div class="relative h-full flex flex-col items-center justify-center">
+              <div v-if="examinedProjectsLoading" class="text-center animate-pulse">
+                <div class="h-12 w-12 bg-gray-200 rounded-full mx-auto mb-3"></div>
+                <div class="h-4 bg-gray-200 rounded w-24 mx-auto"></div>
+              </div>
+              <div v-else-if="examinedProjectsError" class="text-center text-red-500">
+                <p>{{ examinedProjectsError }}</p>
+              </div>
+              <div v-else class="text-center">
+                <p class="text-5xl font-bold mb-3" style="color: #c75284">{{ examinedProjectsCount }}</p>
+                <p class="text-sm" style="color: #c3447a">Examined Projects</p>
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  </template>
-  
-  <script>
-  import { ref, onMounted, computed, watch, onUnmounted, shallowRef } from 'vue'
-  import { useUserStore } from '@/stores/userStore'
-  import { getMilestones } from '@/utils/milestones'
-  import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
-  import { db } from '@/firebase'
-  import { collection, getDocs, query, limit, where, doc, getDoc, onSnapshot } from 'firebase/firestore'
-  import '@/assets/styles/dashboard.css'
-  
-  export default {
-    setup() {
-      const userStore = useUserStore()
-      const upcomingMilestone = ref(null)
-      const allMilestones = shallowRef({})
-      const loading = ref(true)
-      const error = ref(null)
-      const showAllMilestones = ref(false)
-      const lecturerMajors = ref([])
-      const selectedMajor = ref(null)
-      const milestoneUnsubscribers = ref([])
+  </div>
+</template>
 
-      // Cache timeout in milliseconds (30 minutes)
-      const CACHE_TIMEOUT = 30 * 60 * 1000
+<script>
+import { ref, onMounted, computed, watch, onUnmounted, shallowRef } from 'vue'
+import { useUserStore } from '@/stores/userStore'
+import { getMilestones } from '@/utils/milestones'
+import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
+import { db } from '@/firebase'
+import { collection, getDocs, query, limit, where, doc, getDoc, onSnapshot } from 'firebase/firestore'
+import '@/assets/styles/dashboard.css'
 
-      // Add timestamps for last data fetch operations
-      const lastFetchTimes = ref({
-        milestones: 0,
-        submissions: 0,
-        projects: 0,
-        examined: 0
-      })
+export default {
+  setup() {
+    const userStore = useUserStore()
+    const upcomingMilestone = ref(null)
+    const allMilestones = shallowRef({})
+    const loading = ref(true)
+    const error = ref(null)
+    const showAllMilestones = ref(false)
+    const lecturerMajors = ref([])
+    const selectedMajor = ref(null)
+    const milestoneUnsubscribers = ref([])
 
-      // Add these refs after the other refs in the setup function
-      const examinedProjectsLoading = ref(true)
-      const examinedProjectsError = ref(null)
-      const examinedProjectsCount = ref(0)
-      const examinedProjectsUnsubscribers = ref([])
+    // Cache timeout in milliseconds (30 minutes)
+    const CACHE_TIMEOUT = 30 * 60 * 1000
 
-      // Modify storeMilestoneData to include a last changed timestamp
-      const storeMilestoneData = (majorId, majorMilestones) => {
-        try {
-          if (!userStore.currentUser?.uid) return;
-          
-          // Find upcoming milestone for this major
-          const now = new Date();
-          const sortedMilestones = [...majorMilestones].sort((a, b) => {
-            const dateA = a.deadline instanceof Date ? a.deadline : a.deadline.toDate();
-            const dateB = b.deadline instanceof Date ? b.deadline : b.deadline.toDate();
-            return dateA - dateB;
-          });
-          
-          const upcomingMilestone = sortedMilestones.find(milestone => {
-            const deadlineDate = milestone.deadline instanceof Date ? 
-              milestone.deadline : 
-              milestone.deadline.toDate();
-            return deadlineDate > now;
-          }) || sortedMilestones[sortedMilestones.length - 1];
+    // Add timestamps for last data fetch operations
+    const lastFetchTimes = ref({
+      milestones: 0,
+      submissions: 0,
+      projects: 0,
+      examined: 0
+    })
 
-          // Create user and major specific key
-          const userMajorKey = `${userStore.currentUser.uid}_${majorId}_milestones`;
-          
-          // Get existing data to check last substantive change
-          const existingData = localStorage.getItem(userMajorKey);
-          const timestamp = Date.now();
-          
-          let lastChanged = timestamp;
-          if (existingData) {
-            try {
-              const parsed = JSON.parse(existingData);
-              // Keep the last substantive change timestamp if it exists
-              lastChanged = parsed.lastChanged || timestamp;
-            } catch (e) {
-              // Error parsing existing milestone data
-            }
-          }
-          
-          localStorage.setItem(userMajorKey, JSON.stringify({
-            upcomingMilestone,
-            allMilestones: majorMilestones,
-            lastUpdated: timestamp,
-            lastChanged: lastChanged
-          }));
-        } catch (err) {
-          // Error storing milestone data
-        }
-      }
+    // Add these refs after the other refs in the setup function
+    const examinedProjectsLoading = ref(true)
+    const examinedProjectsError = ref(null)
+    const examinedProjectsCount = ref(0)
+    const examinedProjectsUnsubscribers = ref([])
 
-      // Function to get cached milestones
-      const getCachedMilestones = (majorId) => {
-        try {
-          if (!userStore.currentUser?.uid || !majorId) return null;
-          
-          const userMajorKey = `${userStore.currentUser.uid}_${majorId}_milestones`;
-          const cached = localStorage.getItem(userMajorKey);
-          
-          if (!cached) return null;
-          
-          const data = JSON.parse(cached);
-          
-          // Check if cache is still valid
-          if (Date.now() - data.lastUpdated < CACHE_TIMEOUT) {
-            return data.allMilestones;
-          }
-          
-          return null;
-        } catch (err) {
-          return null;
-        }
-      }
-
-      // Optimize the computed properties
-      const filteredMilestones = computed(() => {
-        if (!selectedMajor.value) return []
-        return allMilestones.value[selectedMajor.value] || []
-      })
-
-      // Optimize currentUpcomingMilestone computation
-      const currentUpcomingMilestone = computed(() => {
-        const milestones = filteredMilestones.value
-        if (!milestones.length) {
-          console.log('No filtered milestones available')
-          return null
-        }
-
-        const now = new Date()
-        // Since list is small, use simple loop
-        let upcoming = null
-        let mostRecent = milestones[0]
-
-        for (const milestone of milestones) {
-          const deadline = milestone.deadline instanceof Date ? 
-            milestone.deadline : new Date(milestone.deadline)
-          
-          // Track most recent milestone
-          if (!mostRecent || deadline > mostRecent.deadline) {
-            mostRecent = milestone
-          }
-
-          // Find first upcoming milestone
-          if (deadline > now && (!upcoming || deadline < upcoming.deadline)) {
-            upcoming = milestone
-          }
-        }
-
-        return upcoming || mostRecent
-      })
-
-      // Function to set up real-time milestone listeners for a major
-      const setupMilestoneListener = async (school, yearId, majorId, majorDocId) => {
-        try {
-          if (!school || !yearId || !majorId) return;
-
-          // If majorDocId is not provided, try to fetch it
-          if (!majorDocId) {
-            try {
-              majorDocId = await getMajorDocId(school, yearId, majorId);
-              if (!majorDocId) return;
-            } catch (err) {
-              return;
-            }
-          }
-
-          // Get reference to the major document that contains the milestones array
-          const majorRef = doc(
-            db,
-            'schools', school,
-            'projects', yearId,
-            majorId, majorDocId
-          );
-
-          // First try to get cached data
-          const cachedData = getCachedMilestones(majorId)
-          if (cachedData) {
-            // Update state with cached data immediately
-            allMilestones.value = {
-              ...allMilestones.value,
-              [majorId]: cachedData
-            }
-          }
-
-          let updateTimeout
-          // Create the listener on the document
-          const unsubscribe = onSnapshot(majorRef, (docSnapshot) => {
-            if (!docSnapshot.exists()) return;
-
-            // Debounce updates to prevent rapid re-renders
-            clearTimeout(updateTimeout)
-            updateTimeout = setTimeout(() => {
-              const data = docSnapshot.data()
-              // Get the milestones array from the document
-              const milestones = data.milestones || []
-              
-              // Transform the milestones data
-              const updatedMilestones = milestones.map((milestone, index) => {
-                // Ensure deadline is properly handled using our helper function
-                const deadline = getDateFromDeadline(milestone.deadline)
-                
-                return {
-                  ...milestone,
-                  id: `${majorId}_milestone_${index}`, // Create a unique ID
-                  major: majorId,
-                  deadline: deadline // Ensure deadline is a Date object
-                }
-              })
-
-              // Check if data has actually changed before updating store and cache
-              const currentMilestones = allMilestones.value[majorId] || []
-              
-              // Compare milestones to see if they've changed
-              const hasChanged = !areMilestonesEqual(currentMilestones, updatedMilestones)
-              
-              if (hasChanged) {
-                // Update state
-                allMilestones.value = {
-                  ...allMilestones.value,
-                  [majorId]: updatedMilestones
-                }
-                
-                // Only update cache if data has changed
-                storeMilestoneData(majorId, updatedMilestones)
-              }
-            }, 100) // 100ms debounce
-          }, (err) => {
-            error.value = `Error receiving milestone updates: ${err.message}`
-          })
-
-          // Store the unsubscribe function
-          milestoneUnsubscribers.value.push(unsubscribe)
-        } catch (err) {
-          error.value = `Failed to set up milestone updates: ${err.message}`
-        }
-      }
-
-      // Assigned project data
-      const projectLoading = ref(true)
-      const projectError = ref(null)
-      
-      // Lecturer project stats
-      const lecturerProjectStats = ref({
-        total: 0,
-        assigned: 0,
-        unassigned: 0,
-        assignmentRate: 0
-      })
-      
-      // Submission data
-      const submissionLoading = ref(true)
-      const submissionError = ref(null)
-      const selectedSubmissionMajor = ref(null)
-      const currentMilestoneSubmissionStats = ref(null)
-      // Add a cache object to store submission stats by major
-      const submissionStatsCache = ref({})
-      // Add a flag to track initial load
-      const initialLoadDone = ref(false)
-  
-      // Single watcher for selectedMajor that handles both initial load and subsequent changes
-      watch(selectedMajor, async (newMajor) => {
-        if (!newMajor) return;
+    // Modify storeMilestoneData to include a last changed timestamp
+    const storeMilestoneData = (majorId, majorMilestones) => {
+      try {
+        if (!userStore.currentUser?.uid) return;
         
-        // Update selectedSubmissionMajor to match the selected major
-        selectedSubmissionMajor.value = newMajor;
-        await fetchSubmissionStats(newMajor, false, true); // Force update
-      });
-
-      // Computed property to filter out the current milestone from the list
-      const otherMilestones = computed(() => {
-        if (!filteredMilestones.value || !currentUpcomingMilestone.value) return []
-        
-        return filteredMilestones.value.filter(milestone => 
-          milestone.description !== currentUpcomingMilestone.value.description ||
-          milestone.major !== currentUpcomingMilestone.value.major
-        )
-      })
-
-      // Function to toggle showing all milestones - optimized
-      const toggleAllMilestones = (event) => {
-        // Prevent event bubbling
-        if (event) event.stopPropagation();
-        showAllMilestones.value = !showAllMilestones.value;
-      }
-  
-      // Function to check if a milestone is in the past
-      const isMilestonePast = (milestone) => {
-        if (!milestone || !milestone.deadline) return false;
-        
-        // Safely convert deadline to Date object
-        const deadlineDate = getDateFromDeadline(milestone.deadline);
-        
-        return new Date() > deadlineDate;
-      };
-      
-      // Helper function to safely convert various deadline formats to Date
-      const getDateFromDeadline = (deadline) => {
-        if (!deadline) return new Date();
-        
-        // If already a Date object
-        if (deadline instanceof Date) return deadline;
-        
-        // If it's a Firestore Timestamp with toDate method
-        if (deadline.toDate && typeof deadline.toDate === 'function') {
-          return deadline.toDate();
-        }
-        
-        // If it's an ISO string or timestamp number
-        try {
-          return new Date(deadline);
-        } catch {
-          return new Date();
-        }
-      };
-      
-      // Function to calculate days remaining until deadline
-      const getDaysRemaining = (milestone) => {
-        if (!milestone || !milestone.deadline) return 0;
-        
-        // Safely convert deadline to Date object
-        const deadlineDate = getDateFromDeadline(milestone.deadline);
+        // Find upcoming milestone for this major
         const now = new Date();
+        const sortedMilestones = [...majorMilestones].sort((a, b) => {
+          const dateA = a.deadline instanceof Date ? a.deadline : a.deadline.toDate();
+          const dateB = b.deadline instanceof Date ? b.deadline : b.deadline.toDate();
+          return dateA - dateB;
+        });
         
-        // If deadline has passed, return 0
-        if (now > deadlineDate) return 0;
+        const upcomingMilestone = sortedMilestones.find(milestone => {
+          const deadlineDate = milestone.deadline instanceof Date ? 
+            milestone.deadline : 
+            milestone.deadline.toDate();
+          return deadlineDate > now;
+        }) || sortedMilestones[sortedMilestones.length - 1];
+
+        // Create user and major specific key
+        const userMajorKey = `${userStore.currentUser.uid}_${majorId}_milestones`;
         
-        // Calculate days remaining
-        const diffTime = Math.abs(deadlineDate - now);
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        // Get existing data to check last substantive change
+        const existingData = localStorage.getItem(userMajorKey);
+        const timestamp = Date.now();
         
-        return diffDays;
-      };
-      
-      // Function to get percentage for progress bar
-      const getDaysRemainingPercentage = (milestone) => {
-        const daysRemaining = getDaysRemaining(milestone);
-        
-        // If less than 30 days remaining, show percentage based on days left
-        // 30 days = 100%, 0 days = 0%
-        if (daysRemaining <= 30) {
-          return (daysRemaining / 30) * 100;
+        let lastChanged = timestamp;
+        if (existingData) {
+          try {
+            const parsed = JSON.parse(existingData);
+            // Keep the last substantive change timestamp if it exists
+            lastChanged = parsed.lastChanged || timestamp;
+          } catch (e) {
+            // Error parsing existing milestone data
+          }
         }
         
-        return 100; // If more than 30 days, show full bar
-      };
-      
-      // Function to get text for days remaining
-      const getDaysRemainingText = (milestone) => {
-        const days = getDaysRemaining(milestone);
+        localStorage.setItem(userMajorKey, JSON.stringify({
+          upcomingMilestone,
+          allMilestones: majorMilestones,
+          lastUpdated: timestamp,
+          lastChanged: lastChanged
+        }));
+      } catch (err) {
+        // Error storing milestone data
+      }
+    }
+
+    // Function to get cached milestones
+    const getCachedMilestones = (majorId) => {
+      try {
+        if (!userStore.currentUser?.uid || !majorId) return null;
         
-        if (days === 0) {
-          return 'Due today';
-        } else if (days === 1) {
-          return '1 day left';
-        } else {
-          return `${days} days left`;
-        }
-      };
-      
-      // Function to get class for days remaining text
-      const getDaysRemainingClass = (milestone) => {
-        const days = getDaysRemaining(milestone);
+        const userMajorKey = `${userStore.currentUser.uid}_${majorId}_milestones`;
+        const cached = localStorage.getItem(userMajorKey);
         
-        if (days < 3) {
-          return 'text-red-600';
-        } else if (days < 7) {
-          return 'text-orange-500';
-        } else {
-          return 'text-green-600';
-        }
-      };
-  
-      // Function to get the majorDocId for a specific major
-      const getMajorDocId = async (schoolId, yearId, majorId) => {
-        try {
-          const majorCollectionRef = collection(db, 'schools', schoolId, 'projects', yearId, majorId);
-          const majorDocsQuery = query(majorCollectionRef, limit(1));
-          const majorDocsSnapshot = await getDocs(majorDocsQuery);
-          
-          if (majorDocsSnapshot.empty) return null;
-          
-          // Get the first (and likely only) document ID
-          return majorDocsSnapshot.docs[0].id;
-        } catch {
-          return null;
-        }
-      };
-  
-      // Format date for display - optimized
-      const formatDate = (date) => {
-        if (!date) return '';
+        if (!cached) return null;
         
-        try {
-          // Convert from timestamp if needed using our helper
-          const dateObj = getDateFromDeadline(date);
-          
-          return dateObj.toLocaleString('en-US', {
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric'
-          });
-        } catch {
-          return 'Invalid date';
-        }
-      };
-  
-      // Add a function to clear the cache if needed
-      const clearSubmissionStatsCache = () => {
-        submissionStatsCache.value = {};
-      };
-  
-      // Function to fetch lecturer projects and count assigned/unassigned
-      const fetchLecturerProjects = async (force = false) => {
-        // Skip if recently loaded (within 10 seconds) unless forced
-        const now = Date.now();
-        if (!force && now - lastFetchTimes.value.projects < 10000) return;
+        const data = JSON.parse(cached);
         
-        // Only show loading if no data is currently available
-        if (!lecturerProjectStats.value.total) {
-          projectLoading.value = true;
+        // Check if cache is still valid
+        if (Date.now() - data.lastUpdated < CACHE_TIMEOUT) {
+          return data.allMilestones;
         }
-        projectError.value = null;
-
-        try {
-          if (!userStore.isAuthenticated || !userStore.currentUser) {
-            projectError.value = 'User not authenticated';
-            return;
-          }
-
-          // Get user data
-          const { school, uid } = userStore.currentUser;
-          
-          if (!school) {
-            projectError.value = 'Missing school information';
-            return;
-          }
-          
-          // Get latest academic year
-          const academicYearData = await getLatestAcademicYear(school);
-          
-          if (!academicYearData?.yearId) {
-            projectError.value = 'Failed to determine academic year';
-            return;
-          }
-          
-          const yearId = academicYearData.yearId;
-          
-          // Check if we have lecturer majors
-          if (!lecturerMajors.value || lecturerMajors.value.length === 0) {
-            projectError.value = 'No majors assigned to lecturer';
-            return;
-          }
-          
-          // Create an array to store all major document ID fetch promises
-          const majorDocIdPromises = lecturerMajors.value.map(majorId => 
-            getMajorDocId(school, yearId, majorId)
-          );
-          
-          // Fetch all major document IDs in parallel
-          const majorDocIds = await Promise.all(majorDocIdPromises);
-          
-          // Create an array to store all project query promises
-          const projectQueryPromises = [];
-          
-          // For each major with a valid docId, create a query promise
-          lecturerMajors.value.forEach((majorId, index) => {
-            const majorDocId = majorDocIds[index];
-            if (!majorDocId) return; // Skip if no docId found
-            
-            const projectsRef = collection(
-              db,
-              'schools', school,
-              'projects', yearId,
-              majorId, majorDocId,
-              'projectsPerYear'
-            );
-            
-            const projectsQuery = query(
-              projectsRef,
-              where('userId', '==', uid)
-            );
-            
-            // Add the query promise to our array
-            projectQueryPromises.push({
-              majorId,
-              promise: getDocs(projectsQuery)
-            });
-          });
-          
-          // Execute all project queries in parallel
-          const projectResults = await Promise.all(
-            projectQueryPromises.map(item => item.promise.then(result => ({
-              majorId: item.majorId,
-              snapshot: result
-            })))
-          );
-          
-          // Process all results to count projects
-          let totalProjects = 0;
-          let assignedProjects = 0;
-          
-          projectResults.forEach(result => {
-            const { snapshot } = result;
-            
-            snapshot.forEach(doc => {
-              totalProjects++;
-              const projectData = doc.data();
-              // Check if project is assigned (has an assignedTo field)
-              if (projectData.assignedTo) {
-                assignedProjects++;
-              }
-            });
-          });
-          
-          // Store the results
-          lecturerProjectStats.value = {
-            total: totalProjects,
-            assigned: assignedProjects,
-            unassigned: totalProjects - assignedProjects,
-            assignmentRate: totalProjects > 0 ? Math.round((assignedProjects / totalProjects) * 100) : 0,
-            timestamp: Date.now() // Add timestamp for cache invalidation
-          };
-          
-          // Update last fetch time
-          lastFetchTimes.value.projects = now;
-          
-        } catch (err) {
-          projectError.value = `Failed to load project data: ${err.message}`;
-        } finally {
-          projectLoading.value = false;
-        }
-      };
-  
-      // Function to fetch just the lecturer majors - this is a prerequisite for other data
-      const fetchLecturerMajors = async () => {
-        try {
-          if (!userStore.isAuthenticated || !userStore.currentUser) {
-            error.value = 'User not authenticated';
-            return;
-          }
-
-          // Get user data from the userStore
-          const { major } = userStore.currentUser;
-          
-          if (!major || !Array.isArray(major) || major.length === 0) {
-            error.value = 'No majors assigned to lecturer';
-            return;
-          }
-          
-          // Store the lecturer's majors directly from userStore
-          lecturerMajors.value = major;
-          
-          // Set the default selected major if not already set
-          if (!selectedMajor.value && major.length > 0) {
-            selectedMajor.value = major[0];
-            selectedSubmissionMajor.value = major[0];
-          }
-          
-          return major;
-        } catch (err) {
-          error.value = `Failed to load lecturer majors: ${err.message}`;
-          throw err;
-        }
-      };
-      
-      // Optimize fetchMilestonesData to avoid unnecessary refreshes
-      const fetchMilestonesData = async (force = false) => {
-        // Skip if recently loaded (within 10 seconds) unless forced
-        const now = Date.now();
-        if (!force && now - lastFetchTimes.value.milestones < 10000) return;
         
-        loading.value = true
+        return null;
+      } catch (err) {
+        return null;
+      }
+    }
 
-        try {
-          if (!userStore.isAuthenticated || !userStore.currentUser) {
-            error.value = 'User not authenticated';
-            return;
-          }
+    // Optimize the computed properties
+    const filteredMilestones = computed(() => {
+      if (!selectedMajor.value) return []
+      return allMilestones.value[selectedMajor.value] || []
+    })
 
-          const { school } = userStore.currentUser;
+    // Optimize currentUpcomingMilestone computation
+    const currentUpcomingMilestone = computed(() => {
+      const milestones = filteredMilestones.value
+      if (!milestones.length) {
+        console.log('No filtered milestones available')
+        return null
+      }
 
-          if (!school) {
-            error.value = 'Missing school information';
-            return;
-          }
+      const now = new Date()
+      // Since list is small, use simple loop
+      let upcoming = null
+      let mostRecent = milestones[0]
 
-          const academicYearData = await getLatestAcademicYear(school);
+      for (const milestone of milestones) {
+        const deadline = milestone.deadline instanceof Date ? 
+          milestone.deadline : new Date(milestone.deadline)
+        
+        // Track most recent milestone
+        if (!mostRecent || deadline > mostRecent.deadline) {
+          mostRecent = milestone
+        }
 
-          if (!academicYearData?.yearId) {
-            error.value = 'Failed to determine academic year';
-            return;
-          }
-
-          const yearId = academicYearData.yearId;
-
-          if (!lecturerMajors.value || lecturerMajors.value.length === 0) {
-            error.value = 'No majors assigned to lecturer';
-            return;
-          }
-
-          // Clear existing listeners
-          milestoneUnsubscribers.value.forEach(unsubscribe => unsubscribe());
-          milestoneUnsubscribers.value = [];
-
-          // First, handle the primary major (selected or first major)
-          const primaryMajor = selectedMajor.value || lecturerMajors.value[0];
-
-          // Try to get cached data for primary major
-          const cachedPrimaryData = getCachedMilestones(primaryMajor);
-          if (cachedPrimaryData) {
-            allMilestones.value = {
-              [primaryMajor]: cachedPrimaryData
-            };
-          }
-
-          // Get majorDocId for primary major
-          const primaryMajorDocId = await getMajorDocId(school, yearId, primaryMajor);
-          if (primaryMajorDocId) {
-            await setupMilestoneListener(school, yearId, primaryMajor, primaryMajorDocId);
-          }
-
-          // After primary major is loaded, load others in background
-          const otherMajors = lecturerMajors.value.filter(majorId => majorId !== primaryMajor);
-
-          // Load other majors in background with limited concurrency
-          const loadMajorsConcurrently = async (majors, concurrency = 2) => {
-            const chunks = [];
-            for (let i = 0; i < majors.length; i += concurrency) {
-              chunks.push(majors.slice(i, i + concurrency));
-            }
-            
-            for (const chunk of chunks) {
-              await Promise.all(chunk.map(async majorId => {
-                try {
-                  const majorDocId = await getMajorDocId(school, yearId, majorId);
-                  if (majorDocId) {
-                    setupMilestoneListener(school, yearId, majorId, majorDocId);
-                  }
-                } catch (err) {
-                  // Error ignored
-                }
-              }));
-            }
-          };
-          
-          // Load other majors with controlled concurrency
-          setTimeout(() => {
-            loadMajorsConcurrently(otherMajors);
-          }, 100);
-
-          // Update last fetch time
-          lastFetchTimes.value.milestones = now;
-        } catch (err) {
-          error.value = `Failed to load milestone data: ${err.message}`;
-        } finally {
-          loading.value = false;
+        // Find first upcoming milestone
+        if (deadline > now && (!upcoming || deadline < upcoming.deadline)) {
+          upcoming = milestone
         }
       }
-  
-      // Function to pre-load submission statistics for all majors
-      const preloadAllSubmissionStats = async () => {
-        if (!lecturerMajors.value || lecturerMajors.value.length === 0) return;
-        
-        // Create an array of promises to fetch stats for all majors EXCEPT the currently selected one
-        const fetchPromises = lecturerMajors.value
-          .filter(majorId => majorId !== selectedMajor.value) // Skip the currently displayed major
-          .map(majorId => {
-            // Only fetch if not already in cache
-            if (!submissionStatsCache.value[majorId]) {
-              return fetchSubmissionStats(majorId, true); // Pass true to indicate this is background loading
+
+      return upcoming || mostRecent
+    })
+
+    // Function to set up real-time milestone listeners for a major
+    const setupMilestoneListener = async (school, yearId, majorId, majorDocId) => {
+      try {
+        if (!school || !yearId || !majorId) return;
+
+        // If majorDocId is not provided, try to fetch it
+        if (!majorDocId) {
+          try {
+            majorDocId = await getMajorDocId(school, yearId, majorId);
+            if (!majorDocId) return;
+          } catch (err) {
+            return;
+          }
+        }
+
+        // Get reference to the major document that contains the milestones array
+        const majorRef = doc(
+          db,
+          'schools', school,
+          'projects', yearId,
+          majorId, majorDocId
+        );
+
+        // First try to get cached data
+        const cachedData = getCachedMilestones(majorId)
+        if (cachedData) {
+          // Update state with cached data immediately
+          allMilestones.value = {
+            ...allMilestones.value,
+            [majorId]: cachedData
+          }
+        }
+
+        let updateTimeout
+        // Create the listener on the document
+        const unsubscribe = onSnapshot(majorRef, (docSnapshot) => {
+          if (!docSnapshot.exists()) return;
+
+          // Debounce updates to prevent rapid re-renders
+          clearTimeout(updateTimeout)
+          updateTimeout = setTimeout(() => {
+            const data = docSnapshot.data()
+            // Get the milestones array from the document
+            const milestones = data.milestones || []
+            
+            // Transform the milestones data
+            const updatedMilestones = milestones.map((milestone, index) => {
+              // Ensure deadline is properly handled using our helper function
+              const deadline = getDateFromDeadline(milestone.deadline)
+              
+              return {
+                ...milestone,
+                id: `${majorId}_milestone_${index}`, // Create a unique ID
+                major: majorId,
+                deadline: deadline // Ensure deadline is a Date object
+              }
+            })
+
+            // Check if data has actually changed before updating store and cache
+            const currentMilestones = allMilestones.value[majorId] || []
+            
+            // Compare milestones to see if they've changed
+            const hasChanged = !areMilestonesEqual(currentMilestones, updatedMilestones)
+            
+            if (hasChanged) {
+              // Update state
+              allMilestones.value = {
+                ...allMilestones.value,
+                [majorId]: updatedMilestones
+              }
+              
+              // Only update cache if data has changed
+              storeMilestoneData(majorId, updatedMilestones)
             }
-            return Promise.resolve();
-          });
+          }, 100) // 100ms debounce
+        }, (err) => {
+          error.value = `Error receiving milestone updates: ${err.message}`
+        })
+
+        // Store the unsubscribe function
+        milestoneUnsubscribers.value.push(unsubscribe)
+      } catch (err) {
+        error.value = `Failed to set up milestone updates: ${err.message}`
+      }
+    }
+
+    // Assigned project data
+    const projectLoading = ref(true)
+    const projectError = ref(null)
+    
+    // Lecturer project stats
+    const lecturerProjectStats = ref({
+      total: 0,
+      assigned: 0,
+      unassigned: 0,
+      assignmentRate: 0
+    })
+    
+    // Submission data
+    const submissionLoading = ref(true)
+    const submissionError = ref(null)
+    const selectedSubmissionMajor = ref(null)
+    const currentMilestoneSubmissionStats = ref(null)
+    // Add a cache object to store submission stats by major
+    const submissionStatsCache = ref({})
+    // Add a flag to track initial load
+    const initialLoadDone = ref(false)
+
+    // Single watcher for selectedMajor that handles both initial load and subsequent changes
+    watch(selectedMajor, async (newMajor) => {
+      if (!newMajor) return;
+      
+      // Update selectedSubmissionMajor to match the selected major
+      selectedSubmissionMajor.value = newMajor;
+      await fetchSubmissionStats(newMajor, false, true); // Force update
+    });
+
+    // Computed property to filter out the current milestone from the list
+    const otherMilestones = computed(() => {
+      if (!filteredMilestones.value || !currentUpcomingMilestone.value) return []
+      
+      return filteredMilestones.value.filter(milestone => 
+        milestone.description !== currentUpcomingMilestone.value.description ||
+        milestone.major !== currentUpcomingMilestone.value.major
+      )
+    })
+
+    // Function to toggle showing all milestones - optimized
+    const toggleAllMilestones = (event) => {
+      // Prevent event bubbling
+      if (event) event.stopPropagation();
+      showAllMilestones.value = !showAllMilestones.value;
+    }
+
+    // Function to check if a milestone is in the past
+    const isMilestonePast = (milestone) => {
+      if (!milestone || !milestone.deadline) return false;
+      
+      // Safely convert deadline to Date object
+      const deadlineDate = getDateFromDeadline(milestone.deadline);
+      
+      return new Date() > deadlineDate;
+    };
+    
+    // Helper function to safely convert various deadline formats to Date
+    const getDateFromDeadline = (deadline) => {
+      if (!deadline) return new Date();
+      
+      // If already a Date object
+      if (deadline instanceof Date) return deadline;
+      
+      // If it's a Firestore Timestamp with toDate method
+      if (deadline.toDate && typeof deadline.toDate === 'function') {
+        return deadline.toDate();
+      }
+      
+      // If it's an ISO string or timestamp number
+      try {
+        return new Date(deadline);
+      } catch {
+        return new Date();
+      }
+    };
+    
+    // Function to calculate days remaining until deadline
+    const getDaysRemaining = (milestone) => {
+      if (!milestone || !milestone.deadline) return 0;
+      
+      // Safely convert deadline to Date object
+      const deadlineDate = getDateFromDeadline(milestone.deadline);
+      const now = new Date();
+      
+      // If deadline has passed, return 0
+      if (now > deadlineDate) return 0;
+      
+      // Calculate days remaining
+      const diffTime = Math.abs(deadlineDate - now);
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      
+      return diffDays;
+    };
+    
+    // Function to get percentage for progress bar
+    const getDaysRemainingPercentage = (milestone) => {
+      const daysRemaining = getDaysRemaining(milestone);
+      
+      // If less than 30 days remaining, show percentage based on days left
+      // 30 days = 100%, 0 days = 0%
+      if (daysRemaining <= 30) {
+        return (daysRemaining / 30) * 100;
+      }
+      
+      return 100; // If more than 30 days, show full bar
+    };
+    
+    // Function to get text for days remaining
+    const getDaysRemainingText = (milestone) => {
+      const days = getDaysRemaining(milestone);
+      
+      if (days === 0) {
+        return 'Due today';
+      } else if (days === 1) {
+        return '1 day left';
+      } else {
+        return `${days} days left`;
+      }
+    };
+    
+    // Function to get class for days remaining text
+    const getDaysRemainingClass = (milestone) => {
+      const days = getDaysRemaining(milestone);
+      
+      if (days < 3) {
+        return 'text-red-600';
+      } else if (days < 7) {
+        return 'text-orange-500';
+      } else {
+        return 'text-green-600';
+      }
+    };
+
+    // Function to get the majorDocId for a specific major
+    const getMajorDocId = async (schoolId, yearId, majorId) => {
+      try {
+        const majorCollectionRef = collection(db, 'schools', schoolId, 'projects', yearId, majorId);
+        const majorDocsQuery = query(majorCollectionRef, limit(1));
+        const majorDocsSnapshot = await getDocs(majorDocsQuery);
         
-        // Don't await the promises - let them run in the background
-        // This allows the dashboard to be interactive while preloading happens
-        Promise.all(fetchPromises).catch(() => {});
+        if (majorDocsSnapshot.empty) return null;
         
-        // Return immediately without waiting
-        return;
-      };
-  
-      // Function to fetch submission statistics for the current milestone
-      const fetchSubmissionStats = async (majorId, isBackgroundLoad = false, force = false) => {
-        if (!majorId) return;
+        // Get the first (and likely only) document ID
+        return majorDocsSnapshot.docs[0].id;
+      } catch {
+        return null;
+      }
+    };
+
+    // Format date for display - optimized
+    const formatDate = (date) => {
+      if (!date) return '';
+      
+      try {
+        // Convert from timestamp if needed using our helper
+        const dateObj = getDateFromDeadline(date);
         
-        // Skip if recently loaded (within 10 seconds) unless forced or explicit major change
-        const now = Date.now();
-        if (!force && !isBackgroundLoad && selectedSubmissionMajor.value === majorId && now - lastFetchTimes.value.submissions < 10000) return;
+        return dateObj.toLocaleString('en-US', {
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric'
+        });
+      } catch {
+        return 'Invalid date';
+      }
+    };
+
+    // Add a function to clear the cache if needed
+    const clearSubmissionStatsCache = () => {
+      submissionStatsCache.value = {};
+    };
+
+    // Function to fetch lecturer projects and count assigned/unassigned
+    const fetchLecturerProjects = async (force = false) => {
+      // Skip if recently loaded (within 10 seconds) unless forced
+      const now = Date.now();
+      if (!force && now - lastFetchTimes.value.projects < 10000) return;
+      
+      // Only show loading if no data is currently available
+      if (!lecturerProjectStats.value.total) {
+        projectLoading.value = true;
+      }
+      projectError.value = null;
+
+      try {
+        if (!userStore.isAuthenticated || !userStore.currentUser) {
+          projectError.value = 'User not authenticated';
+          return;
+        }
+
+        // Get user data
+        const { school, uid } = userStore.currentUser;
         
-        // Only update the selectedSubmissionMajor if this is not a background load
-        if (!isBackgroundLoad) {
-          selectedSubmissionMajor.value = majorId;
+        if (!school) {
+          projectError.value = 'Missing school information';
+          return;
         }
         
-        // Check if we already have cached data for this major
-        if (submissionStatsCache.value[majorId]) {
-          // Only update the displayed stats if this is not a background load
-          if (!isBackgroundLoad) {
-            currentMilestoneSubmissionStats.value = submissionStatsCache.value[majorId];
-          }
-          
-          // If cache is fresh (less than 30 seconds), don't refresh
-          const cacheAge = now - (submissionStatsCache.value[majorId].timestamp || 0);
-          if (cacheAge < 30000) return;
+        // Get latest academic year
+        const academicYearData = await getLatestAcademicYear(school);
+        
+        if (!academicYearData?.yearId) {
+          projectError.value = 'Failed to determine academic year';
+          return;
         }
         
-        // Only show loading state for non-background loads and when no cache is available
-        if (!isBackgroundLoad && !submissionStatsCache.value[majorId]) {
-          submissionLoading.value = true;
-          submissionError.value = null;
-          // Reset current stats when changing majors to a non-cached major
-          currentMilestoneSubmissionStats.value = null;
+        const yearId = academicYearData.yearId;
+        
+        // Check if we have lecturer majors
+        if (!lecturerMajors.value || lecturerMajors.value.length === 0) {
+          projectError.value = 'No majors assigned to lecturer';
+          return;
         }
         
-        try {
-          // Check if user is authenticated and has necessary data
-          if (!userStore.isAuthenticated || !userStore.currentUser) {
-            submissionError.value = 'User not authenticated';
-            return;
-          }
+        // Create an array to store all major document ID fetch promises
+        const majorDocIdPromises = lecturerMajors.value.map(majorId => 
+          getMajorDocId(school, yearId, majorId)
+        );
+        
+        // Fetch all major document IDs in parallel
+        const majorDocIds = await Promise.all(majorDocIdPromises);
+        
+        // Create an array to store all project query promises
+        const projectQueryPromises = [];
+        
+        // For each major with a valid docId, create a query promise
+        lecturerMajors.value.forEach((majorId, index) => {
+          const majorDocId = majorDocIds[index];
+          if (!majorDocId) return; // Skip if no docId found
           
-          // Get user data
-          const { school, uid } = userStore.currentUser;
-          
-          if (!school) {
-            submissionError.value = 'Missing school information';
-            return;
-          }
-          
-          // Get latest academic year - this can't be batched
-          const academicYearData = await getLatestAcademicYear(school);
-          
-          if (!academicYearData?.yearId) {
-            submissionError.value = 'Failed to determine academic year';
-            return;
-          }
-          
-          const yearId = academicYearData.yearId;
-          
-          // OPTIMIZATION: Combine majorDocId and milestones fetch
-          // First get the majorDocId
-          const majorDocId = await getMajorDocId(school, yearId, majorId);
-          
-          if (!majorDocId) {
-            submissionError.value = 'Major document not found';
-            return;
-          }
-          
-          // Get the current milestone for this major
-          const majorMilestones = await getMilestones(school, yearId, majorId, majorDocId);
-          
-          if (!majorMilestones || majorMilestones.length === 0) {
-            submissionError.value = 'No milestones found for this major';
-            return;
-          }
-          
-          // Find the current milestone
-          const now = new Date();
-          const sortedMilestones = [...majorMilestones].sort((a, b) => {
-            const dateA = a.deadline instanceof Date ? a.deadline : a.deadline.toDate();
-            const dateB = b.deadline instanceof Date ? b.deadline : b.deadline.toDate();
-            return dateA - dateB;
-          });
-          
-          // Find the first upcoming milestone for the selected major
-          let currentMilestone = sortedMilestones.find(milestone => {
-            const deadlineDate = milestone.deadline instanceof Date ? 
-              milestone.deadline : 
-              milestone.deadline.toDate();
-            return deadlineDate > now;
-          });
-          
-          // If no upcoming milestone, use the most recent one
-          if (!currentMilestone && sortedMilestones.length > 0) {
-            currentMilestone = sortedMilestones[sortedMilestones.length - 1];
-          }
-          
-          if (!currentMilestone) {
-            submissionError.value = 'No current milestone found';
-            return;
-          }
-          
-          // Find the index of the current milestone in the array - simplified
-          const milestoneIndex = majorMilestones.findIndex(m => 
-            m.description === currentMilestone.description
-          );
-          
-          // Query projects created by this lecturer
           const projectsRef = collection(
             db,
             'schools', school,
@@ -1172,432 +852,767 @@
             where('userId', '==', uid)
           );
           
-          const projectsSnapshot = await getDocs(projectsQuery);
+          // Add the query promise to our array
+          projectQueryPromises.push({
+            majorId,
+            promise: getDocs(projectsQuery)
+          });
+        });
+        
+        // Execute all project queries in parallel
+        const projectResults = await Promise.all(
+          projectQueryPromises.map(item => item.promise.then(result => ({
+            majorId: item.majorId,
+            snapshot: result
+          })))
+        );
+        
+        // Process all results to count projects
+        let totalProjects = 0;
+        let assignedProjects = 0;
+        
+        projectResults.forEach(result => {
+          const { snapshot } = result;
           
-          // Count assigned projects and projects with submissions
-          let totalAssigned = 0;
-          
-          // OPTIMIZATION: Create a batch of submission queries
-          const submissionQueries = [];
-          
-          // First pass: count assigned projects and prepare submission queries
-          projectsSnapshot.docs.forEach(projectDoc => {
-            const projectData = projectDoc.data();
-            
-            // Check if project is assigned
+          snapshot.forEach(doc => {
+            totalProjects++;
+            const projectData = doc.data();
+            // Check if project is assigned (has an assignedTo field)
             if (projectData.assignedTo) {
-              totalAssigned++;
-              
-              // Prepare submission query
-              const submissionsRef = collection(projectDoc.ref, 'submissions');
-              const submissionsQuery = query(
-                submissionsRef,
-                where('milestoneIndex', '==', milestoneIndex)
-              );
-              
-              // Add to our batch of queries
-              submissionQueries.push({
-                projectId: projectDoc.id,
-                query: submissionsQuery
-              });
+              assignedProjects++;
             }
           });
-          
-          // OPTIMIZATION: Execute all submission queries in parallel
-          const submissionResults = await Promise.all(
-            submissionQueries.map(item => 
-              getDocs(item.query).then(snapshot => ({
-                projectId: item.projectId,
-                hasSubmission: !snapshot.empty
-              }))
-            )
-          );
-          
-          // Count projects with submissions
-          const projectsWithSubmissions = submissionResults.filter(result => result.hasSubmission).length;
-          
-          // Calculate submission rate
-          const submissionRate = totalAssigned > 0 ? 
-            Math.round((projectsWithSubmissions / totalAssigned) * 100) : 0;
-          
-          // Create the stats object
-          const statsObject = {
-            milestoneName: currentMilestone.description,
-            milestoneIndex: milestoneIndex,
-            totalAssigned: totalAssigned,
-            projectsWithSubmissions: projectsWithSubmissions,
-            projectsWithoutSubmissions: totalAssigned - projectsWithSubmissions,
-            submissionRate: submissionRate,
-            timestamp: Date.now() // Add timestamp for cache invalidation
-          };
-          
-          // Store the results in the cache
-          submissionStatsCache.value[majorId] = statsObject;
-          
-          // When setting the results, only update currentMilestoneSubmissionStats if not a background load
-          if (!isBackgroundLoad) {
-            currentMilestoneSubmissionStats.value = statsObject;
-          }
-          
-          // Update last fetch time
-          lastFetchTimes.value.submissions = Date.now();
-          
-        } catch (err) {
-          if (!isBackgroundLoad) {
-            submissionError.value = `Failed to load submission data: ${err.message}`;
-          }
-        } finally {
-          if (!isBackgroundLoad) {
-            submissionLoading.value = false;
-          }
-        }
-      }
-  
-      // Watch for changes in lecturerMajors to set default selectedSubmissionMajor
-      watch(lecturerMajors, async (newMajors) => {
-        if (newMajors && newMajors.length > 0 && !initialLoadDone.value) {
-          // Only set if not already set
-          if (!selectedMajor.value) {
-            // Explicitly set to first major
-            const firstMajor = newMajors[0];
-            selectedMajor.value = firstMajor;
-            selectedSubmissionMajor.value = firstMajor;
-          }
-        }
-      }, { immediate: true });
-  
-      // Function to get session storage key for examined projects
-      const getExaminedProjectsStorageKey = (uid) => {
-        return `examined_projects_${uid}`;
-      };
-
-      // Function to store examined projects count in session storage
-      const storeExaminedProjectsCount = (uid, count) => {
-        if (!uid) return;
-        try {
-          const key = getExaminedProjectsStorageKey(uid);
-          sessionStorage.setItem(key, JSON.stringify({
-            count,
-            timestamp: Date.now()
-          }));
-        } catch (err) {
-          console.error('Error storing examined projects count:', err);
-        }
-      };
-
-      // Function to get examined projects count from session storage
-      const getStoredExaminedProjectsCount = (uid) => {
-        if (!uid) return null;
-        try {
-          const key = getExaminedProjectsStorageKey(uid);
-          const stored = sessionStorage.getItem(key);
-          if (!stored) return null;
-          
-          const data = JSON.parse(stored);
-          // Check if data is less than 30 minutes old
-          if (Date.now() - data.timestamp < 30 * 60 * 1000) {
-            return data.count;
-          }
-          return null;
-        } catch (err) {
-          console.error('Error getting examined projects count:', err);
-          return null;
-        }
-      };
-
-      // Function to set up real-time listeners for examined projects
-      const setupExaminedProjectsListeners = async (force = false) => {
-        // Skip if recently loaded (within 10 seconds) unless forced
-        const now = Date.now();
-        if (!force && now - lastFetchTimes.value.examined < 10000) return;
-
-        // Only show loading if no data is currently available
-        if (examinedProjectsCount.value === 0) {
-          examinedProjectsLoading.value = true;
-        }
-        examinedProjectsError.value = null;
-
-        try {
-          if (!userStore.isAuthenticated || !userStore.currentUser) {
-            examinedProjectsError.value = 'User not authenticated';
-            return;
-          }
-
-          // Get user data
-          const { school, uid } = userStore.currentUser;
-          
-          if (!school) {
-            examinedProjectsError.value = 'Missing school information';
-            return;
-          }
-
-          // Try to get count from session storage first
-          const storedCount = getStoredExaminedProjectsCount(uid);
-          if (storedCount !== null && !force) {
-            examinedProjectsCount.value = storedCount;
-            examinedProjectsLoading.value = false;
-          }
-          
-          // Get latest academic year
-          const academicYearData = await getLatestAcademicYear(school);
-          
-          if (!academicYearData?.yearId) {
-            examinedProjectsError.value = 'Failed to determine academic year';
-            return;
-          }
-          
-          const yearId = academicYearData.yearId;
-          
-          // Check if we have lecturer majors
-          if (!lecturerMajors.value || lecturerMajors.value.length === 0) {
-            examinedProjectsError.value = 'No majors assigned to lecturer';
-            return;
-          }
-
-          // Clear existing listeners
-          examinedProjectsUnsubscribers.value.forEach(unsubscribe => unsubscribe());
-          examinedProjectsUnsubscribers.value = [];
-          
-          // Create an array to store all major document ID fetch promises
-          const majorDocIdPromises = lecturerMajors.value.map(majorId => 
-            getMajorDocId(school, yearId, majorId)
-          );
-          
-          // Fetch all major document IDs in parallel
-          const majorDocIds = await Promise.all(majorDocIdPromises);
-
-          // Object to store counts per major
-          const majorCounts = {};
-          
-          // Set up listeners for each major
-          lecturerMajors.value.forEach((majorId, index) => {
-            const majorDocId = majorDocIds[index];
-            if (!majorDocId) return; // Skip if no docId found
-            
-            const projectsRef = collection(
-              db,
-              'schools', school,
-              'projects', yearId,
-              majorId, majorDocId,
-              'projectsPerYear'
-            );
-            
-            const projectsQuery = query(
-              projectsRef,
-              where('examinerId', '==', uid)
-            );
-            
-            // Set up real-time listener
-            const unsubscribe = onSnapshot(projectsQuery, (snapshot) => {
-              // Update the count for this major
-              majorCounts[majorId] = snapshot.size;
-              
-              // Calculate total count across all majors
-              const totalCount = Object.values(majorCounts).reduce((sum, count) => sum + count, 0);
-              
-              // Update the examined projects count
-              examinedProjectsCount.value = totalCount;
-
-              // Store the updated count in session storage
-              storeExaminedProjectsCount(uid, totalCount);
-              
-              // Update last fetch time
-              lastFetchTimes.value.examined = Date.now();
-
-              // Once we have data, turn off loading
-              examinedProjectsLoading.value = false;
-            }, (error) => {
-              console.error('Error in examined projects listener:', error);
-              examinedProjectsError.value = `Error receiving updates: ${error.message}`;
-              examinedProjectsLoading.value = false;
-            });
-            
-            // Store the unsubscribe function
-            examinedProjectsUnsubscribers.value.push(unsubscribe);
-          });
-          
-        } catch (err) {
-          examinedProjectsError.value = `Failed to set up examined projects listeners: ${err.message}`;
-          examinedProjectsLoading.value = false;
-        }
-      };
-  
-      // Modify the onMounted hook to ensure proper initialization order
-      onMounted(async () => {
-        const startTime = Date.now();
+        });
         
-        try {
-          // Step 1: Initialize auth if not already done
-          if (!userStore.initialized) {
-            await userStore.initializeAuth();
-          }
-
-          // Verify userStore.currentUser exists
-          if (!userStore.currentUser) {
-            throw new Error('User not initialized');
-          }
-
-          const { school, major } = userStore.currentUser;
-          if (!school) {
-            throw new Error('School information not available');
-          }
-          
-          if (!major || !Array.isArray(major) || major.length === 0) {
-            throw new Error('No majors assigned to lecturer');
-          }
-
-          // Step 2: Set majors directly from userStore (much faster than fetching from Firestore)
-          await fetchLecturerMajors();
-
-          // Get academic year data in parallel with UI rendering
-          const academicYearPromise = getLatestAcademicYear(school);
-
-          // Step 2: Use cached data immediately to show content faster
-          const primaryMajor = selectedMajor.value || lecturerMajors.value[0];
-          
-          // Try to get cached data for immediate display
-          const cachedMilestones = getCachedMilestones(primaryMajor);
-          if (cachedMilestones) {
-            allMilestones.value = {
-              [primaryMajor]: cachedMilestones
-            };
-            loading.value = false;
-          }
-
-          // Check submission stats cache
-          if (submissionStatsCache.value[primaryMajor]) {
-            currentMilestoneSubmissionStats.value = submissionStatsCache.value[primaryMajor];
-            submissionLoading.value = false;
-          }
-
-          // Await academic year in parallel with UI rendering
-          const academicYearData = await academicYearPromise;
-          if (!academicYearData?.yearId) {
-            throw new Error('Failed to determine academic year');
-          }
-
-          // Step 3: Start all data fetches in parallel
-          const fetchPromises = [
-            // Primary major's data first
-            fetchMilestonesData(),
-            fetchSubmissionStats(primaryMajor, false),
-            fetchLecturerProjects(),
-            setupExaminedProjectsListeners()
-          ];
-
-          // Mark initial load as complete once any data is available
-          Promise.race(fetchPromises).then(() => {
-            initialLoadDone.value = true;
-          });
-
-          // Handle all promises completion
-          Promise.allSettled(fetchPromises).then(results => {
-            // Step 4: Load background data
-            // Preload other majors' data
-            if (lecturerMajors.value.length > 1) {
-              setTimeout(() => {
-                const otherMajors = lecturerMajors.value.filter(m => m !== primaryMajor);
-                
-                // Preload submission stats
-                preloadAllSubmissionStats();
-                
-                // Preload milestones for other majors
-                otherMajors.forEach(majorId => {
-                  const cachedData = getCachedMilestones(majorId);
-                  if (!cachedData) {
-                    setupMilestoneListener(
-                      school,
-                      academicYearData.yearId,
-                      majorId,
-                      null // Will be fetched in the setup function
-                    ).catch(() => {});
-                  }
-                });
-              }, 1000); // Delay background loading to prioritize main content
-            }
-          });
-
-        } catch (err) {
-          error.value = 'Failed to initialize dashboard data';
-        }
-      });
-  
-      // Add cleanup on component unmount
-      onUnmounted(() => {
-        // Clean up all milestone listeners
-        milestoneUnsubscribers.value.forEach(unsubscribe => unsubscribe());
-        milestoneUnsubscribers.value = [];
-        // Clean up examined projects listeners
-        examinedProjectsUnsubscribers.value.forEach(unsubscribe => unsubscribe());
-        examinedProjectsUnsubscribers.value = [];
-      });
-  
-      // Optimized helper function to compare milestone arrays
-      const areMilestonesEqual = (oldMilestones, newMilestones) => {
-        if (oldMilestones.length !== newMilestones.length) return false;
-        
-        // Simple hash/fingerprint of milestone data for comparison
-        const getMilestoneFingerprint = (milestone) => {
-          return `${milestone.description}|${milestone.deadline instanceof Date ? 
-            milestone.deadline.getTime() : 
-            milestone.deadline}`;
+        // Store the results
+        lecturerProjectStats.value = {
+          total: totalProjects,
+          assigned: assignedProjects,
+          unassigned: totalProjects - assignedProjects,
+          assignmentRate: totalProjects > 0 ? Math.round((assignedProjects / totalProjects) * 100) : 0,
+          timestamp: Date.now() // Add timestamp for cache invalidation
         };
         
-        // Create fingerprints for old milestones
-        const oldFingerprints = new Set();
-        for (let i = 0; i < oldMilestones.length; i++) {
-          oldFingerprints.add(getMilestoneFingerprint(oldMilestones[i]));
-        }
+        // Update last fetch time
+        lastFetchTimes.value.projects = now;
         
-        // Check if any new milestone has a fingerprint not in the old set
-        for (let i = 0; i < newMilestones.length; i++) {
-          if (!oldFingerprints.has(getMilestoneFingerprint(newMilestones[i]))) {
-            return false;
-          }
-        }
-        
-        return true;
+      } catch (err) {
+        projectError.value = `Failed to load project data: ${err.message}`;
+      } finally {
+        projectLoading.value = false;
       }
-  
-      return {
-        upcomingMilestone,
-        allMilestones,
-        otherMilestones,
-        loading,
-        error,
-        formatDate,
-        showAllMilestones,
-        toggleAllMilestones,
-        isMilestonePast,
-        getDaysRemaining,
-        getDaysRemainingPercentage,
-        getDaysRemainingText,
-        getDaysRemainingClass,
-        projectLoading,
-        projectError,
-        lecturerMajors,
-        selectedMajor,
-        currentUpcomingMilestone,
-        filteredMilestones,
-        lecturerProjectStats,
-        submissionLoading,
-        submissionError,
-        selectedSubmissionMajor,
-        currentMilestoneSubmissionStats,
-        preloadAllSubmissionStats,
-        storeMilestoneData,
-        lastFetchTimes,
-        examinedProjectsLoading,
-        examinedProjectsError,
-        examinedProjectsCount,
-        examinedProjectsUnsubscribers
+    };
+
+    // Function to fetch just the lecturer majors - this is a prerequisite for other data
+    const fetchLecturerMajors = async () => {
+      try {
+        if (!userStore.isAuthenticated || !userStore.currentUser) {
+          error.value = 'User not authenticated';
+          return;
+        }
+
+        // Get user data from the userStore
+        const { major } = userStore.currentUser;
+        
+        if (!major || !Array.isArray(major) || major.length === 0) {
+          error.value = 'No majors assigned to lecturer';
+          return;
+        }
+        
+        // Store the lecturer's majors directly from userStore
+        lecturerMajors.value = major;
+        
+        // Set the default selected major if not already set
+        if (!selectedMajor.value && major.length > 0) {
+          selectedMajor.value = major[0];
+          selectedSubmissionMajor.value = major[0];
+        }
+        
+        return major;
+      } catch (err) {
+        error.value = `Failed to load lecturer majors: ${err.message}`;
+        throw err;
+      }
+    };
+    
+    // Optimize fetchMilestonesData to avoid unnecessary refreshes
+    const fetchMilestonesData = async (force = false) => {
+      // Skip if recently loaded (within 10 seconds) unless forced
+      const now = Date.now();
+      if (!force && now - lastFetchTimes.value.milestones < 10000) return;
+      
+      loading.value = true
+
+      try {
+        if (!userStore.isAuthenticated || !userStore.currentUser) {
+          error.value = 'User not authenticated';
+          return;
+        }
+
+        const { school } = userStore.currentUser;
+
+        if (!school) {
+          error.value = 'Missing school information';
+          return;
+        }
+
+        const academicYearData = await getLatestAcademicYear(school);
+
+        if (!academicYearData?.yearId) {
+          error.value = 'Failed to determine academic year';
+          return;
+        }
+
+        const yearId = academicYearData.yearId;
+
+        if (!lecturerMajors.value || lecturerMajors.value.length === 0) {
+          error.value = 'No majors assigned to lecturer';
+          return;
+        }
+
+        // Clear existing listeners
+        milestoneUnsubscribers.value.forEach(unsubscribe => unsubscribe());
+        milestoneUnsubscribers.value = [];
+
+        // First, handle the primary major (selected or first major)
+        const primaryMajor = selectedMajor.value || lecturerMajors.value[0];
+
+        // Try to get cached data for primary major
+        const cachedPrimaryData = getCachedMilestones(primaryMajor);
+        if (cachedPrimaryData) {
+          allMilestones.value = {
+            [primaryMajor]: cachedPrimaryData
+          };
+        }
+
+        // Get majorDocId for primary major
+        const primaryMajorDocId = await getMajorDocId(school, yearId, primaryMajor);
+        if (primaryMajorDocId) {
+          await setupMilestoneListener(school, yearId, primaryMajor, primaryMajorDocId);
+        }
+
+        // After primary major is loaded, load others in background
+        const otherMajors = lecturerMajors.value.filter(majorId => majorId !== primaryMajor);
+
+        // Load other majors in background with limited concurrency
+        const loadMajorsConcurrently = async (majors, concurrency = 2) => {
+          const chunks = [];
+          for (let i = 0; i < majors.length; i += concurrency) {
+            chunks.push(majors.slice(i, i + concurrency));
+          }
+          
+          for (const chunk of chunks) {
+            await Promise.all(chunk.map(async majorId => {
+              try {
+                const majorDocId = await getMajorDocId(school, yearId, majorId);
+                if (majorDocId) {
+                  setupMilestoneListener(school, yearId, majorId, majorDocId);
+                }
+              } catch (err) {
+                // Error ignored
+              }
+            }));
+          }
+        };
+        
+        // Load other majors with controlled concurrency
+        setTimeout(() => {
+          loadMajorsConcurrently(otherMajors);
+        }, 100);
+
+        // Update last fetch time
+        lastFetchTimes.value.milestones = now;
+      } catch (err) {
+        error.value = `Failed to load milestone data: ${err.message}`;
+      } finally {
+        loading.value = false;
       }
     }
+
+    // Function to pre-load submission statistics for all majors
+    const preloadAllSubmissionStats = async () => {
+      if (!lecturerMajors.value || lecturerMajors.value.length === 0) return;
+      
+      // Create an array of promises to fetch stats for all majors EXCEPT the currently selected one
+      const fetchPromises = lecturerMajors.value
+        .filter(majorId => majorId !== selectedMajor.value) // Skip the currently displayed major
+        .map(majorId => {
+          // Only fetch if not already in cache
+          if (!submissionStatsCache.value[majorId]) {
+            return fetchSubmissionStats(majorId, true); // Pass true to indicate this is background loading
+          }
+          return Promise.resolve();
+        });
+      
+      // Don't await the promises - let them run in the background
+      // This allows the dashboard to be interactive while preloading happens
+      Promise.all(fetchPromises).catch(() => {});
+      
+      // Return immediately without waiting
+      return;
+    };
+
+    // Function to fetch submission statistics for the current milestone
+    const fetchSubmissionStats = async (majorId, isBackgroundLoad = false, force = false) => {
+      if (!majorId) return;
+      
+      // Skip if recently loaded (within 10 seconds) unless forced or explicit major change
+      const now = Date.now();
+      if (!force && !isBackgroundLoad && selectedSubmissionMajor.value === majorId && now - lastFetchTimes.value.submissions < 10000) return;
+      
+      // Only update the selectedSubmissionMajor if this is not a background load
+      if (!isBackgroundLoad) {
+        selectedSubmissionMajor.value = majorId;
+      }
+      
+      // Check if we already have cached data for this major
+      if (submissionStatsCache.value[majorId]) {
+        // Only update the displayed stats if this is not a background load
+        if (!isBackgroundLoad) {
+          currentMilestoneSubmissionStats.value = submissionStatsCache.value[majorId];
+        }
+        
+        // If cache is fresh (less than 30 seconds), don't refresh
+        const cacheAge = now - (submissionStatsCache.value[majorId].timestamp || 0);
+        if (cacheAge < 30000) return;
+      }
+      
+      // Only show loading state for non-background loads and when no cache is available
+      if (!isBackgroundLoad && !submissionStatsCache.value[majorId]) {
+        submissionLoading.value = true;
+        submissionError.value = null;
+        // Reset current stats when changing majors to a non-cached major
+        currentMilestoneSubmissionStats.value = null;
+      }
+      
+      try {
+        // Check if user is authenticated and has necessary data
+        if (!userStore.isAuthenticated || !userStore.currentUser) {
+          submissionError.value = 'User not authenticated';
+          return;
+        }
+        
+        // Get user data
+        const { school, uid } = userStore.currentUser;
+        
+        if (!school) {
+          submissionError.value = 'Missing school information';
+          return;
+        }
+        
+        // Get latest academic year - this can't be batched
+        const academicYearData = await getLatestAcademicYear(school);
+        
+        if (!academicYearData?.yearId) {
+          submissionError.value = 'Failed to determine academic year';
+          return;
+        }
+        
+        const yearId = academicYearData.yearId;
+        
+        // OPTIMIZATION: Combine majorDocId and milestones fetch
+        // First get the majorDocId
+        const majorDocId = await getMajorDocId(school, yearId, majorId);
+        
+        if (!majorDocId) {
+          submissionError.value = 'Major document not found';
+          return;
+        }
+        
+        // Get the current milestone for this major
+        const majorMilestones = await getMilestones(school, yearId, majorId, majorDocId);
+        
+        if (!majorMilestones || majorMilestones.length === 0) {
+          submissionError.value = 'No milestones found for this major';
+          return;
+        }
+        
+        // Find the current milestone
+        const now = new Date();
+        const sortedMilestones = [...majorMilestones].sort((a, b) => {
+          const dateA = a.deadline instanceof Date ? a.deadline : a.deadline.toDate();
+          const dateB = b.deadline instanceof Date ? b.deadline : b.deadline.toDate();
+          return dateA - dateB;
+        });
+        
+        // Find the first upcoming milestone for the selected major
+        let currentMilestone = sortedMilestones.find(milestone => {
+          const deadlineDate = milestone.deadline instanceof Date ? 
+            milestone.deadline : 
+            milestone.deadline.toDate();
+          return deadlineDate > now;
+        });
+        
+        // If no upcoming milestone, use the most recent one
+        if (!currentMilestone && sortedMilestones.length > 0) {
+          currentMilestone = sortedMilestones[sortedMilestones.length - 1];
+        }
+        
+        if (!currentMilestone) {
+          submissionError.value = 'No current milestone found';
+          return;
+        }
+        
+        // Find the index of the current milestone in the array - simplified
+        const milestoneIndex = majorMilestones.findIndex(m => 
+          m.description === currentMilestone.description
+        );
+        
+        // Query projects created by this lecturer
+        const projectsRef = collection(
+          db,
+          'schools', school,
+          'projects', yearId,
+          majorId, majorDocId,
+          'projectsPerYear'
+        );
+        
+        const projectsQuery = query(
+          projectsRef,
+          where('userId', '==', uid)
+        );
+        
+        const projectsSnapshot = await getDocs(projectsQuery);
+        
+        // Count assigned projects and projects with submissions
+        let totalAssigned = 0;
+        
+        // OPTIMIZATION: Create a batch of submission queries
+        const submissionQueries = [];
+        
+        // First pass: count assigned projects and prepare submission queries
+        projectsSnapshot.docs.forEach(projectDoc => {
+          const projectData = projectDoc.data();
+          
+          // Check if project is assigned
+          if (projectData.assignedTo) {
+            totalAssigned++;
+            
+            // Prepare submission query
+            const submissionsRef = collection(projectDoc.ref, 'submissions');
+            const submissionsQuery = query(
+              submissionsRef,
+              where('milestoneIndex', '==', milestoneIndex)
+            );
+            
+            // Add to our batch of queries
+            submissionQueries.push({
+              projectId: projectDoc.id,
+              query: submissionsQuery
+            });
+          }
+        });
+        
+        // OPTIMIZATION: Execute all submission queries in parallel
+        const submissionResults = await Promise.all(
+          submissionQueries.map(item => 
+            getDocs(item.query).then(snapshot => ({
+              projectId: item.projectId,
+              hasSubmission: !snapshot.empty
+            }))
+          )
+        );
+        
+        // Count projects with submissions
+        const projectsWithSubmissions = submissionResults.filter(result => result.hasSubmission).length;
+        
+        // Calculate submission rate
+        const submissionRate = totalAssigned > 0 ? 
+          Math.round((projectsWithSubmissions / totalAssigned) * 100) : 0;
+        
+        // Create the stats object
+        const statsObject = {
+          milestoneName: currentMilestone.description,
+          milestoneIndex: milestoneIndex,
+          totalAssigned: totalAssigned,
+          projectsWithSubmissions: projectsWithSubmissions,
+          projectsWithoutSubmissions: totalAssigned - projectsWithSubmissions,
+          submissionRate: submissionRate,
+          timestamp: Date.now() // Add timestamp for cache invalidation
+        };
+        
+        // Store the results in the cache
+        submissionStatsCache.value[majorId] = statsObject;
+        
+        // When setting the results, only update currentMilestoneSubmissionStats if not a background load
+        if (!isBackgroundLoad) {
+          currentMilestoneSubmissionStats.value = statsObject;
+        }
+        
+        // Update last fetch time
+        lastFetchTimes.value.submissions = Date.now();
+        
+      } catch (err) {
+        if (!isBackgroundLoad) {
+          submissionError.value = `Failed to load submission data: ${err.message}`;
+        }
+      } finally {
+        if (!isBackgroundLoad) {
+          submissionLoading.value = false;
+        }
+      }
+    }
+
+    // Watch for changes in lecturerMajors to set default selectedSubmissionMajor
+    watch(lecturerMajors, async (newMajors) => {
+      if (newMajors && newMajors.length > 0 && !initialLoadDone.value) {
+        // Only set if not already set
+        if (!selectedMajor.value) {
+          // Explicitly set to first major
+          const firstMajor = newMajors[0];
+          selectedMajor.value = firstMajor;
+          selectedSubmissionMajor.value = firstMajor;
+        }
+      }
+    }, { immediate: true });
+
+    // Function to get session storage key for examined projects
+    const getExaminedProjectsStorageKey = (uid) => {
+      return `examined_projects_${uid}`;
+    };
+
+    // Function to store examined projects data in session storage
+    const storeExaminedProjectsData = (uid, data) => {
+      if (!uid) return;
+      try {
+        const key = getExaminedProjectsStorageKey(uid);
+        sessionStorage.setItem(key, JSON.stringify({
+          count: data.count,
+          projectIds: data.projectIds,
+          timestamp: Date.now()
+        }));
+      } catch (err) {
+        console.error('Error storing examined projects data:', err);
+      }
+    };
+
+    // Function to get examined projects data from session storage
+    const getStoredExaminedProjectsData = (uid) => {
+      if (!uid) return null;
+      try {
+        const key = getExaminedProjectsStorageKey(uid);
+        const stored = sessionStorage.getItem(key);
+        if (!stored) return null;
+        
+        const data = JSON.parse(stored);
+        // Check if data is less than 30 minutes old
+        if (Date.now() - data.timestamp < 30 * 60 * 1000) {
+          return {
+            count: data.count,
+            projectIds: data.projectIds || []
+          };
+        }
+        return null;
+      } catch (err) {
+        console.error('Error getting examined projects data:', err);
+        return null;
+      }
+    };
+
+    // Function to set up real-time listeners for examined projects
+    const setupExaminedProjectsListeners = async (force = false) => {
+      // Skip if recently loaded (within 10 seconds) unless forced
+      const now = Date.now();
+      if (!force && now - lastFetchTimes.value.examined < 10000) return;
+
+      // Only show loading if no data is currently available
+      if (examinedProjectsCount.value === 0) {
+        examinedProjectsLoading.value = true;
+      }
+      examinedProjectsError.value = null;
+
+      try {
+        if (!userStore.isAuthenticated || !userStore.currentUser) {
+          examinedProjectsError.value = 'User not authenticated';
+          return;
+        }
+
+        // Get user data
+        const { school, uid } = userStore.currentUser;
+        
+        if (!school) {
+          examinedProjectsError.value = 'Missing school information';
+          return;
+        }
+
+        // Try to get data from session storage first
+        const storedData = getStoredExaminedProjectsData(uid);
+        if (storedData !== null && !force) {
+          examinedProjectsCount.value = storedData.count;
+          examinedProjectsLoading.value = false;
+        }
+        
+        // Get latest academic year
+        const academicYearData = await getLatestAcademicYear(school);
+        
+        if (!academicYearData?.yearId) {
+          examinedProjectsError.value = 'Failed to determine academic year';
+          return;
+        }
+        
+        const yearId = academicYearData.yearId;
+        
+        // Check if we have lecturer majors
+        if (!lecturerMajors.value || lecturerMajors.value.length === 0) {
+          examinedProjectsError.value = 'No majors assigned to lecturer';
+          return;
+        }
+
+        // Clear existing listeners
+        examinedProjectsUnsubscribers.value.forEach(unsubscribe => unsubscribe());
+        examinedProjectsUnsubscribers.value = [];
+        
+        // Create an array to store all major document ID fetch promises
+        const majorDocIdPromises = lecturerMajors.value.map(majorId => 
+          getMajorDocId(school, yearId, majorId)
+        );
+        
+        // Fetch all major document IDs in parallel
+        const majorDocIds = await Promise.all(majorDocIdPromises);
+
+        // Object to store counts and project IDs per major
+        const majorData = {};
+        
+        // Set up listeners for each major
+        lecturerMajors.value.forEach((majorId, index) => {
+          const majorDocId = majorDocIds[index];
+          if (!majorDocId) return; // Skip if no docId found
+          
+          const projectsRef = collection(
+            db,
+            'schools', school,
+            'projects', yearId,
+            majorId, majorDocId,
+            'projectsPerYear'
+          );
+          
+          const projectsQuery = query(
+            projectsRef,
+            where('examinerId', '==', uid)
+          );
+          
+          // Set up real-time listener
+          const unsubscribe = onSnapshot(projectsQuery, (snapshot) => {
+            // Update the data for this major
+            majorData[majorId] = {
+              count: snapshot.size,
+              projectIds: snapshot.docs.map(doc => ({
+                id: doc.id,
+                majorId,
+                majorDocId
+              }))
+            };
+            
+            // Calculate total count and collect all project IDs
+            const totalExaminedCount = Object.values(majorData).reduce((sum, data) => sum + data.count, 0);
+            const allProjectIds = Object.values(majorData).reduce((ids, data) => [...ids, ...data.projectIds], []);
+            
+            // Update the examined projects count
+            examinedProjectsCount.value = totalExaminedCount;
+
+            // Store the updated data in session storage
+            storeExaminedProjectsData(uid, {
+              count: totalExaminedCount,
+              projectIds: allProjectIds
+            });
+            
+            // Update last fetch time
+            lastFetchTimes.value.examined = Date.now();
+
+            // Once we have data, turn off loading
+            examinedProjectsLoading.value = false;
+          }, (error) => {
+            console.error('Error in examined projects listener:', error);
+            examinedProjectsError.value = `Error receiving updates: ${error.message}`;
+            examinedProjectsLoading.value = false;
+          });
+          
+          // Store the unsubscribe function
+          examinedProjectsUnsubscribers.value.push(unsubscribe);
+        });
+        
+      } catch (err) {
+        examinedProjectsError.value = `Failed to set up examined projects listeners: ${err.message}`;
+        examinedProjectsLoading.value = false;
+      }
+    };
+
+    // Modify the onMounted hook to ensure proper initialization order
+    onMounted(async () => {
+      const startTime = Date.now();
+      
+      try {
+        // Step 1: Initialize auth if not already done
+        if (!userStore.initialized) {
+          await userStore.initializeAuth();
+        }
+
+        // Verify userStore.currentUser exists
+        if (!userStore.currentUser) {
+          throw new Error('User not initialized');
+        }
+
+        const { school, major } = userStore.currentUser;
+        if (!school) {
+          throw new Error('School information not available');
+        }
+        
+        if (!major || !Array.isArray(major) || major.length === 0) {
+          throw new Error('No majors assigned to lecturer');
+        }
+
+        // Step 2: Set majors directly from userStore (much faster than fetching from Firestore)
+        await fetchLecturerMajors();
+
+        // Get academic year data in parallel with UI rendering
+        const academicYearPromise = getLatestAcademicYear(school);
+
+        // Step 2: Use cached data immediately to show content faster
+        const primaryMajor = selectedMajor.value || lecturerMajors.value[0];
+        
+        // Try to get cached data for immediate display
+        const cachedMilestones = getCachedMilestones(primaryMajor);
+        if (cachedMilestones) {
+          allMilestones.value = {
+            [primaryMajor]: cachedMilestones
+          };
+          loading.value = false;
+        }
+
+        // Check submission stats cache
+        if (submissionStatsCache.value[primaryMajor]) {
+          currentMilestoneSubmissionStats.value = submissionStatsCache.value[primaryMajor];
+          submissionLoading.value = false;
+        }
+
+        // Await academic year in parallel with UI rendering
+        const academicYearData = await academicYearPromise;
+        if (!academicYearData?.yearId) {
+          throw new Error('Failed to determine academic year');
+        }
+
+        // Step 3: Start all data fetches in parallel
+        const fetchPromises = [
+          // Primary major's data first
+          fetchMilestonesData(),
+          fetchSubmissionStats(primaryMajor, false),
+          fetchLecturerProjects(),
+          setupExaminedProjectsListeners()
+        ];
+
+        // Mark initial load as complete once any data is available
+        Promise.race(fetchPromises).then(() => {
+          initialLoadDone.value = true;
+        });
+
+        // Handle all promises completion
+        Promise.allSettled(fetchPromises).then(results => {
+          // Step 4: Load background data
+          // Preload other majors' data
+          if (lecturerMajors.value.length > 1) {
+            setTimeout(() => {
+              const otherMajors = lecturerMajors.value.filter(m => m !== primaryMajor);
+              
+              // Preload submission stats
+              preloadAllSubmissionStats();
+              
+              // Preload milestones for other majors
+              otherMajors.forEach(majorId => {
+                const cachedData = getCachedMilestones(majorId);
+                if (!cachedData) {
+                  setupMilestoneListener(
+                    school,
+                    academicYearData.yearId,
+                    majorId,
+                    null // Will be fetched in the setup function
+                  ).catch(() => {});
+                }
+              });
+            }, 1000); // Delay background loading to prioritize main content
+          }
+        });
+
+      } catch (err) {
+        error.value = 'Failed to initialize dashboard data';
+      }
+    });
+
+    // Add cleanup on component unmount
+    onUnmounted(() => {
+      // Clean up all milestone listeners
+      milestoneUnsubscribers.value.forEach(unsubscribe => unsubscribe());
+      milestoneUnsubscribers.value = [];
+      // Clean up examined projects listeners
+      examinedProjectsUnsubscribers.value.forEach(unsubscribe => unsubscribe());
+      examinedProjectsUnsubscribers.value = [];
+    });
+
+    // Optimized helper function to compare milestone arrays
+    const areMilestonesEqual = (oldMilestones, newMilestones) => {
+      if (oldMilestones.length !== newMilestones.length) return false;
+      
+      // Simple hash/fingerprint of milestone data for comparison
+      const getMilestoneFingerprint = (milestone) => {
+        return `${milestone.description}|${milestone.deadline instanceof Date ? 
+          milestone.deadline.getTime() : 
+          milestone.deadline}`;
+      };
+      
+      // Create fingerprints for old milestones
+      const oldFingerprints = new Set();
+      for (let i = 0; i < oldMilestones.length; i++) {
+        oldFingerprints.add(getMilestoneFingerprint(oldMilestones[i]));
+      }
+      
+      // Check if any new milestone has a fingerprint not in the old set
+      for (let i = 0; i < newMilestones.length; i++) {
+        if (!oldFingerprints.has(getMilestoneFingerprint(newMilestones[i]))) {
+          return false;
+        }
+      }
+      
+      return true;
+    }
+
+    return {
+      upcomingMilestone,
+      allMilestones,
+      otherMilestones,
+      loading,
+      error,
+      formatDate,
+      showAllMilestones,
+      toggleAllMilestones,
+      isMilestonePast,
+      getDaysRemaining,
+      getDaysRemainingPercentage,
+      getDaysRemainingText,
+      getDaysRemainingClass,
+      projectLoading,
+      projectError,
+      lecturerMajors,
+      selectedMajor,
+      currentUpcomingMilestone,
+      filteredMilestones,
+      lecturerProjectStats,
+      submissionLoading,
+      submissionError,
+      selectedSubmissionMajor,
+      currentMilestoneSubmissionStats,
+      preloadAllSubmissionStats,
+      storeMilestoneData,
+      lastFetchTimes,
+      examinedProjectsLoading,
+      examinedProjectsError,
+      examinedProjectsCount,
+      examinedProjectsUnsubscribers
+    }
   }
-  </script>
+}
+</script>
+
+<style scoped>
+/* Dashboard styles imported from assets/styles/dashboard.css */
+</style>
   
-  <style scoped>
-  /* Dashboard styles imported from assets/styles/dashboard.css */
-  </style>
-    
-    
+  
