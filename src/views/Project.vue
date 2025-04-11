@@ -2034,11 +2034,8 @@ const saveProject = async () => {
       // Add the document to Firestore
       const docRef = await addDoc(projectsRef, projectData)
       
-      // Add to the local projects array for immediate UI update
-      projects.value.push({
-        id: docRef.id,
-        ...projectData
-      })
+      // Don't add to local array since the real-time listener will handle it
+      // The listener will receive the 'added' event and update the UI
       
       // Update the lecturer's user document to add the major if not already present
       try {
