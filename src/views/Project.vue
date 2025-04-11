@@ -1535,12 +1535,25 @@ const fetchUserProjects = async (schoolId, userId, academicYearId) => {
     // Start loading state
     myProjectsLoading.value = true
     
-    // Clear existing projects array before fetching
+    // Clear existing projects array and map before fetching
     projects.value = []
+    const projectsMap = new Map()
+    
+    // Clean up any existing listeners
+    projectListeners.value.forEach(unsubscribe => unsubscribe())
+    projectListeners.value.clear()
     
     // Try to load cached data first
     const cacheKey = `projects-${schoolId}-${userId}-${academicYearId}`
     const cachedData = sessionStorage.getItem(cacheKey)
+    
+    // Clear any other cached projects for different academic years
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i)
+      if (key && key.startsWith(`projects-${schoolId}-${userId}-`) && key !== cacheKey) {
+        sessionStorage.removeItem(key)
+      }
+    }
     
     if (cachedData) {
       try {
@@ -1558,27 +1571,22 @@ const fetchUserProjects = async (schoolId, userId, academicYearId) => {
           projects.value = parsedCache.data || []
           console.log(`Using cached projects data (${Math.round(cacheAge / 1000)}s old)`)
           
+          // Populate the map with cached data
+          for (const project of projects.value) {
+            projectsMap.set(project.id, project)
+          }
+          
           // We can immediately mark loading as done since we're showing cached data
           myProjectsLoading.value = false
         } else {
           console.log(`Cache expired (${Math.round(cacheAge / 60000)}m old), fetching fresh data`)
+          // Clear expired cache
+          sessionStorage.removeItem(cacheKey)
         }
       } catch (error) {
         console.error('Error parsing cached data:', error)
-      }
-    }
-    
-    // Clean up any existing listeners
-    projectListeners.value.forEach(unsubscribe => unsubscribe())
-    projectListeners.value.clear()
-    
-    // Create a map to track projects by ID to avoid duplicates
-    const projectsMap = new Map()
-    
-    // If we restored from cache, populate the map
-    if (projects.value.length > 0) {
-      for (const project of projects.value) {
-        projectsMap.set(project.id, project)
+        // Clear invalid cache
+        sessionStorage.removeItem(cacheKey)
       }
     }
     
