@@ -454,6 +454,10 @@ export default {
     // Add a flag to track initial load
     const initialLoadDone = ref(false)
 
+    // Add unsubscriber arrays for real-time listeners
+    const supervisorSubmissionUnsubscribers = ref([])
+    const examinerSubmissionUnsubscribers = ref([])
+
     // Modify storeMilestoneData to include a last changed timestamp
     const storeMilestoneData = (majorId, majorMilestones) => {
       try {
@@ -1101,43 +1105,24 @@ export default {
     const fetchSubmissionStats = async (majorId, isBackgroundLoad = false, force = false) => {
       if (!majorId) return;
       
-      // Skip if recently loaded (within 10 seconds) unless forced or explicit major change
-      const now = Date.now();
-      if (!force && !isBackgroundLoad && selectedSubmissionMajor.value === majorId && now - lastFetchTimes.value.submissions < 10000) return;
-      
-      // Only update the selectedSubmissionMajor if this is not a background load
-      if (!isBackgroundLoad) {
-        selectedSubmissionMajor.value = majorId;
+      // Clear existing listeners for this major
+      if (supervisorSubmissionUnsubscribers.value[majorId]) {
+        supervisorSubmissionUnsubscribers.value[majorId]();
+        delete supervisorSubmissionUnsubscribers.value[majorId];
       }
-      
-      // Check if we already have cached data for this major
-      if (submissionStatsCache.value[majorId]) {
-        // Only update the displayed stats if this is not a background load
-        if (!isBackgroundLoad) {
-          currentMilestoneSubmissionStats.value = submissionStatsCache.value[majorId];
-        }
-        
-        // If cache is fresh (less than 30 seconds), don't refresh
-        const cacheAge = now - (submissionStatsCache.value[majorId].timestamp || 0);
-        if (cacheAge < 30000) return;
-      }
-      
-      // Only show loading state for non-background loads and when no cache is available
+
       if (!isBackgroundLoad && !submissionStatsCache.value[majorId]) {
         submissionLoading.value = true;
         submissionError.value = null;
-        // Reset current stats when changing majors to a non-cached major
         currentMilestoneSubmissionStats.value = null;
       }
       
       try {
-        // Check if user is authenticated and has necessary data
         if (!userStore.isAuthenticated || !userStore.currentUser) {
           submissionError.value = 'User not authenticated';
           return;
         }
         
-        // Get user data
         const { school, uid } = userStore.currentUser;
         
         if (!school) {
@@ -1145,7 +1130,6 @@ export default {
           return;
         }
         
-        // Get latest academic year - this can't be batched
         const academicYearData = await getLatestAcademicYear(school);
         
         if (!academicYearData?.yearId) {
@@ -1155,8 +1139,6 @@ export default {
         
         const yearId = academicYearData.yearId;
         
-        // OPTIMIZATION: Combine majorDocId and milestones fetch
-        // First get the majorDocId
         const majorDocId = await getMajorDocId(school, yearId, majorId);
         
         if (!majorDocId) {
@@ -1164,7 +1146,6 @@ export default {
           return;
         }
         
-        // Get the current milestone for this major
         const majorMilestones = await getMilestones(school, yearId, majorId, majorDocId);
         
         if (!majorMilestones || majorMilestones.length === 0) {
@@ -1172,7 +1153,6 @@ export default {
           return;
         }
         
-        // Find the current milestone
         const now = new Date();
         const sortedMilestones = [...majorMilestones].sort((a, b) => {
           const dateA = a.deadline instanceof Date ? a.deadline : a.deadline.toDate();
@@ -1180,7 +1160,6 @@ export default {
           return dateA - dateB;
         });
         
-        // Find the first upcoming milestone for the selected major
         let currentMilestone = sortedMilestones.find(milestone => {
           const deadlineDate = milestone.deadline instanceof Date ? 
             milestone.deadline : 
@@ -1188,7 +1167,6 @@ export default {
           return deadlineDate > now;
         });
         
-        // If no upcoming milestone, use the most recent one
         if (!currentMilestone && sortedMilestones.length > 0) {
           currentMilestone = sortedMilestones[sortedMilestones.length - 1];
         }
@@ -1198,12 +1176,10 @@ export default {
           return;
         }
         
-        // Find the index of the current milestone in the array - simplified
         const milestoneIndex = majorMilestones.findIndex(m => 
           m.description === currentMilestone.description
         );
         
-        // Query projects created by this lecturer
         const projectsRef = collection(
           db,
           'schools', school,
@@ -1217,106 +1193,94 @@ export default {
           where('userId', '==', uid)
         );
         
-        const projectsSnapshot = await getDocs(projectsQuery);
-        
-        // Count assigned projects and projects with submissions
-        let totalAssigned = 0;
-        
-        // OPTIMIZATION: Create a batch of submission queries
-        const submissionQueries = [];
-        
-        // First pass: count assigned projects and prepare submission queries
-        projectsSnapshot.docs.forEach(projectDoc => {
-          const projectData = projectDoc.data();
-          
-          // Check if project is assigned
-          if (projectData.assignedTo) {
-            totalAssigned++;
+        // Set up real-time listener for projects
+        const unsubscribe = onSnapshot(projectsQuery, async (projectsSnapshot) => {
+          try {
+            let totalAssigned = 0;
+            const submissionQueries = [];
             
-            // Prepare submission query
-            const submissionsRef = collection(projectDoc.ref, 'submissions');
-            const submissionsQuery = query(
-              submissionsRef,
-              where('milestoneIndex', '==', milestoneIndex)
+            projectsSnapshot.docs.forEach(projectDoc => {
+              const projectData = projectDoc.data();
+              
+              if (projectData.assignedTo) {
+                totalAssigned++;
+                
+                const submissionsRef = collection(projectDoc.ref, 'submissions');
+                const submissionsQuery = query(
+                  submissionsRef,
+                  where('milestoneIndex', '==', milestoneIndex)
+                );
+                
+                submissionQueries.push({
+                  projectId: projectDoc.id,
+                  query: submissionsQuery
+                });
+              }
+            });
+            
+            const submissionResults = await Promise.all(
+              submissionQueries.map(item => 
+                getDocs(item.query).then(snapshot => ({
+                  projectId: item.projectId,
+                  hasSubmission: !snapshot.empty
+                }))
+              )
             );
             
-            // Add to our batch of queries
-            submissionQueries.push({
-              projectId: projectDoc.id,
-              query: submissionsQuery
-            });
+            const projectsWithSubmissions = submissionResults.filter(result => result.hasSubmission).length;
+            const submissionRate = totalAssigned > 0 ? 
+              Math.round((projectsWithSubmissions / totalAssigned) * 100) : 0;
+            
+            const statsObject = {
+              milestoneName: currentMilestone.description,
+              milestoneIndex: milestoneIndex,
+              totalAssigned: totalAssigned,
+              projectsWithSubmissions: projectsWithSubmissions,
+              projectsWithoutSubmissions: totalAssigned - projectsWithSubmissions,
+              submissionRate: submissionRate,
+              timestamp: Date.now()
+            };
+            
+            submissionStatsCache.value[majorId] = statsObject;
+            
+            if (!isBackgroundLoad) {
+              currentMilestoneSubmissionStats.value = statsObject;
+              submissionLoading.value = false;
+            }
+          } catch (err) {
+            if (!isBackgroundLoad) {
+              submissionError.value = `Failed to process submission data: ${err.message}`;
+              submissionLoading.value = false;
+            }
+          }
+        }, (err) => {
+          if (!isBackgroundLoad) {
+            submissionError.value = `Failed to listen to project updates: ${err.message}`;
+            submissionLoading.value = false;
           }
         });
         
-        // OPTIMIZATION: Execute all submission queries in parallel
-        const submissionResults = await Promise.all(
-          submissionQueries.map(item => 
-            getDocs(item.query).then(snapshot => ({
-              projectId: item.projectId,
-              hasSubmission: !snapshot.empty
-            }))
-          )
-        );
-        
-        // Count projects with submissions
-        const projectsWithSubmissions = submissionResults.filter(result => result.hasSubmission).length;
-        
-        // Calculate submission rate
-        const submissionRate = totalAssigned > 0 ? 
-          Math.round((projectsWithSubmissions / totalAssigned) * 100) : 0;
-        
-        // Create the stats object
-        const statsObject = {
-          milestoneName: currentMilestone.description,
-          milestoneIndex: milestoneIndex,
-          totalAssigned: totalAssigned,
-          projectsWithSubmissions: projectsWithSubmissions,
-          projectsWithoutSubmissions: totalAssigned - projectsWithSubmissions,
-          submissionRate: submissionRate,
-          timestamp: Date.now() // Add timestamp for cache invalidation
-        };
-        
-        // Store the results in the cache
-        submissionStatsCache.value[majorId] = statsObject;
-        
-        // When setting the results, only update currentMilestoneSubmissionStats if not a background load
-        if (!isBackgroundLoad) {
-          currentMilestoneSubmissionStats.value = statsObject;
-        }
-        
-        // Update last fetch time
-        lastFetchTimes.value.submissions = Date.now();
+        // Store the unsubscribe function
+        supervisorSubmissionUnsubscribers.value[majorId] = unsubscribe;
         
       } catch (err) {
         if (!isBackgroundLoad) {
-          submissionError.value = `Failed to load submission data: ${err.message}`;
-        }
-      } finally {
-        if (!isBackgroundLoad) {
+          submissionError.value = `Failed to set up submission tracking: ${err.message}`;
           submissionLoading.value = false;
         }
       }
-    }
+    };
 
     // Function to fetch examiner submission statistics
     const fetchExaminerSubmissionStats = async (majorId, isBackgroundLoad = false, force = false) => {
       if (!majorId) return;
       
-      // Skip if recently loaded unless forced
-      const now = Date.now();
-      if (!force && !isBackgroundLoad && now - lastFetchTimes.value.submissions < 10000) return;
-      
-      // Check if we already have cached data for this major
-      if (examinerSubmissionStatsCache.value[majorId]) {
-        if (!isBackgroundLoad) {
-          examinerSubmissionStats.value = examinerSubmissionStatsCache.value[majorId];
-        }
-        
-        // If cache is fresh (less than 30 seconds), don't refresh
-        const cacheAge = now - (examinerSubmissionStatsCache.value[majorId].timestamp || 0);
-        if (cacheAge < 30000) return;
+      // Clear existing listeners for this major
+      if (examinerSubmissionUnsubscribers.value[majorId]) {
+        examinerSubmissionUnsubscribers.value[majorId]();
+        delete examinerSubmissionUnsubscribers.value[majorId];
       }
-      
+
       if (!isBackgroundLoad && !examinerSubmissionStatsCache.value[majorId]) {
         examinerSubmissionLoading.value = true;
         examinerSubmissionError.value = null;
@@ -1399,63 +1363,77 @@ export default {
           where('examinerId', '==', uid)
         );
         
-        const projectsSnapshot = await getDocs(projectsQuery);
-        
-        const totalAssigned = projectsSnapshot.size;
-        const submissionQueries = [];
-        
-        projectsSnapshot.docs.forEach(projectDoc => {
-          const submissionsRef = collection(projectDoc.ref, 'submissions');
-          const submissionsQuery = query(
-            submissionsRef,
-            where('milestoneIndex', '==', milestoneIndex)
-          );
-          
-          submissionQueries.push({
-            projectId: projectDoc.id,
-            query: submissionsQuery
-          });
+        // Set up real-time listener for projects
+        const unsubscribe = onSnapshot(projectsQuery, async (projectsSnapshot) => {
+          try {
+            const totalAssigned = projectsSnapshot.size;
+            const submissionQueries = [];
+            
+            projectsSnapshot.docs.forEach(projectDoc => {
+              const submissionsRef = collection(projectDoc.ref, 'submissions');
+              const submissionsQuery = query(
+                submissionsRef,
+                where('milestoneIndex', '==', milestoneIndex)
+              );
+              
+              submissionQueries.push({
+                projectId: projectDoc.id,
+                query: submissionsQuery
+              });
+            });
+            
+            const submissionResults = await Promise.all(
+              submissionQueries.map(item => 
+                getDocs(item.query).then(snapshot => ({
+                  projectId: item.projectId,
+                  hasSubmission: !snapshot.empty
+                }))
+              )
+            );
+            
+            const projectsWithSubmissions = submissionResults.filter(result => result.hasSubmission).length;
+            const submissionRate = totalAssigned > 0 ? 
+              Math.round((projectsWithSubmissions / totalAssigned) * 100) : 0;
+            
+            const statsObject = {
+              milestoneName: currentMilestone.description,
+              milestoneIndex: milestoneIndex,
+              totalAssigned: totalAssigned,
+              projectsWithSubmissions: projectsWithSubmissions,
+              projectsWithoutSubmissions: totalAssigned - projectsWithSubmissions,
+              submissionRate: submissionRate,
+              timestamp: Date.now()
+            };
+            
+            examinerSubmissionStatsCache.value[majorId] = statsObject;
+            
+            if (!isBackgroundLoad) {
+              examinerSubmissionStats.value = statsObject;
+              examinerSubmissionLoading.value = false;
+            }
+          } catch (err) {
+            if (!isBackgroundLoad) {
+              examinerSubmissionError.value = `Failed to process submission data: ${err.message}`;
+              examinerSubmissionLoading.value = false;
+            }
+          }
+        }, (err) => {
+          if (!isBackgroundLoad) {
+            examinerSubmissionError.value = `Failed to listen to project updates: ${err.message}`;
+            examinerSubmissionLoading.value = false;
+          }
         });
         
-        const submissionResults = await Promise.all(
-          submissionQueries.map(item => 
-            getDocs(item.query).then(snapshot => ({
-              projectId: item.projectId,
-              hasSubmission: !snapshot.empty
-            }))
-          )
-        );
-        
-        const projectsWithSubmissions = submissionResults.filter(result => result.hasSubmission).length;
-        const submissionRate = totalAssigned > 0 ? 
-          Math.round((projectsWithSubmissions / totalAssigned) * 100) : 0;
-        
-        const statsObject = {
-          milestoneName: currentMilestone.description,
-          milestoneIndex: milestoneIndex,
-          totalAssigned: totalAssigned,
-          projectsWithSubmissions: projectsWithSubmissions,
-          projectsWithoutSubmissions: totalAssigned - projectsWithSubmissions,
-          submissionRate: submissionRate,
-          timestamp: Date.now()
-        };
-        
-        examinerSubmissionStatsCache.value[majorId] = statsObject;
-        
-        if (!isBackgroundLoad) {
-          examinerSubmissionStats.value = statsObject;
-        }
+        // Store the unsubscribe function
+        examinerSubmissionUnsubscribers.value[majorId] = unsubscribe;
         
       } catch (err) {
         if (!isBackgroundLoad) {
-          examinerSubmissionError.value = `Failed to load examiner submission data: ${err.message}`;
-        }
-      } finally {
-        if (!isBackgroundLoad) {
+          examinerSubmissionError.value = `Failed to set up submission tracking: ${err.message}`;
           examinerSubmissionLoading.value = false;
         }
       }
-    }
+    };
 
     // Watch for changes in lecturerMajors to set default selectedSubmissionMajor
     watch(lecturerMajors, async (newMajors) => {
@@ -1746,9 +1724,18 @@ export default {
       // Clean up all milestone listeners
       milestoneUnsubscribers.value.forEach(unsubscribe => unsubscribe());
       milestoneUnsubscribers.value = [];
+      
       // Clean up examined projects listeners
       examinedProjectsUnsubscribers.value.forEach(unsubscribe => unsubscribe());
       examinedProjectsUnsubscribers.value = [];
+      
+      // Clean up supervisor submission listeners
+      Object.values(supervisorSubmissionUnsubscribers.value).forEach(unsubscribe => unsubscribe());
+      supervisorSubmissionUnsubscribers.value = {};
+      
+      // Clean up examiner submission listeners
+      Object.values(examinerSubmissionUnsubscribers.value).forEach(unsubscribe => unsubscribe());
+      examinerSubmissionUnsubscribers.value = {};
     });
 
     // Optimized helper function to compare milestone arrays
