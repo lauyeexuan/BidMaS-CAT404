@@ -402,6 +402,151 @@
             </div>
           </div>
         </div>
+
+          <!-- Feedback Overview Card -->
+          <div class="bg-white p-4 shadow rounded relative mt-4 h-[280px]">
+            <div class="flex justify-between items-center mb-2">
+              <h2 class="text-sm font-medium text-gray-500">Feedback Overview</h2>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+              <!-- Supervisor Feedback Indicator -->
+              <div>
+                <h3 class="text-sm font-medium text-gray-600 mb-2">As Supervisor</h3>
+                <div v-if="supervisorFeedbackLoading" class="animate-pulse">
+                  <!-- Skeleton loading UI -->
+                  <div class="relative pl-4">
+                    <div class="absolute left-0 top-0 bottom-0 w-1 bg-gray-200 rounded-full"></div>
+                    <div class="flex flex-col items-center justify-center py-3">
+                      <div class="relative w-32 h-32">
+                        <svg class="w-full h-full" viewBox="0 0 100 100">
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            fill="none"
+                            stroke="#E2E8F0"
+                            stroke-width="8"
+                          />
+                        </svg>
+                      </div>
+                      <div class="h-4 bg-gray-200 rounded w-32 mt-3"></div>
+                    </div>
+                  </div>
+                </div>
+                <div v-else-if="supervisorFeedbackError" class="py-3">
+                  <p class="text-red-500">{{ supervisorFeedbackError }}</p>
+                </div>
+                <div v-else class="relative">
+                  <div class="absolute left-0 top-0 bottom-3 w-1 bg-blue-500 rounded-full"></div>
+                  <div class="pl-4">
+                    <div class="flex flex-col items-center justify-center py-3">
+                      <div class="relative w-32 h-32">
+                        <svg class="w-full h-full" viewBox="0 0 100 100">
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            fill="none"
+                            stroke="#E2E8F0"
+                            stroke-width="8"
+                          />
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            fill="none"
+                            stroke="#3B82F6"
+                            stroke-width="8"
+                            stroke-linecap="round"
+                            :stroke-dasharray="`${supervisorFeedbackStats?.reviewRate * 2.83 || 0} 283`"
+                            transform="rotate(-90 50 50)"
+                          />
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                          <span class="text-2xl font-bold text-gray-800">
+                            {{ supervisorFeedbackStats?.reviewedSubmissions || 0 }}/{{ supervisorFeedbackStats?.totalSubmissions || 0 }}
+                          </span>
+                        </div>
+                      </div>
+                      <p class="mt-3 text-center text-sm text-gray-600">
+                        {{ supervisorFeedbackStats?.reviewedSubmissions || 0 }} out of {{ supervisorFeedbackStats?.totalSubmissions || 0 }}
+                        {{ (supervisorFeedbackStats?.totalSubmissions || 0) === 1 ? 'submission has' : 'submissions have' }} been reviewed
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Examiner Feedback Indicator -->
+              <div>
+                <h3 class="text-sm font-medium text-gray-600 mb-2">As Examiner</h3>
+                <div v-if="examinerFeedbackLoading" class="animate-pulse">
+                  <!-- Skeleton loading UI -->
+                  <div class="relative pl-4">
+                    <div class="absolute left-0 top-0 bottom-0 w-1 bg-gray-200 rounded-full"></div>
+                    <div class="flex flex-col items-center justify-center py-3">
+                      <div class="relative w-32 h-32">
+                        <svg class="w-full h-full" viewBox="0 0 100 100">
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            fill="none"
+                            stroke="#E2E8F0"
+                            stroke-width="8"
+                          />
+                        </svg>
+                      </div>
+                      <div class="h-4 bg-gray-200 rounded w-32 mt-3"></div>
+                    </div>
+                  </div>
+                </div>
+                <div v-else-if="examinerFeedbackError" class="py-3">
+                  <p class="text-red-500">{{ examinerFeedbackError }}</p>
+                </div>
+                <div v-else class="relative">
+                  <div class="absolute left-0 top-0 bottom-3 w-1 bg-indigo-500 rounded-full"></div>
+                  <div class="pl-4">
+                    <div class="flex flex-col items-center justify-center py-3">
+                      <div class="relative w-32 h-32">
+                        <svg class="w-full h-full" viewBox="0 0 100 100">
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            fill="none"
+                            stroke="#E2E8F0"
+                            stroke-width="8"
+                          />
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            fill="none"
+                            stroke="#6366F1"
+                            stroke-width="8"
+                            stroke-linecap="round"
+                            :stroke-dasharray="`${examinerFeedbackStats?.reviewRate * 2.83 || 0} 283`"
+                            transform="rotate(-90 50 50)"
+                          />
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                          <span class="text-2xl font-bold text-gray-800">
+                            {{ examinerFeedbackStats?.reviewedSubmissions || 0 }}/{{ examinerFeedbackStats?.totalSubmissions || 0 }}
+                          </span>
+                        </div>
+                      </div>
+                      <p class="mt-3 text-center text-sm text-gray-600">
+                        {{ examinerFeedbackStats?.reviewedSubmissions || 0 }} out of {{ examinerFeedbackStats?.totalSubmissions || 0 }}
+                        {{ (examinerFeedbackStats?.totalSubmissions || 0) === 1 ? 'submission has' : 'submissions have' }} been reviewed
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
       </div>
     </div>
   </div>
@@ -436,7 +581,9 @@ export default {
       milestones: 0,
       submissions: 0,
       projects: 0,
-      examined: 0
+      examined: 0,
+      feedback: 0,
+      examinerFeedback: 0
     })
 
     // Add these refs after the other refs in the setup function
@@ -450,6 +597,18 @@ export default {
     const examinerSubmissionLoading = ref(true)
     const examinerSubmissionError = ref(null)
     const examinerSubmissionStatsCache = ref({})
+
+    // Add feedback tracking state variables
+    const supervisorFeedbackLoading = ref(true)
+    const supervisorFeedbackError = ref(null)
+    const supervisorFeedbackStats = ref(null)
+    const examinerFeedbackLoading = ref(true)
+    const examinerFeedbackError = ref(null)
+    const examinerFeedbackStats = ref(null)
+    const feedbackUnsubscribers = ref({
+      supervisor: null,
+      examiner: null
+    })
 
     // Add a flag to track initial load
     const initialLoadDone = ref(false)
@@ -1619,29 +1778,281 @@ export default {
       }
     };
 
-    // Modify the onMounted hook to ensure proper initialization order
+    // Function to fetch supervisorFeedback stats
+    const fetchSupervisorFeedbackStats = async (force = false) => {
+      console.log('Starting fetchSupervisorFeedbackStats');
+      const now = Date.now();
+      
+      if (!force && lastFetchTimes.value.feedback && (now - lastFetchTimes.value.feedback < 10000)) {
+        console.log('Skipping fetch due to recent update');
+        return;
+      }
+      
+      // Check if we have a selected major and current milestone
+      if (!selectedMajor.value) {
+        console.log('No major selected, skipping feedback fetch');
+        return;
+      }
+
+      const currentMilestone = currentUpcomingMilestone.value;
+      if (!currentMilestone) {
+        console.log('No current milestone found, skipping feedback fetch');
+        return;
+      }
+
+      console.log('Fetching feedback for major:', selectedMajor.value, 'milestone:', currentMilestone.description);
+      
+      supervisorFeedbackLoading.value = true;
+      supervisorFeedbackError.value = null;
+
+      try {
+        if (!userStore.isAuthenticated || !userStore.currentUser) {
+          console.error('User not authenticated');
+          supervisorFeedbackError.value = 'User not authenticated';
+          return;
+        }
+
+        const { school, uid } = userStore.currentUser;
+        console.log('User data:', { school, uid });
+        
+        if (!school) {
+          console.error('Missing school information');
+          supervisorFeedbackError.value = 'Missing school information';
+          return;
+        }
+
+        // Clear previous listener if exists
+        if (feedbackUnsubscribers.value.supervisor) {
+          feedbackUnsubscribers.value.supervisor();
+          feedbackUnsubscribers.value.supervisor = null;
+        }
+
+        // Create default stats
+        supervisorFeedbackStats.value = {
+          totalSubmissions: 0,
+          reviewedSubmissions: 0,
+          reviewRate: 0,
+          majorId: selectedMajor.value,
+          milestoneDescription: currentMilestone.description
+        };
+
+        // Query submissions with major and milestone filters
+        const submissionsRef = collection(db, 'schools', school, 'submissions');
+        const submissionsQuery = query(
+          submissionsRef,
+          where('lecturerId', '==', uid),
+          where('majorId', '==', selectedMajor.value),
+          where('milestoneDescription', '==', currentMilestone.description)
+        );
+        
+        console.log('Querying submissions for major:', selectedMajor.value, 'milestone:', currentMilestone.description);
+
+        const unsubscribe = onSnapshot(submissionsQuery, (submissionsSnapshot) => {
+          const totalSubmissions = submissionsSnapshot.size;
+          console.log('Total supervisor submissions found:', totalSubmissions);
+          
+          let reviewedSubmissions = 0;
+          
+          submissionsSnapshot.forEach(doc => {
+            const data = doc.data();
+            if (
+              data.reviewedBySupervisor === true || 
+              (data.isReviewed === true && data.role === 'supervisor') ||
+              (data.feedback && data.feedback.supervisor && data.feedback.supervisor.submitted === true)
+            ) {
+              reviewedSubmissions++;
+            }
+          });
+          
+          const reviewRate = totalSubmissions > 0 ? 
+            Math.round((reviewedSubmissions / totalSubmissions) * 100) : 0;
+          
+          console.log('Supervisor feedback stats calculated:', {
+            totalSubmissions,
+            reviewedSubmissions,
+            reviewRate,
+            majorId: selectedMajor.value,
+            milestone: currentMilestone.description
+          });
+          
+          supervisorFeedbackStats.value = {
+            totalSubmissions,
+            reviewedSubmissions,
+            reviewRate,
+            majorId: selectedMajor.value,
+            milestoneDescription: currentMilestone.description
+          };
+          
+          supervisorFeedbackLoading.value = false;
+          lastFetchTimes.value.feedback = Date.now();
+        }, (err) => {
+          console.error('Error in supervisor feedback listener:', err);
+          supervisorFeedbackError.value = `Error fetching feedback data: ${err.message}`;
+          supervisorFeedbackLoading.value = false;
+        });
+        
+        feedbackUnsubscribers.value.supervisor = unsubscribe;
+        
+      } catch (err) {
+        console.error('Error in fetchSupervisorFeedbackStats:', err);
+        supervisorFeedbackError.value = `Failed to load feedback data: ${err.message}`;
+        supervisorFeedbackLoading.value = false;
+      }
+    };
+    
+    // Function to fetch examinerFeedback stats
+    const fetchExaminerFeedbackStats = async (force = false) => {
+      console.log('Starting fetchExaminerFeedbackStats');
+      const now = Date.now();
+      
+      if (!force && lastFetchTimes.value.examinerFeedback && (now - lastFetchTimes.value.examinerFeedback < 10000)) {
+        console.log('Skipping fetch due to recent update');
+        return;
+      }
+      
+      // Check if we have a selected major and current milestone
+      if (!selectedMajor.value) {
+        console.log('No major selected, skipping feedback fetch');
+        return;
+      }
+
+      const currentMilestone = currentUpcomingMilestone.value;
+      if (!currentMilestone) {
+        console.log('No current milestone found, skipping feedback fetch');
+        return;
+      }
+
+      console.log('Fetching feedback for major:', selectedMajor.value, 'milestone:', currentMilestone.description);
+      
+      examinerFeedbackLoading.value = true;
+      examinerFeedbackError.value = null;
+
+      try {
+        if (!userStore.isAuthenticated || !userStore.currentUser) {
+          console.error('User not authenticated');
+          examinerFeedbackError.value = 'User not authenticated';
+          return;
+        }
+
+        const { school, uid } = userStore.currentUser;
+        console.log('User data:', { school, uid });
+        
+        if (!school) {
+          console.error('Missing school information');
+          examinerFeedbackError.value = 'Missing school information';
+          return;
+        }
+
+        // Clear previous listener if exists
+        if (feedbackUnsubscribers.value.examiner) {
+          feedbackUnsubscribers.value.examiner();
+          feedbackUnsubscribers.value.examiner = null;
+        }
+
+        // Create default stats
+        examinerFeedbackStats.value = {
+          totalSubmissions: 0,
+          reviewedSubmissions: 0,
+          reviewRate: 0,
+          majorId: selectedMajor.value,
+          milestoneDescription: currentMilestone.description
+        };
+
+        // Query submissions with major and milestone filters
+        const submissionsRef = collection(db, 'schools', school, 'submissions');
+        const submissionsQuery = query(
+          submissionsRef,
+          where('examinerId', '==', uid),
+          where('majorId', '==', selectedMajor.value),
+          where('milestoneDescription', '==', currentMilestone.description)
+        );
+        
+        console.log('Querying submissions for major:', selectedMajor.value, 'milestone:', currentMilestone.description);
+
+        const unsubscribe = onSnapshot(submissionsQuery, (submissionsSnapshot) => {
+          const totalSubmissions = submissionsSnapshot.size;
+          console.log('Total examiner submissions found:', totalSubmissions);
+          
+          let reviewedSubmissions = 0;
+          
+          submissionsSnapshot.forEach(doc => {
+            const data = doc.data();
+            if (
+              data.reviewedByExaminer === true || 
+              (data.isReviewed === true && data.role === 'examiner') ||
+              (data.feedback && data.feedback.examiner && data.feedback.examiner.submitted === true)
+            ) {
+              reviewedSubmissions++;
+            }
+          });
+          
+          const reviewRate = totalSubmissions > 0 ? 
+            Math.round((reviewedSubmissions / totalSubmissions) * 100) : 0;
+          
+          console.log('Examiner feedback stats calculated:', {
+            totalSubmissions,
+            reviewedSubmissions,
+            reviewRate,
+            majorId: selectedMajor.value,
+            milestone: currentMilestone.description
+          });
+          
+          examinerFeedbackStats.value = {
+            totalSubmissions,
+            reviewedSubmissions,
+            reviewRate,
+            majorId: selectedMajor.value,
+            milestoneDescription: currentMilestone.description
+          };
+          
+          examinerFeedbackLoading.value = false;
+          lastFetchTimes.value.examinerFeedback = Date.now();
+        }, (err) => {
+          console.error('Error in examiner feedback listener:', err);
+          examinerFeedbackError.value = `Error fetching feedback data: ${err.message}`;
+          examinerFeedbackLoading.value = false;
+        });
+        
+        feedbackUnsubscribers.value.examiner = unsubscribe;
+        
+      } catch (err) {
+        console.error('Error in fetchExaminerFeedbackStats:', err);
+        examinerFeedbackError.value = `Failed to load feedback data: ${err.message}`;
+        examinerFeedbackLoading.value = false;
+      }
+    };
+
+    // Add a watch effect to refresh feedback stats when major or milestone changes
+    watch([selectedMajor, currentUpcomingMilestone], ([newMajor, newMilestone], [oldMajor, oldMilestone]) => {
+      if (newMajor !== oldMajor || 
+          (newMilestone && oldMilestone && newMilestone.description !== oldMilestone.description)) {
+        console.log('Major or milestone changed, refreshing feedback stats');
+        // Force refresh both feedback stats
+        fetchSupervisorFeedbackStats(true);
+        fetchExaminerFeedbackStats(true);
+      }
+    });
+
+    // Modify the onMounted hook to force refresh the first time
     onMounted(async () => {
       const startTime = Date.now();
       
       try {
         // Step 1: Initialize auth if not already done
         if (!userStore.initialized) {
+          console.log('Initializing auth...');
           await userStore.initializeAuth();
         }
 
         // Verify userStore.currentUser exists
+        console.log('Auth initialized, current user:', userStore.currentUser ? 'exists' : 'null');
+
         if (!userStore.currentUser) {
           throw new Error('User not initialized');
         }
 
         const { school, major } = userStore.currentUser;
-        if (!school) {
-          throw new Error('School information not available');
-        }
-        
-        if (!major || !Array.isArray(major) || major.length === 0) {
-          throw new Error('No majors assigned to lecturer');
-        }
+        console.log('User data loaded:', { school, hasMajor: !!major });
 
         // Step 2: Set majors directly from userStore (much faster than fetching from Firestore)
         await fetchLecturerMajors();
@@ -1679,7 +2090,10 @@ export default {
           fetchMilestonesData(),
           fetchSubmissionStats(primaryMajor, false),
           fetchLecturerProjects(),
-          setupExaminedProjectsListeners()
+          setupExaminedProjectsListeners(),
+          // Add feedback stats fetching
+          fetchSupervisorFeedbackStats(),
+          fetchExaminerFeedbackStats()
         ];
 
         // Mark initial load as complete once any data is available
@@ -1714,7 +2128,14 @@ export default {
           }
         });
 
+        // Force refresh feedback stats on initial load
+        await Promise.all([
+          fetchSupervisorFeedbackStats(true),  // Force refresh
+          fetchExaminerFeedbackStats(true)     // Force refresh
+        ]);
+
       } catch (err) {
+        console.error('Error in onMounted:', err);
         error.value = 'Failed to initialize dashboard data';
       }
     });
@@ -1736,6 +2157,14 @@ export default {
       // Clean up examiner submission listeners
       Object.values(examinerSubmissionUnsubscribers.value).forEach(unsubscribe => unsubscribe());
       examinerSubmissionUnsubscribers.value = {};
+      
+      // Clean up feedback listeners
+      if (feedbackUnsubscribers.value.supervisor) {
+        feedbackUnsubscribers.value.supervisor();
+      }
+      if (feedbackUnsubscribers.value.examiner) {
+        feedbackUnsubscribers.value.examiner();
+      }
     });
 
     // Optimized helper function to compare milestone arrays
@@ -1800,7 +2229,15 @@ export default {
       examinerSubmissionStats,
       examinerSubmissionLoading,
       examinerSubmissionError,
-      fetchExaminerSubmissionStats
+      fetchExaminerSubmissionStats,
+      supervisorFeedbackLoading,
+      supervisorFeedbackError,
+      supervisorFeedbackStats,
+      examinerFeedbackLoading,
+      examinerFeedbackError,
+      examinerFeedbackStats,
+      fetchSupervisorFeedbackStats,
+      fetchExaminerFeedbackStats
     }
   }
 }
