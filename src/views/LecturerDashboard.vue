@@ -189,95 +189,128 @@
             <h2 class="text-sm font-medium text-gray-500">Milestone Submissions</h2>
           </div>
           
-          <div v-if="submissionLoading" class="animate-pulse">
-            <!-- Submission Stats Skeleton -->
-            <div class="relative pl-4">
-              <div class="absolute left-0 top-0 bottom-0 w-1 bg-gray-200 rounded-full"></div>
-              <div class="h-6 bg-gray-200 rounded w-2/3 mb-4"></div>
-              <!-- Circular Progress Skeleton -->
-              <div class="flex flex-col items-center justify-center py-3">
-                <div class="relative w-32 h-32">
-                  <svg class="w-full h-full" viewBox="0 0 100 100">
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="45"
-                      fill="none"
-                      stroke="#E2E8F0"
-                      stroke-width="8"
-                    />
-                  </svg>
-                </div>
-                <div class="h-4 bg-gray-200 rounded w-32 mt-3"></div>
+          <div class="grid grid-cols-2 gap-4">
+            <!-- Creator Projects Indicator -->
+            <div>
+              <h3 class="text-sm font-medium text-gray-600 mb-2">Projects Supervised</h3>
+              <div v-if="submissionLoading" class="animate-pulse">
+                <!-- Existing loading skeleton -->
               </div>
-            </div>
-          </div>
-          
-          <div v-else-if="submissionError" class="py-3">
-            <p class="text-red-500">{{ submissionError }}</p>
-          </div>
-          
-          <div v-else-if="currentMilestoneSubmissionStats" class="py-1">
-            <div class="relative">
-              <div class="absolute left-0 top-0 bottom-0 w-1 bg-purple-500 rounded-full"></div>
-              
-              <div class="pl-4">
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">
-                  {{ currentMilestoneSubmissionStats.milestoneName }}
-                </h3>
-                
-                <!-- Circular Progress Display -->
-                <div class="flex flex-col items-center justify-center py-3">
-                  <div class="relative w-32 h-32">
-                    <!-- Background Circle -->
-                    <svg class="w-full h-full" viewBox="0 0 100 100">
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="45"
-                        fill="none"
-                        stroke="#E2E8F0"
-                        stroke-width="8"
-                      />
-                      <!-- Progress Circle -->
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="45"
-                        fill="none"
-                        stroke="#7C3AED"
-                        stroke-width="8"
-                        stroke-linecap="round"
-                        :stroke-dasharray="`${currentMilestoneSubmissionStats.submissionRate * 2.83} 283`"
-                        transform="rotate(-90 50 50)"
-                      />
-                    </svg>
-                    <!-- Fraction Display -->
-                    <div class="absolute inset-0 flex items-center justify-center">
-                      <span class="text-2xl font-bold text-gray-800">
-                        {{ currentMilestoneSubmissionStats.projectsWithSubmissions }}/{{ currentMilestoneSubmissionStats.totalAssigned }}
-                      </span>
+              <div v-else-if="submissionError" class="py-3">
+                <p class="text-red-500">{{ submissionError }}</p>
+              </div>
+              <div v-else-if="currentMilestoneSubmissionStats" class="py-1">
+                <div class="relative">
+                  <div class="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-full"></div>
+                  <div class="pl-4">
+                    <div class="flex flex-col items-center justify-center py-3">
+                      <div class="relative w-32 h-32">
+                        <svg class="w-full h-full" viewBox="0 0 100 100">
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            fill="none"
+                            stroke="#E2E8F0"
+                            stroke-width="8"
+                          />
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            fill="none"
+                            stroke="#22C55E"
+                            stroke-width="8"
+                            stroke-linecap="round"
+                            :stroke-dasharray="`${currentMilestoneSubmissionStats.submissionRate * 2.83} 283`"
+                            transform="rotate(-90 50 50)"
+                          />
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                          <span class="text-2xl font-bold text-gray-800">
+                            {{ currentMilestoneSubmissionStats.projectsWithSubmissions }}/{{ currentMilestoneSubmissionStats.totalAssigned }}
+                          </span>
+                        </div>
+                      </div>
+                      <p class="mt-3 text-center text-sm text-gray-600">
+                        {{ currentMilestoneSubmissionStats.projectsWithSubmissions }} out of {{ currentMilestoneSubmissionStats.totalAssigned }} 
+                        {{ currentMilestoneSubmissionStats.totalAssigned === 1 ? 'project has' : 'projects have' }} submissions
+                      </p>
                     </div>
                   </div>
-                  <!-- Submission Status Text -->
-                  <p class="mt-3 text-center text-gray-600">
-                    {{ currentMilestoneSubmissionStats.projectsWithSubmissions }} out of {{ currentMilestoneSubmissionStats.totalAssigned }} 
-                    {{ currentMilestoneSubmissionStats.totalAssigned === 1 ? 'student' : 'students' }}
-                    {{ currentMilestoneSubmissionStats.projectsWithSubmissions < 2 ? 'has' : 'have' }} submitted their work.
-                  </p>
                 </div>
               </div>
             </div>
-          </div>
-          
-          <div v-else class="py-3 text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            <p class="text-gray-500">No submission data available.</p>
-            <p class="text-sm text-gray-400 mt-1">
-              {{ currentUpcomingMilestone ? 'No assigned projects for this milestone yet.' : 'No current milestone found.' }}
-            </p>
+
+            <!-- Examiner Projects Indicator -->
+            <div>
+              <h3 class="text-sm font-medium text-gray-600 mb-2">Projects Examined</h3>
+              <div v-if="examinerSubmissionLoading" class="animate-pulse">
+                <!-- Skeleton loading UI -->
+                <div class="relative pl-4">
+                  <div class="absolute left-0 top-0 bottom-0 w-1 bg-gray-200 rounded-full"></div>
+                  <div class="flex flex-col items-center justify-center py-3">
+                    <div class="relative w-32 h-32">
+                      <svg class="w-full h-full" viewBox="0 0 100 100">
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="45"
+                          fill="none"
+                          stroke="#E2E8F0"
+                          stroke-width="8"
+                        />
+                      </svg>
+                    </div>
+                    <div class="h-4 bg-gray-200 rounded w-32 mt-3"></div>
+                  </div>
+                </div>
+              </div>
+              <div v-else-if="examinerSubmissionError" class="py-3">
+                <p class="text-red-500">{{ examinerSubmissionError }}</p>
+              </div>
+              <div v-else-if="examinerSubmissionStats" class="py-1">
+                <div class="relative">
+                  <div class="absolute left-0 top-0 bottom-0 w-1 bg-purple-500 rounded-full"></div>
+                  <div class="pl-4">
+                    <div class="flex flex-col items-center justify-center py-3">
+                      <div class="relative w-32 h-32">
+                        <svg class="w-full h-full" viewBox="0 0 100 100">
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            fill="none"
+                            stroke="#E2E8F0"
+                            stroke-width="8"
+                          />
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            fill="none"
+                            stroke="#9333EA"
+                            stroke-width="8"
+                            stroke-linecap="round"
+                            :stroke-dasharray="`${examinerSubmissionStats.submissionRate * 2.83} 283`"
+                            transform="rotate(-90 50 50)"
+                          />
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                          <span class="text-2xl font-bold text-gray-800">
+                            {{ examinerSubmissionStats.projectsWithSubmissions }}/{{ examinerSubmissionStats.totalAssigned }}
+                          </span>
+                        </div>
+                      </div>
+                      <p class="mt-3 text-center text-sm text-gray-600">
+                        {{ examinerSubmissionStats.projectsWithSubmissions }} out of {{ examinerSubmissionStats.totalAssigned }} 
+                        {{ examinerSubmissionStats.totalAssigned === 1 ? 'project has' : 'projects have' }} submissions
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -411,6 +444,15 @@ export default {
     const examinedProjectsError = ref(null)
     const examinedProjectsCount = ref(0)
     const examinedProjectsUnsubscribers = ref([])
+
+    // Add new state for examiner submissions
+    const examinerSubmissionStats = ref(null)
+    const examinerSubmissionLoading = ref(true)
+    const examinerSubmissionError = ref(null)
+    const examinerSubmissionStatsCache = ref({})
+
+    // Add a flag to track initial load
+    const initialLoadDone = ref(false)
 
     // Modify storeMilestoneData to include a last changed timestamp
     const storeMilestoneData = (majorId, majorMilestones) => {
@@ -626,16 +668,19 @@ export default {
     const currentMilestoneSubmissionStats = ref(null)
     // Add a cache object to store submission stats by major
     const submissionStatsCache = ref({})
-    // Add a flag to track initial load
-    const initialLoadDone = ref(false)
 
-    // Single watcher for selectedMajor that handles both initial load and subsequent changes
+    // Watch for changes in selectedMajor that handles both initial load and subsequent changes
     watch(selectedMajor, async (newMajor) => {
       if (!newMajor) return;
       
       // Update selectedSubmissionMajor to match the selected major
       selectedSubmissionMajor.value = newMajor;
-      await fetchSubmissionStats(newMajor, false, true); // Force update
+      
+      // Fetch both types of submission stats
+      await Promise.all([
+        fetchSubmissionStats(newMajor, false, true),
+        fetchExaminerSubmissionStats(newMajor, false, true)
+      ]);
     });
 
     // Computed property to filter out the current milestone from the list
@@ -1253,6 +1298,165 @@ export default {
       }
     }
 
+    // Function to fetch examiner submission statistics
+    const fetchExaminerSubmissionStats = async (majorId, isBackgroundLoad = false, force = false) => {
+      if (!majorId) return;
+      
+      // Skip if recently loaded unless forced
+      const now = Date.now();
+      if (!force && !isBackgroundLoad && now - lastFetchTimes.value.submissions < 10000) return;
+      
+      // Check if we already have cached data for this major
+      if (examinerSubmissionStatsCache.value[majorId]) {
+        if (!isBackgroundLoad) {
+          examinerSubmissionStats.value = examinerSubmissionStatsCache.value[majorId];
+        }
+        
+        // If cache is fresh (less than 30 seconds), don't refresh
+        const cacheAge = now - (examinerSubmissionStatsCache.value[majorId].timestamp || 0);
+        if (cacheAge < 30000) return;
+      }
+      
+      if (!isBackgroundLoad && !examinerSubmissionStatsCache.value[majorId]) {
+        examinerSubmissionLoading.value = true;
+        examinerSubmissionError.value = null;
+        examinerSubmissionStats.value = null;
+      }
+      
+      try {
+        if (!userStore.isAuthenticated || !userStore.currentUser) {
+          examinerSubmissionError.value = 'User not authenticated';
+          return;
+        }
+        
+        const { school, uid } = userStore.currentUser;
+        
+        if (!school) {
+          examinerSubmissionError.value = 'Missing school information';
+          return;
+        }
+        
+        const academicYearData = await getLatestAcademicYear(school);
+        
+        if (!academicYearData?.yearId) {
+          examinerSubmissionError.value = 'Failed to determine academic year';
+          return;
+        }
+        
+        const yearId = academicYearData.yearId;
+        
+        const majorDocId = await getMajorDocId(school, yearId, majorId);
+        
+        if (!majorDocId) {
+          examinerSubmissionError.value = 'Major document not found';
+          return;
+        }
+        
+        const majorMilestones = await getMilestones(school, yearId, majorId, majorDocId);
+        
+        if (!majorMilestones || majorMilestones.length === 0) {
+          examinerSubmissionError.value = 'No milestones found for this major';
+          return;
+        }
+        
+        const now = new Date();
+        const sortedMilestones = [...majorMilestones].sort((a, b) => {
+          const dateA = a.deadline instanceof Date ? a.deadline : a.deadline.toDate();
+          const dateB = b.deadline instanceof Date ? b.deadline : b.deadline.toDate();
+          return dateA - dateB;
+        });
+        
+        let currentMilestone = sortedMilestones.find(milestone => {
+          const deadlineDate = milestone.deadline instanceof Date ? 
+            milestone.deadline : 
+            milestone.deadline.toDate();
+          return deadlineDate > now;
+        });
+        
+        if (!currentMilestone && sortedMilestones.length > 0) {
+          currentMilestone = sortedMilestones[sortedMilestones.length - 1];
+        }
+        
+        if (!currentMilestone) {
+          examinerSubmissionError.value = 'No current milestone found';
+          return;
+        }
+        
+        const milestoneIndex = majorMilestones.findIndex(m => 
+          m.description === currentMilestone.description
+        );
+        
+        const projectsRef = collection(
+          db,
+          'schools', school,
+          'projects', yearId,
+          majorId, majorDocId,
+          'projectsPerYear'
+        );
+        
+        const projectsQuery = query(
+          projectsRef,
+          where('examinerId', '==', uid)
+        );
+        
+        const projectsSnapshot = await getDocs(projectsQuery);
+        
+        const totalAssigned = projectsSnapshot.size;
+        const submissionQueries = [];
+        
+        projectsSnapshot.docs.forEach(projectDoc => {
+          const submissionsRef = collection(projectDoc.ref, 'submissions');
+          const submissionsQuery = query(
+            submissionsRef,
+            where('milestoneIndex', '==', milestoneIndex)
+          );
+          
+          submissionQueries.push({
+            projectId: projectDoc.id,
+            query: submissionsQuery
+          });
+        });
+        
+        const submissionResults = await Promise.all(
+          submissionQueries.map(item => 
+            getDocs(item.query).then(snapshot => ({
+              projectId: item.projectId,
+              hasSubmission: !snapshot.empty
+            }))
+          )
+        );
+        
+        const projectsWithSubmissions = submissionResults.filter(result => result.hasSubmission).length;
+        const submissionRate = totalAssigned > 0 ? 
+          Math.round((projectsWithSubmissions / totalAssigned) * 100) : 0;
+        
+        const statsObject = {
+          milestoneName: currentMilestone.description,
+          milestoneIndex: milestoneIndex,
+          totalAssigned: totalAssigned,
+          projectsWithSubmissions: projectsWithSubmissions,
+          projectsWithoutSubmissions: totalAssigned - projectsWithSubmissions,
+          submissionRate: submissionRate,
+          timestamp: Date.now()
+        };
+        
+        examinerSubmissionStatsCache.value[majorId] = statsObject;
+        
+        if (!isBackgroundLoad) {
+          examinerSubmissionStats.value = statsObject;
+        }
+        
+      } catch (err) {
+        if (!isBackgroundLoad) {
+          examinerSubmissionError.value = `Failed to load examiner submission data: ${err.message}`;
+        }
+      } finally {
+        if (!isBackgroundLoad) {
+          examinerSubmissionLoading.value = false;
+        }
+      }
+    }
+
     // Watch for changes in lecturerMajors to set default selectedSubmissionMajor
     watch(lecturerMajors, async (newMajors) => {
       if (newMajors && newMajors.length > 0 && !initialLoadDone.value) {
@@ -1605,7 +1809,11 @@ export default {
       examinedProjectsLoading,
       examinedProjectsError,
       examinedProjectsCount,
-      examinedProjectsUnsubscribers
+      examinedProjectsUnsubscribers,
+      examinerSubmissionStats,
+      examinerSubmissionLoading,
+      examinerSubmissionError,
+      fetchExaminerSubmissionStats
     }
   }
 }
