@@ -1212,7 +1212,7 @@
               <p class="text-sm text-gray-600">Select which major each project should be imported to in the current academic year.</p>
               
               <div class="space-y-4">
-                <div v-for="sourceMajor in uniqueSourceProjectMajors" :key="sourceMajor" class="flex items-center gap-4">
+                <div v-for="sourceMajor in selectedProjectMajors" :key="sourceMajor" class="flex items-center gap-4">
                   <div class="flex items-center">
                     <span class="text-sm font-medium text-gray-700">From: </span>
                     <span 
@@ -2296,10 +2296,7 @@ const selectedSourceMajorFilters = ref(new Set())
 const majorMappings = ref({})
 const currentYearMajors = ref([])
 
-// Computed properties for source projects
-const uniqueSourceProjectMajors = computed(() => {
-  return [...new Set(sourceProjects.value.map(project => project.major))]
-})
+
 
 const filteredSourceProjects = computed(() => {
   if (selectedSourceMajorFilters.value.size === 0) {
@@ -2541,10 +2538,6 @@ const fetchCurrentYearMajors = async () => {
   }
 }
 
-// Add computed property to check if all majors are mapped
-const isAllMajorsMapped = computed(() => {
-  return uniqueSourceProjectMajors.value.every(major => majorMappings.value[major])
-})
 
 // Add new state for all projects filters
 const selectedAllMajorFilters = ref(new Set())
@@ -4839,6 +4832,23 @@ const fetchExaminedProjects = async () => {
     examinedProjectsLoading.value = false;
   }
 };
+
+// Keep the existing uniqueSourceProjectMajors for filtering
+const uniqueSourceProjectMajors = computed(() => {
+  return [...new Set(sourceProjects.value.map(project => project.major))]
+})
+
+// Add the new selectedProjectMajors for mapping
+const selectedProjectMajors = computed(() => {
+  const selectedProjects = sourceProjects.value.filter(p => selectedProjectsToImport.value.includes(p.id))
+  return [...new Set(selectedProjects.map(project => project.major))]
+})
+
+// Update the isAllMajorsMapped to use selectedProjectMajors
+const isAllMajorsMapped = computed(() => {
+  return selectedProjectMajors.value.every(major => majorMappings.value[major])
+})
+
 </script>
 
 <style scoped>
