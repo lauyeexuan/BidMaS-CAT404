@@ -60,7 +60,7 @@
                 class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
                 :class="batchSelectionActive ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
               >
-                {{ batchSelectionActive ? 'Exit Selection' : 'Select Projects' }}
+                {{ batchSelectionActive ? 'Clear Selection' : 'Batch Examiner Assignment' }}
               </button>
             </div>
             <span class="text-sm text-gray-500">(Total: {{ filteredProjects.length }})</span>
@@ -198,7 +198,10 @@
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
               <tr v-for="(project, index) in paginatedProjects" :key="index" 
-                  :class="{'bg-blue-50': selectedProjects.has(project.id)}"
+                  :class="{
+                    'bg-blue-50': selectedProjects.has(project.id),
+                    'opacity-50': batchSelectionActive && !project.assignedTo
+                  }"
               >
                 <td v-if="batchSelectionActive" class="w-12 px-3 py-4">
                   <div class="flex items-center">
@@ -206,7 +209,9 @@
                       type="checkbox" 
                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       :checked="selectedProjects.has(project.id)"
+                      :disabled="!project.assignedTo"
                       @change="toggleProjectSelection(project.id)"
+                      :class="{'cursor-not-allowed': !project.assignedTo}"
                     >
                   </div>
                 </td>
@@ -2090,16 +2095,26 @@ const selectedProjectMajors = computed(() => {
 })
 
 const allCurrentPageSelected = computed(() => {
-  return paginatedProjects.value.every(project => selectedProjects.value.has(project.id))
+  const assignedProjects = paginatedProjects.value.filter(project => project.assignedTo)
+  if (assignedProjects.length === 0) return false
+  return assignedProjects.every(project => selectedProjects.value.has(project.id))
 })
 
 const someCurrentPageSelected = computed(() => {
-  return paginatedProjects.value.some(project => selectedProjects.value.has(project.id))
+  const assignedProjects = paginatedProjects.value.filter(project => project.assignedTo)
+  return assignedProjects.some(project => selectedProjects.value.has(project.id))
 })
 
 // Add selection functions
 const toggleProjectSelection = (projectId) => {
   if (!batchSelectionActive.value) return
+  
+  // Find the project
+  const project = projects.value.find(p => p.id === projectId)
+  
+  // Only allow selection if project is assigned to a student
+  if (!project || !project.assignedTo) return
+  
   if (selectedProjects.value.has(projectId)) {
     selectedProjects.value.delete(projectId)
   } else {
@@ -2114,10 +2129,12 @@ const toggleAllCurrentPage = () => {
       selectedProjects.value.delete(project.id)
     })
   } else {
-    // Select all on current page
-    paginatedProjects.value.forEach(project => {
-      selectedProjects.value.add(project.id)
-    })
+    // Select only assigned projects on current page
+    paginatedProjects.value
+      .filter(project => project.assignedTo)
+      .forEach(project => {
+        selectedProjects.value.add(project.id)
+      })
   }
 }
 
