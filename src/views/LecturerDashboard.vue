@@ -1119,24 +1119,45 @@ export default {
           return;
         }
 
-        // Get user data from the userStore
-        const { major } = userStore.currentUser;
+        const { school, major } = userStore.currentUser;
         
         if (!major || !Array.isArray(major) || major.length === 0) {
           error.value = 'No majors assigned to lecturer';
           return;
         }
+
+        // Get latest academic year
+        const academicYearData = await getLatestAcademicYear(school);
+        if (!academicYearData?.yearId) {
+          error.value = 'Failed to determine academic year';
+          return;
+        }
+
+        // Get the academic year document which contains the majors array
+        const yearDocRef = doc(db, 'schools', school, 'projects', academicYearData.yearId);
+        const yearDocSnapshot = await getDoc(yearDocRef);
+
+        if (!yearDocSnapshot.exists() || !yearDocSnapshot.data().majors) {
+          error.value = 'No majors found in current academic year';
+          return;
+        }
+
+        // Get the list of majors available in the current academic year
+        const currentYearMajors = yearDocSnapshot.data().majors;
+
+        // Filter lecturer's majors to only include those in the current academic year
+        const filteredMajors = major.filter(m => currentYearMajors.includes(m));
         
-        // Store the lecturer's majors directly from userStore
-        lecturerMajors.value = major;
+        // Store the filtered lecturer's majors
+        lecturerMajors.value = filteredMajors;
         
         // Set the default selected major if not already set
-        if (!selectedMajor.value && major.length > 0) {
-          selectedMajor.value = major[0];
-          selectedSubmissionMajor.value = major[0];
+        if (!selectedMajor.value && filteredMajors.length > 0) {
+          selectedMajor.value = filteredMajors[0];
+          selectedSubmissionMajor.value = filteredMajors[0];
         }
         
-        return major;
+        return filteredMajors;
       } catch (err) {
         error.value = `Failed to load lecturer majors: ${err.message}`;
         throw err;
