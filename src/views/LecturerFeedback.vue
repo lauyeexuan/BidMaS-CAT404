@@ -542,7 +542,7 @@
           <!-- Major Selection Tabs -->
           <div class="flex space-x-2">
             <button
-              v-for="major in userStore.currentUser?.major || []"
+              v-for="major in filteredMajors"
               :key="major"
               @click="currentDisplayMajor = major"
               class="px-2 py-1 text-xs rounded-full transition-colors"
@@ -655,7 +655,7 @@
                   All Majors
                 </button>
                 <button
-                  v-for="major in userStore.currentUser?.major || []"
+                  v-for="major in filteredMajors"
                   :key="major"
                   @click="handleMajorSelect(major)"
                   class="text-left px-3 py-2 rounded-md text-sm transition-colors"
@@ -1724,6 +1724,54 @@ export default {
       `
     }
 
+    const filteredMajors = ref([])
+    
+    // Function to fetch and filter majors for the latest academic year
+    const fetchLatestYearMajors = async () => {
+      try {
+        if (!userStore.currentUser?.school || !userStore.currentUser?.major) {
+          return
+        }
+
+        const { school, major } = userStore.currentUser
+
+        // Get latest academic year
+        const academicYearData = await getLatestAcademicYear(school)
+        if (!academicYearData?.yearId) {
+          console.error('Failed to determine academic year')
+          return
+        }
+
+        // Get the academic year document which contains the majors array
+        const yearDocRef = doc(db, 'schools', school, 'projects', academicYearData.yearId)
+        const yearDocSnapshot = await getDoc(yearDocRef)
+
+        if (!yearDocSnapshot.exists() || !yearDocSnapshot.data().majors) {
+          console.error('No majors found in current academic year')
+          return
+        }
+
+        // Get the list of majors available in the current academic year
+        const currentYearMajors = yearDocSnapshot.data().majors
+
+        // Filter lecturer's majors to only include those in the current academic year
+        const filtered = Array.isArray(major) ? major.filter(m => currentYearMajors.includes(m)) : []
+        filteredMajors.value = filtered
+
+        // Set default major if not already set or current major is not in filtered list
+        if (!currentDisplayMajor.value || !filtered.includes(currentDisplayMajor.value)) {
+          currentDisplayMajor.value = filtered[0]
+        }
+      } catch (err) {
+        console.error('Failed to load latest year majors:', err)
+      }
+    }
+
+    // Call fetchLatestYearMajors when component mounts
+    onMounted(() => {
+      fetchLatestYearMajors()
+    })
+
     return {
       userStore,
       selectedMajor,
@@ -1775,7 +1823,8 @@ export default {
       dragover,
       removeAttachment,
       removeExistingAttachment,
-      formatFileSize
+      formatFileSize,
+      filteredMajors,
     }
   }
 }
