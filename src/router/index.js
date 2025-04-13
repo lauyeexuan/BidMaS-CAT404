@@ -13,7 +13,6 @@ import LecturerFeedback from '@/views/LecturerFeedback.vue'
 import DataMigration from '@/components/DataMigration.vue'
 import AccountManagement from '@/views/AccountManagement.vue'
 import Community from '@/views/Community.vue'
-import Progress from '@/views/Progress.vue'
 import AdminProgressDashboard from '@/views/AdminProgressDashboard.vue'
 
 const router = createRouter({
@@ -54,12 +53,12 @@ const router = createRouter({
       }
     },
     {
-      path: '/progress',
-      name: 'progress',
-      component: Progress,
+      path: '/admin/progress',
+      name: 'admin-progress-dashboard',
+      component: AdminProgressDashboard,
       meta: { 
         requiresAuth: true,
-        requiresAdmin: true // Only accessible by admins
+        requiresAdmin: true
       }
     },
     {
@@ -120,15 +119,6 @@ const router = createRouter({
       meta: { 
         requiresAuth: true,
         requiresAdmin: true  // Restrict to admin only for safety
-      }
-    },
-    {
-      path: '/admin/progress-dashboard',
-      name: 'AdminProgressDashboard',
-      component: AdminProgressDashboard,
-      meta: {
-        requiresAuth: true,
-        allowedRoles: ['admin']
       }
     },
     // {
