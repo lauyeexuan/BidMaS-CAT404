@@ -12,6 +12,13 @@
       >
         <h1 class="text-2xl font-semibold">{{ currentPageTitle }}</h1>
         <div class="flex items-center gap-4">
+          <!-- Flowchart Icon -->
+          <button @click="showFlowchart = true" class="p-2 hover:bg-gray-100 rounded-full">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+            </svg>
+          </button>
+
           <!-- Notification Badge -->
           <NotificationBadge 
             :school-id="userStore.currentUser?.school" 
@@ -26,6 +33,25 @@
           </div>
         </div>
       </div>
+      
+      <!-- Flowchart Modal -->
+      <Transition name="modal">
+        <div v-if="showFlowchart" class="fixed inset-0 z-50 flex items-center justify-center p-2">
+          <div class="fixed inset-0 bg-black bg-opacity-50" @click="showFlowchart = false"></div>
+          <div class="relative bg-white rounded-lg shadow-xl w-[95vw] h-[95vh] overflow-auto">
+            <div class="absolute top-4 right-4 z-10">
+              <button @click="showFlowchart = false" class="p-2 hover:bg-gray-100 rounded-full bg-white shadow-md">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div class="p-2 h-full flex items-center justify-center">
+              <img src="@/assets/flowchart.png" alt="System Flowchart" class="max-w-full max-h-[90vh] object-contain">
+            </div>
+          </div>
+        </div>
+      </Transition>
       
       <!-- Notification Panel -->
       <NotificationsPanel 
@@ -73,6 +99,7 @@ export default {
     const showNotificationPanel = ref(false)
     const isAnimatingOut = ref(false)
     const isNavbarOpen = ref(true)
+    const showFlowchart = ref(false)
 
     // Computed property for navbar width
     const navbarWidth = computed(() => {
@@ -172,7 +199,8 @@ export default {
       closeNotificationPanel,
       notificationAnimationComplete,
       navbarWidth,
-      updateNavbarState
+      updateNavbarState,
+      showFlowchart
     }
   }
 }
@@ -192,4 +220,21 @@ export default {
 
 /* Add CSS variable for navbar width */
 
+/* Modal transition */
+.modal-enter-active,
+.modal-leave-active {
+  transition: all 0.3s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+.modal-enter-to,
+.modal-leave-from {
+  opacity: 1;
+  transform: scale(1);
+}
 </style> 
