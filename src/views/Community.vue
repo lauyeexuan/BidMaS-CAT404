@@ -130,7 +130,7 @@
               </div>
               
               <div class="mb-4">
-                <p class="text-gray-800 whitespace-pre-wrap">{{ post.text }}</p>
+                <p class="text-gray-800 whitespace-pre-wrap font-medium text-lg">{{ post.text }}</p>
               </div>
 
               <!-- Media Content -->
@@ -197,7 +197,7 @@
                       </button>
                     </div>
                     
-                    <p v-if="comment.text" class="mt-2 text-gray-800">{{ comment.text }}</p>
+                    <p v-if="comment.text" class="mt-2 text-gray-800 font-medium">{{ comment.text }}</p>
                     
                     <!-- Comment GIF -->
                     <div v-if="comment.gifUrl" class="mt-2">
