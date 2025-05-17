@@ -1544,6 +1544,30 @@ export default {
           console.error('Error creating notification:', notificationError)
         }
 
+        // Send email notification
+        try {
+          // Get student's email from users collection
+          const userDoc = await getDoc(doc(db, 'schools', userStore.currentUser.school, 'users', selectedSubmission.value.submittedBy));
+          if (userDoc.exists() && userDoc.data().email) {
+            const mailRef = collection(db, 'mail');
+            const mailData = {
+              to: userDoc.data().email,
+              message: {
+                subject: `${currentRole.value === 'supervisor' ? 'Supervisor' : 'Examiner'} Feedback Update for your FYP`,
+                html: `Dear student,<br><br>
+                      Your ${currentRole.value} has provided new feedback for your milestone submission "${selectedSubmission.value.milestoneDescription}".<br><br>
+                      Please log in to the system to view the detailed feedback and any attached files.<br><br>
+                      Best regards,<br>
+                      BidMaS`
+              }
+            };
+            await addDoc(mailRef, mailData);
+          }
+        } catch (emailError) {
+          // Log error but don't affect main flow
+          console.error('Error sending email notification:', emailError);
+        }
+
       } catch (error) {
         console.error('Error saving feedback:', error)
         feedbackError.value = 'Failed to save feedback'
