@@ -82,7 +82,6 @@
                     </svg>
                   </button>
                 </div>
-                <p class="text-gray-600">Quota: {{ major.quota }}</p>
                 
                 <!-- Configuration Status -->
                 <div class="mt-3 space-y-2">
@@ -282,18 +281,6 @@
                     :id="'name-' + index"
                     v-model="field.name"
                     placeholder="Enter field name"
-                    class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                  >
-                </div>
-                <div>
-                  <label :for="'quota-' + index" class="block mb-2 text-sm font-medium text-gray-900">
-                    Project Quota:
-                  </label>
-                  <input 
-                    type="number" 
-                    :id="'quota-' + index"
-                    v-model="field.quota"
-                    min="0"
                     class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
                   >
                 </div>
@@ -707,15 +694,6 @@
                       placeholder="Enter major name"
                     >
                   </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700">Quota</label>
-                    <input 
-                      type="number" 
-                      v-model="newMajorQuota"
-                      min="0"
-                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                    >
-                  </div>
                 </div>
 
                 <div class="mt-6 flex justify-end gap-3">
@@ -727,7 +705,7 @@
                   </button>
                   <button 
                     @click="addMajorToExisting(selectedAcademicYear)"
-                    :disabled="!newMajorName || newMajorQuota < 0"
+                    :disabled="!newMajorName"
                     class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Add Major
@@ -866,7 +844,6 @@ const majorToDelete = ref(null)
 // Add new refs for managing majors
 const showAddMajorModal = ref(false)
 const newMajorName = ref('')
-const newMajorQuota = ref(0)
 const selectedAcademicYear = ref('')
 
 // Add new refs for managing active tab
@@ -982,23 +959,19 @@ const fetchSettings = async (fetchAll = false) => {
       return;
     }
     
-    // Only show full page loading when loading initial data, not when adding more years
     if (!fetchAll || existingSettings.value.length === 0) {
       loading.value = true;
     } else {
-      // Use a separate loading state for previous years to avoid full page refresh
       loadingPreviousYears.value = true;
     }
     
     const schoolId = userStore.currentUser.school;
     const projectsRef = collection(db, 'schools', schoolId, 'projects');
     
-    // If loading previous years and we already have the current year
     if (fetchAll && existingSettings.value.length > 0) {
       console.log('Loading previous years only');
       const projectsSnapshot = await getDocs(query(projectsRef));
       
-      // Get all years except the ones we already have
       const existingYearIds = existingSettings.value.map(s => s.academicYear);
       const additionalYearDocs = projectsSnapshot.docs.filter(doc => 
         !existingYearIds.includes(doc.id)
@@ -1018,18 +991,17 @@ const fetchSettings = async (fetchAll = false) => {
         
         const majorsPromises = majorNames.map(async (majorName) => {
           const majorRef = collection(db, 'schools', schoolId, 'projects', academicYear, majorName);
-          const quotaSnapshot = await getDocs(majorRef);
+          const majorDocs = await getDocs(majorRef);
           
-          if (quotaSnapshot.docs.length > 0) {
-            const quotaDoc = quotaSnapshot.docs[0];
-            const quotaData = quotaDoc.data();
+          if (majorDocs.docs.length > 0) {
+            const majorDoc = majorDocs.docs[0];
+            const majorData = majorDoc.data();
             
             return {
               name: majorName,
-              quota: quotaData.quota,
-              docId: quotaDoc.id,
-              headers: quotaData.headers || null,
-              milestones: quotaData.milestones || null
+              docId: majorDoc.id,
+              headers: majorData.headers || null,
+              milestones: majorData.milestones || null
             };
           }
           return null;
@@ -1046,7 +1018,6 @@ const fetchSettings = async (fetchAll = false) => {
       const additionalYears = await Promise.all(additionalYearsPromises);
       additionalYears.sort((a, b) => b.academicYear.localeCompare(a.academicYear));
       
-      // Append to existing settings without replacing the whole array
       const combinedSettings = [...existingSettings.value, ...additionalYears];
       combinedSettings.sort((a, b) => b.academicYear.localeCompare(a.academicYear));
       existingSettings.value = combinedSettings;
@@ -1056,7 +1027,6 @@ const fetchSettings = async (fetchAll = false) => {
       return;
     }
     
-    // If not fetching all, try to get latest academic year first
     if (!fetchAll && !allYearsLoaded.value) {
       const latestYear = await getLatestAcademicYear(schoolId);
       console.log('Fetching latest academic year:', latestYear?.yearId);
@@ -1070,27 +1040,24 @@ const fetchSettings = async (fetchAll = false) => {
           const yearData = latestYearDoc.data();
           const majorNames = yearData.majors || [];
           
-          // Use Promise.all to fetch all majors for this academic year in parallel
           const majorsPromises = majorNames.map(async (majorName) => {
             const majorRef = collection(db, 'schools', schoolId, 'projects', academicYear, majorName);
-            const quotaSnapshot = await getDocs(majorRef);
+            const majorDocs = await getDocs(majorRef);
             
-            if (quotaSnapshot.docs.length > 0) {
-              const quotaDoc = quotaSnapshot.docs[0];
-              const quotaData = quotaDoc.data();
+            if (majorDocs.docs.length > 0) {
+              const majorDoc = majorDocs.docs[0];
+              const majorData = majorDoc.data();
               
               return {
                 name: majorName,
-                quota: quotaData.quota,
-                docId: quotaDoc.id,
-                headers: quotaData.headers || null,
-                milestones: quotaData.milestones || null
+                docId: majorDoc.id,
+                headers: majorData.headers || null,
+                milestones: majorData.milestones || null
               };
             }
             return null;
           });
           
-          // Wait for all majors to be fetched
           const majors = (await Promise.all(majorsPromises)).filter(Boolean);
           
           existingSettings.value = [{
@@ -1107,11 +1074,9 @@ const fetchSettings = async (fetchAll = false) => {
       console.log('Latest year document not found or no academic years exist');
     }
     
-    // Either we want all years, or we couldn't find the latest year
     console.log('Fetching all academic years');
     const projectsSnapshot = await getDocs(query(projectsRef));
     
-    // Use Promise.all to fetch all academic years in parallel
     const academicYearsPromises = projectsSnapshot.docs.map(async (projectDoc) => {
       const academicYear = projectDoc.id;
       const yearData = projectDoc.data();
@@ -1119,18 +1084,17 @@ const fetchSettings = async (fetchAll = false) => {
       
       const majorsPromises = majorNames.map(async (majorName) => {
         const majorRef = collection(db, 'schools', schoolId, 'projects', academicYear, majorName);
-        const quotaSnapshot = await getDocs(majorRef);
+        const majorDocs = await getDocs(majorRef);
         
-        if (quotaSnapshot.docs.length > 0) {
-          const quotaDoc = quotaSnapshot.docs[0];
-          const quotaData = quotaDoc.data();
+        if (majorDocs.docs.length > 0) {
+          const majorDoc = majorDocs.docs[0];
+          const majorData = majorDoc.data();
           
           return {
             name: majorName,
-            quota: quotaData.quota,
-            docId: quotaDoc.id,
-            headers: quotaData.headers || null,
-            milestones: quotaData.milestones || null
+            docId: majorDoc.id,
+            headers: majorData.headers || null,
+            milestones: majorData.milestones || null
           };
         }
         return null;
@@ -1186,7 +1150,7 @@ const fields = ref([])
 const updateFields = () => {
   const newFields = []
   for (let i = 0; i < numFields.value; i++) {
-    newFields[i] = fields.value[i] || { name: '', quota: 0 }
+    newFields[i] = fields.value[i] || { name: '' }
   }
   fields.value = newFields
 }
@@ -1201,10 +1165,7 @@ const isValid = computed(() => {
   return isAcademicYearValid &&
          numFields.value > 0 && 
          fields.value.length === numFields.value &&
-         fields.value.every(field => 
-           field.name.trim() !== '' && 
-           field.quota >= 0
-         )
+         fields.value.every(field => field.name.trim() !== '')
 })
   
 const showToast = (message, type = 'success') => {
@@ -1278,7 +1239,7 @@ const saveSettings = async () => {
       }
     }
 
-    // Update or create each major's quota in parallel
+    // Create each major's document in parallel
     const updatePromises = fields.value.map(async (field) => {
       const majorRef = collection(db, 'schools', schoolId, 'projects', academicYearId, field.name);
       
@@ -1288,15 +1249,7 @@ const saveSettings = async () => {
       if (existingMajorDocs.empty) {
         // Create new document for new major
         const docRef = doc(majorRef);
-        return setDoc(docRef, {
-          quota: parseInt(field.quota)
-        });
-      } else {
-        // Update existing document
-        const existingDoc = existingMajorDocs.docs[0];
-        return updateDoc(existingDoc.ref, {
-          quota: parseInt(field.quota)
-        });
+        return setDoc(docRef, {});
       }
     });
     
@@ -1655,7 +1608,7 @@ const saveMilestones = async () => {
 
           // Get existing document data
           const majorDoc = await getDoc(majorRef)
-          const existingData = majorDoc.exists() ? majorDoc.data() : { quota: major.quota || 0 }
+          const existingData = majorDoc.exists() ? majorDoc.data() : {}
 
           // Update with milestones
           await setDoc(majorRef, { 
@@ -1717,7 +1670,7 @@ const saveMilestones = async () => {
 
       // Get existing document data
       const majorDoc = await getDoc(majorRef)
-      const existingData = majorDoc.exists() ? majorDoc.data() : { quota: currentMajor.value.quota || 0 }
+      const existingData = majorDoc.exists() ? majorDoc.data() : {}
 
       // Update with milestones
       await setDoc(majorRef, { 
@@ -1796,7 +1749,7 @@ const saveHeaders = async () => {
 
           // Get existing document data
           const majorDoc = await getDoc(majorRef)
-          const existingData = majorDoc.exists() ? majorDoc.data() : { quota: major.quota || 0 }
+          const existingData = majorDoc.exists() ? majorDoc.data() : {}
           const existingHeaders = existingData.headers || {}
 
           // Find new headers by comparing with existing headers
@@ -1854,7 +1807,7 @@ const saveHeaders = async () => {
 
       // Get existing document data
       const majorDoc = await getDoc(majorRef)
-      const existingData = majorDoc.exists() ? majorDoc.data() : { quota: currentMajor.value.quota || 0 }
+      const existingData = majorDoc.exists() ? majorDoc.data() : {}
       const existingHeaders = existingData.headers || {}
 
       // Find new headers by comparing with existing headers
@@ -1926,8 +1879,7 @@ const editSetting = (setting) => {
   
   numFields.value = setting.majors.length
   fields.value = setting.majors.map(major => ({
-    name: major.name,
-    quota: major.quota
+    name: major.name
   }))
   showNewSettingsForm.value = true
 }
@@ -1985,21 +1937,18 @@ const addMajorToExisting = async (academicYear) => {
     if (projectDoc.exists()) {
       const data = projectDoc.data();
       
-      // Create major subcollection with quota only
+      // Create major subcollection
       const majorRef = collection(db, 'schools', schoolId, 'projects', academicYear, newMajorName.value);
       // Let Firebase generate a document ID
       const docRef = doc(majorRef);
       const docId = docRef.id;
       
-      // Save the document with quota only
-      await setDoc(docRef, {
-        quota: parseInt(newMajorQuota.value)
-      });
+      // Save the empty document
+      await setDoc(docRef, {});
       
       const newMajor = {
         name: newMajorName.value,
-        quota: parseInt(newMajorQuota.value),
-        docId: docId, // Use the generated Firebase ID
+        docId: docId,
         headers: null,
         milestones: null
       };
@@ -2017,7 +1966,6 @@ const addMajorToExisting = async (academicYear) => {
 
       // Reset form
       newMajorName.value = '';
-      newMajorQuota.value = 0;
       showAddMajorModal.value = false;
       
       showToast('New major field added successfully');
