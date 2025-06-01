@@ -543,8 +543,8 @@
                             <span v-if="milestone.required" class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Required</span>
                           </div>
                           
-                          <!-- Date input for all milestones -->
-                          <div class="mt-3 flex items-center flex-wrap gap-2">
+                          <!-- Date input and weightage for all milestones -->
+                          <div class="mt-3 flex items-center flex-wrap gap-4">
                             <div class="flex items-center">
                               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
@@ -562,6 +562,23 @@
                               <span v-else-if="milestone.deadline" class="ml-2 text-xs text-gray-500">
                                 {{ formatDate(milestone.deadline) }}
                               </span>
+                            </div>
+                            
+                            <!-- Only show weightage if not Project Bidding -->
+                            <div v-if="milestone.description !== 'Project Bidding'" class="flex items-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
+                                <path d="M12 2.252A8 8 0 0112 18.251v-8H4.252a8 8 0 018-8z" />
+                              </svg>
+                              <input 
+                                type="number" 
+                                v-model="milestone.weightage"
+                                min="1"
+                                max="100"
+                                class="ml-1 w-20 px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                                :class="{'border-red-500 bg-red-50': !isWeightageValid(milestone.weightage)}"
+                              >
+                              <span class="ml-1 text-sm text-gray-500">%</span>
                             </div>
                           </div>
                         </div>
@@ -589,23 +606,39 @@
                       >
                     </div>
                     
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700">Deadline</label>
-                      <div class="relative w-full md:w-1/5">
-                        <input 
-                          type="date" 
-                          v-model="newMilestone.deadline"
-                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm pr-2"
-                          placeholder="mm/dd/yyyy"
-                        >
-                      
+                    <div class="flex gap-4">
+                      <div class="w-48">
+                        <label class="block text-sm font-medium text-gray-700">Deadline</label>
+                        <div class="relative w-full">
+                          <input 
+                            type="date" 
+                            v-model="newMilestone.deadline"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm pr-2"
+                            placeholder="mm/dd/yyyy"
+                          >
+                        </div>
+                      </div>
+
+                      <div class="w-32">
+                        <label class="block text-sm font-medium text-gray-700">Weightage</label>
+                        <div class="relative w-full flex items-center mt-1">
+                          <input 
+                            type="number" 
+                            v-model="newMilestone.weightage"
+                            min="1"
+                            max="100"
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm pr-8"
+                            placeholder="1-100"
+                          >
+                          <span class="absolute right-3 text-gray-500">%</span>
+                        </div>
                       </div>
                     </div>
 
                     <button 
                       @click="addMilestone"
                       class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                      :disabled="!newMilestone.description || !newMilestone.deadline"
+                      :disabled="!newMilestone.description || !newMilestone.deadline || !newMilestone.weightage || newMilestone.weightage < 1 || newMilestone.weightage > 100"
                     >
                       Add Milestone
                     </button>
@@ -841,7 +874,11 @@ const activeTab = ref('headers')
 
 // Add new refs for managing milestones
 const currentMilestones = ref([])
-const newMilestone = ref({ description: '', deadline: '', completed: false })
+const newMilestone = ref({
+  description: '',
+  deadline: '',
+  weightage: 50 // Default weightage of 50%
+})
 const milestoneCount = ref(0)
 
 // Year selector refs
@@ -1362,7 +1399,8 @@ const openHeadersModal = async (major, academicYear) => {
             description: m.description,
             deadline: dateString,
             required: m.description === 'Project Bidding', // Mark Project Bidding as required
-            completed: m.completed || false
+            completed: m.completed || false,
+            weightage: m.weightage || 50 // Default weightage of 50% for existing milestones
           };
         });
         
@@ -1372,7 +1410,8 @@ const openHeadersModal = async (major, academicYear) => {
             description: 'Project Bidding',
             deadline: '',
             required: true,
-            completed: false
+            completed: false,
+            weightage: 50 // Default weightage for Project Bidding
           });
         }
       } else {
@@ -1381,7 +1420,8 @@ const openHeadersModal = async (major, academicYear) => {
           description: 'Project Bidding',
           deadline: '',
           required: true,
-          completed: false
+          completed: false,
+          weightage: 50 // Default weightage for Project Bidding
         }];
       }
       
@@ -1423,7 +1463,8 @@ const openHeadersModal = async (major, academicYear) => {
         description: 'Project Bidding',
         deadline: '',
         required: true,
-        completed: false
+        completed: false,
+        weightage: 50 // Default weightage for Project Bidding
       }]
       isEditMode.value = false
       activeTab.value = 'headers'
@@ -1499,7 +1540,8 @@ const updateSessionStorageForMilestones = (schoolId, userId, majorId, milestones
       return {
         ...milestone,
         major: majorId,
-        deadline: deadlineDate.toISOString()
+        deadline: deadlineDate.toISOString(),
+        weightage: milestone.weightage || 50 // Ensure weightage is included in session storage
       };
     });
     
@@ -1529,8 +1571,17 @@ const saveMilestones = async () => {
       return
     }
 
+    // Validate weightage for all non-Project Bidding milestones
+    const invalidWeightage = currentMilestones.value.find(m => 
+      m.description !== 'Project Bidding' && !isWeightageValid(m.weightage)
+    )
+    if (invalidWeightage) {
+      showToast(`Invalid weightage for milestone "${invalidWeightage.description}". Must be between 1 and 100.`, 'error')
+      return
+    }
+
     // Get the original milestones for comparison
-    let originalMilestones = [];
+    let originalMilestones = []
     if (currentMajor.value.docId) {
       const majorRef = doc(
         db, 
@@ -1540,10 +1591,10 @@ const saveMilestones = async () => {
         currentMajor.value.academicYear, 
         currentMajor.value.name, 
         currentMajor.value.docId
-      );
-      const majorDoc = await getDoc(majorRef);
+      )
+      const majorDoc = await getDoc(majorRef)
       if (majorDoc.exists()) {
-        originalMilestones = majorDoc.data().milestones || [];
+        originalMilestones = majorDoc.data().milestones || []
       }
     }
     
@@ -1552,18 +1603,20 @@ const saveMilestones = async () => {
       .filter(m => m.required || (m.description.trim() !== '' && m.deadline))
       .map(m => {
         // Parse the date string (YYYY-MM-DD) into parts
-        const [year, month, day] = m.deadline.split('-').map(Number);
+        const [year, month, day] = m.deadline.split('-').map(Number)
         
         // Create a JavaScript Date object with time set to 11:59 PM
-        const jsDate = new Date(year, month - 1, day, 23, 59, 59);
+        const jsDate = new Date(year, month - 1, day, 23, 59, 59)
         
         return {
           description: m.description.trim(),
           deadline: Timestamp.fromDate(jsDate),
           required: m.required || false,
-          completed: m.completed || false
-        };
-      });
+          completed: m.completed || false,
+          // Only include weightage for non-Project Bidding milestones
+          ...(m.description !== 'Project Bidding' && { weightage: parseInt(m.weightage) })
+        }
+      })
 
     // Use Maps for efficient change detection
     const originalMap = new Map(originalMilestones.map(m => [m.description, m]));
@@ -1999,13 +2052,29 @@ const removeMilestone = (index) => {
 
 const addMilestone = () => {
   if (newMilestone.value.description.trim() && newMilestone.value.deadline) {
+    if (!isWeightageValid(newMilestone.value.weightage)) {
+      showToast('Weightage must be between 1 and 100', 'error')
+      return
+    }
     currentMilestones.value.push({
       description: newMilestone.value.description.trim(),
       deadline: newMilestone.value.deadline,
+      weightage: parseInt(newMilestone.value.weightage),
       completed: false
     })
-    newMilestone.value = { description: '', deadline: '', completed: false }
+    newMilestone.value = { 
+      description: '', 
+      deadline: '', 
+      weightage: '', 
+      completed: false 
+    }
   }
+}
+
+// Add helper function to validate weightage
+const isWeightageValid = (weightage) => {
+  const weight = parseInt(weightage)
+  return !isNaN(weight) && weight >= 1 && weight <= 100
 }
 
 // Helper function to check if a major has complete configuration
