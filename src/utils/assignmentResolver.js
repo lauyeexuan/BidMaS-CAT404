@@ -100,7 +100,7 @@ export async function resolveProjectAssignments(
       // First get the current milestone data
       const majorDoc = await transaction.get(majorDocRef);
       const milestones = majorDoc.data().milestones;
-      const targetMilestone = milestones.find(m => m.description === 'Project Bidding Done');
+      const targetMilestone = milestones.find(m => m.description === 'Project Bidding');
 
       // PROCESS SECTION - Do all computations
       // 4. Sort students and determine assignments
@@ -215,7 +215,7 @@ export async function resolveProjectAssignments(
       transaction.update(majorDocRef, {
         milestones: arrayRemove({
           deadline: targetMilestone.deadline,
-          description: 'Project Bidding Done',
+          description: 'Project Bidding',
           required: targetMilestone.required
         })
       });
@@ -223,7 +223,7 @@ export async function resolveProjectAssignments(
       transaction.update(majorDocRef, {
         milestones: arrayUnion({
           deadline: targetMilestone.deadline,
-          description: 'Project Bidding Done',
+          description: 'Project Bidding',
           required: targetMilestone.required,
           completed: true,
           completedDate: new Date()

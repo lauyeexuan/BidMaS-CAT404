@@ -41,7 +41,7 @@ const getMilestoneRef = (schoolId, year, majorId, majorDocId) => {
     'schools', schoolId,
     'projects', year,
     majorId, majorDocId,
-    'milestones', 'Project Bidding Done'
+    'milestones', 'Project Bidding'
   );
 };
 
@@ -81,8 +81,8 @@ export async function getMajorsWithPassedDeadlines(schoolId, year) {
 
         // Get milestone information directly from the majorData
         const milestones = majorData.milestones || [];
-        // Find the "Project Bidding Done" milestone
-        const milestoneData = milestones.find(m => m.description === "Project Bidding Done") || {};
+        // Find the "Project Bidding" milestone
+        const milestoneData = milestones.find(m => m.description === "Project Bidding") || {};
         console.log("milestoneData", milestoneData);
         console.log("milestoneData.status", milestoneData.status)
 
@@ -167,7 +167,7 @@ export async function processPassedDeadlines(schoolId, year) {
           const majorData = majorDoc.data();
           
           milestones = majorData.milestones || [];
-          milestoneIndex = milestones.findIndex(m => m.description === "Project Bidding Done");
+          milestoneIndex = milestones.findIndex(m => m.description === "Project Bidding");
           console.log("milestoneIndex:", milestoneIndex);
 
           if (milestoneIndex === -1) {

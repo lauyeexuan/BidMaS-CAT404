@@ -4178,7 +4178,7 @@ const fetchMilestoneForMajor = async () => {
       selectedAcademicYear.value,
       majorToUse,
       majorDocId,
-      "Project Bidding Done"
+      "Project Bidding"
     );
     
     console.log('Fetched milestone:', milestone);

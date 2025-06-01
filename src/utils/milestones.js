@@ -185,7 +185,7 @@ export const updateMilestone = async (schoolId, year, majorId, majorDocId, descr
   }
 } 
 /**
- * Check if the Project Bidding Done deadline has passed
+ * Check if the Project Bidding deadline has passed
  * @param {string} schoolId - The school ID
  * @param {string} year - The academic year
  * @param {string} majorId - The major ID
@@ -193,7 +193,7 @@ export const updateMilestone = async (schoolId, year, majorId, majorDocId, descr
  * @returns {Promise<boolean>} True if the deadline has passed, false otherwise
  */
 export const hasBiddingDeadlinePassed = async (schoolId, year, majorId, majorDocId, currentDate) => {
-    return hasMilestoneDeadlinePassed(schoolId, year, majorId, majorDocId, "Project Bidding Done", currentDate)
+    return hasMilestoneDeadlinePassed(schoolId, year, majorId, majorDocId, "Project Bidding", currentDate)
   }
   
   /**
@@ -212,7 +212,7 @@ export const hasBiddingDeadlinePassed = async (schoolId, year, majorId, majorDoc
   }
   
   /**
-   * Ensure the Project Bidding Done milestone has the "completed" field
+   * Ensure the Project Bidding milestone has the "completed" field
    * @param {string} schoolId - The school ID
    * @param {string} year - The academic year
    * @param {string} majorId - The major ID
@@ -221,10 +221,10 @@ export const hasBiddingDeadlinePassed = async (schoolId, year, majorId, majorDoc
    */
   export const ensureBiddingMilestoneHasCompletedField = async (schoolId, year, majorId, majorDocId) => {
     try {
-      const milestone = await getMilestone(schoolId, year, majorId, majorDocId, "Project Bidding Done")
+      const milestone = await getMilestone(schoolId, year, majorId, majorDocId, "Project Bidding")
       
       if (milestone && milestone.completed === undefined) {
-        await updateMilestone(schoolId, year, majorId, majorDocId, "Project Bidding Done", {
+        await updateMilestone(schoolId, year, majorId, majorDocId, "Project Bidding", {
           completed: false
         })
       }
@@ -243,7 +243,7 @@ export const hasBiddingDeadlinePassed = async (schoolId, year, majorId, majorDoc
    */
   export const areAssignmentsResolved = async (schoolId, year, majorId, majorDocId) => {
     try {
-      const milestone = await getMilestone(schoolId, year, majorId, majorDocId, "Project Bidding Done")
+      const milestone = await getMilestone(schoolId, year, majorId, majorDocId, "Project Bidding")
       return milestone?.completed === true
     } catch (error) {
       console.error('Error checking if assignments resolved:', error)

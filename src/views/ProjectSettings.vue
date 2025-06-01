@@ -372,7 +372,7 @@
                     >
                       Project Milestones
                       <span 
-                        v-if="currentMilestones.length > 1 && currentMilestones.find(m => m.description === 'Project Bidding Done')?.deadline" 
+                        v-if="currentMilestones.length > 1 && currentMilestones.find(m => m.description === 'Project Bidding')?.deadline" 
                         class="inline-flex items-center justify-center w-5 h-5 text-xs font-semibold rounded-full bg-green-100 text-green-800"
                       >
                         ✓
@@ -389,7 +389,7 @@
                   <!-- Reminder message -->
                   <div 
                     v-if="(currentHeaders.filter(h => !h.required).length === 0) || 
-                         (currentMilestones.length <= 1 || !currentMilestones.find(m => m.description === 'Project Bidding Done')?.deadline)"
+                         (currentMilestones.length <= 1 || !currentMilestones.find(m => m.description === 'Project Bidding')?.deadline)"
                     class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md"
                   >
                     <div class="flex">
@@ -404,8 +404,8 @@
                           <p>
                             Please complete both Project Headers and Project Milestones configuration. 
                             {{ currentHeaders.filter(h => !h.required).length === 0 ? 'Additional Project Headers are needed.' : '' }}
-                            {{ !currentMilestones.find(m => m.description === 'Project Bidding Done')?.deadline ? 'Project Bidding Done milestone requires a deadline date.' : '' }}
-                            {{ currentMilestones.length <= 1 && currentMilestones.find(m => m.description === 'Project Bidding Done')?.deadline ? 'Additional Project Milestones are recommended.' : '' }}
+                            {{ !currentMilestones.find(m => m.description === 'Project Bidding')?.deadline ? 'Project Bidding milestone requires a deadline date.' : '' }}
+                            {{ currentMilestones.length <= 1 && currentMilestones.find(m => m.description === 'Project Bidding')?.deadline ? 'Additional Project Milestones are recommended.' : '' }}
                           </p>
                         </div>
                       </div>
@@ -1361,24 +1361,24 @@ const openHeadersModal = async (major, academicYear) => {
           return {
             description: m.description,
             deadline: dateString,
-            required: m.description === 'Project Bidding Done', // Mark Project Bidding Done as required
+            required: m.description === 'Project Bidding', // Mark Project Bidding as required
             completed: m.completed || false
           };
         });
         
-        // Add Project Bidding Done milestone if it doesn't exist
-        if (!currentMilestones.value.find(m => m.description === 'Project Bidding Done')) {
+        // Add Project Bidding milestone if it doesn't exist
+        if (!currentMilestones.value.find(m => m.description === 'Project Bidding')) {
           currentMilestones.value.unshift({
-            description: 'Project Bidding Done',
+            description: 'Project Bidding',
             deadline: '',
             required: true,
             completed: false
           });
         }
       } else {
-        // Initialize with mandatory Project Bidding Done milestone
+        // Initialize with mandatory Project Bidding milestone
         currentMilestones.value = [{
-          description: 'Project Bidding Done',
+          description: 'Project Bidding',
           deadline: '',
           required: true,
           completed: false
@@ -1387,8 +1387,8 @@ const openHeadersModal = async (major, academicYear) => {
       
       // Set active tab based on configuration state
       const hasConfiguredHeaders = currentHeaders.value.length > 2 // More than just Title and Description
-      const hasConfiguredMilestones = currentMilestones.value.length > 1 && // More than just Project Bidding Done
-                                     currentMilestones.value.find(m => m.description === 'Project Bidding Done')?.deadline
+      const hasConfiguredMilestones = currentMilestones.value.length > 1 && // More than just Project Bidding
+                                     currentMilestones.value.find(m => m.description === 'Project Bidding')?.deadline
 
       // If neither is configured or only milestones are configured, show headers tab
       if (!hasConfiguredHeaders) {
@@ -1420,7 +1420,7 @@ const openHeadersModal = async (major, academicYear) => {
         }
       ]
       currentMilestones.value = [{
-        description: 'Project Bidding Done',
+        description: 'Project Bidding',
         deadline: '',
         required: true,
         completed: false
@@ -1522,10 +1522,10 @@ const updateSessionStorageForMilestones = (schoolId, userId, majorId, milestones
 
 const saveMilestones = async () => {
   try {
-    // Check if Project Bidding Done milestone has a date
-    const biddingMilestone = currentMilestones.value.find(m => m.description === 'Project Bidding Done')
+    // Check if Project Bidding milestone has a date
+    const biddingMilestone = currentMilestones.value.find(m => m.description === 'Project Bidding')
     if (!biddingMilestone || !biddingMilestone.deadline) {
-      showToast('Project Bidding Done milestone must have a deadline', 'error')
+      showToast('Project Bidding milestone must have a deadline', 'error')
       return
     }
 
@@ -1845,7 +1845,7 @@ const saveHeaders = async () => {
     }
     
     // Don't close modal, just switch to milestones tab if headers are saved successfully
-    if (currentMilestones.value.length <= 1 || !currentMilestones.value.find(m => m.description === 'Project Bidding Done')?.deadline) {
+    if (currentMilestones.value.length <= 1 || !currentMilestones.value.find(m => m.description === 'Project Bidding')?.deadline) {
       activeTab.value = 'milestones'
       showToast('Please configure project milestones next', 'success')
     } else {
@@ -2015,12 +2015,12 @@ const isConfigurationComplete = (major) => {
                            major.headers && 
                            Object.keys(major.headers).length > 2;
   
-  // Check if milestones are configured, including the required Project Bidding Done
+  // Check if milestones are configured, including the required Project Bidding
   const milestonesConfigured = major.docId && 
                               major.milestones && 
                               Array.isArray(major.milestones) && 
                               major.milestones.length > 1 &&
-                              major.milestones.some(m => m.description === 'Project Bidding Done');
+                              major.milestones.some(m => m.description === 'Project Bidding');
   
   return headersConfigured && milestonesConfigured;
 }

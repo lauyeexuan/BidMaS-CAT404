@@ -1263,8 +1263,8 @@ export default {
       const milestones = milestoneDataMap.value[selectedMajor.value].allMilestones || [];
       console.log('Available milestones:', milestones); // Debug log
       
-      // Filter out milestones that don't require submissions (like "Project Bidding Done")
-      return milestones.filter(milestone => milestone.description !== 'Project Bidding Done');
+      // Filter out milestones that don't require submissions (like "Project Bidding")
+      return milestones.filter(milestone => milestone.description !== 'Project Bidding');
     });
 
     // Computed property for filter description
