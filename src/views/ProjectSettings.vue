@@ -522,60 +522,103 @@
                     </h4>
                     <div class="space-y-4">
                       <div v-for="(milestone, index) in currentMilestones" :key="index" 
-                           class="flex items-start justify-between p-4 bg-gray-50 rounded-lg border"
+                           class="flex flex-col p-4 bg-gray-50 rounded-lg border"
                            :class="[milestone.required ? 'border-blue-200 bg-blue-50' : 'border-gray-200']">
-                        <div class="w-full">
-                          <div class="flex items-center gap-2">
-                            <p class="font-medium text-gray-900">{{ milestone.description }}</p>
-                            <span v-if="milestone.required" class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Required</span>
-                          </div>
-                          
-                          <!-- Date input and weightage for all milestones -->
-                          <div class="mt-3 flex items-center flex-wrap gap-4">
-                            <div class="flex items-center">
-                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
-                              </svg>
-                              <input 
-                                type="date" 
-                                v-model="milestone.deadline"
-                                @change="(e) => console.log('Date changed for', milestone.description, '- New value:', e.target.value, 'v-model value:', milestone.deadline)"
-                                class="ml-1 px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
-                                :class="{'border-red-500 bg-red-50': milestone.required && !milestone.deadline}"
-                              >
-                              <span v-if="milestone.required && !milestone.deadline" class="ml-2 text-red-500 text-xs font-medium">
-                                Date required
-                              </span>
-                              <span v-else-if="milestone.deadline" class="ml-2 text-xs text-gray-500">
-                                {{ formatDate(milestone.deadline) }}
-                              </span>
+                        <div class="flex items-start justify-between">
+                          <div class="w-full">
+                            <div class="flex items-center gap-2">
+                              <p class="font-medium text-gray-900">{{ milestone.description }}</p>
+                              <span v-if="milestone.required" class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Required</span>
                             </div>
                             
-                            <!-- Only show weightage if not Project Bidding -->
-                            <div v-if="milestone.description !== 'Project Bidding'" class="flex items-center">
-                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
-                                <path d="M12 2.252A8 8 0 0112 18.251v-8H4.252a8 8 0 018-8z" />
-                              </svg>
-                              <input 
-                                type="number" 
-                                v-model="milestone.weightage"
-                                min="1"
-                                max="100"
-                                class="ml-1 w-20 px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
-                                :class="{'border-red-500 bg-red-50': !isWeightageValid(milestone.weightage)}"
+                            <!-- Date input and weightage for all milestones -->
+                            <div class="mt-3 flex items-center flex-wrap gap-4">
+                              <div class="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
+                                </svg>
+                                <input 
+                                  type="date" 
+                                  v-model="milestone.deadline"
+                                  @change="(e) => console.log('Date changed for', milestone.description, '- New value:', e.target.value, 'v-model value:', milestone.deadline)"
+                                  class="ml-1 px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                                  :class="{'border-red-500 bg-red-50': milestone.required && !milestone.deadline}"
+                                >
+                                <span v-if="milestone.required && !milestone.deadline" class="ml-2 text-red-500 text-xs font-medium">
+                                  Date required
+                                </span>
+                                <span v-else-if="milestone.deadline" class="ml-2 text-xs text-gray-500">
+                                  {{ formatDate(milestone.deadline) }}
+                                </span>
+                              </div>
+                              
+                              <!-- Only show weightage if not Project Bidding -->
+                              <div v-if="milestone.description !== 'Project Bidding'" class="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                                  <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
+                                  <path d="M12 2.252A8 8 0 0112 18.251v-8H4.252a8 8 0 018-8z" />
+                                </svg>
+                                <input 
+                                  type="number" 
+                                  v-model="milestone.weightage"
+                                  min="1"
+                                  max="100"
+                                  class="ml-1 w-20 px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                                  :class="{'border-red-500 bg-red-50': !isWeightageValid(milestone.weightage)}"
+                                >
+                                <span class="ml-1 text-sm text-gray-500">%</span>
+                              </div>
+
+                              <!-- Set Rubric Button -->
+                              <button 
+                                v-if="milestone.description !== 'Project Bidding'"
+                                @click="milestone.showRubric = !milestone.showRubric"
+                                class="inline-flex items-center h-7 px-3 whitespace-nowrap text-sm font-medium bg-lime-100 text-lime-700 rounded-md hover:bg-lime-200 transition-colors"
                               >
-                              <span class="ml-1 text-sm text-gray-500">%</span>
+                                Set Rubric
+                              </button>
                             </div>
                           </div>
+                          <div class="flex items-center">
+                            <button 
+                              v-if="!milestone.required"
+                              @click="removeMilestone(index)"
+                              class="text-red-600 hover:text-red-800"
+                            >
+                              Remove
+                            </button>
+                          </div>
                         </div>
-                        <button 
-                          v-if="!milestone.required"
-                          @click="removeMilestone(index)"
-                          class="text-red-600 hover:text-red-800"
+
+                        <!-- Rubric Table (Expandable) -->
+                        <transition
+                          enter-active-class="transition-all duration-300 ease-out"
+                          enter-from-class="opacity-0 max-h-0"
+                          enter-to-class="opacity-100 max-h-96"
+                          leave-active-class="transition-all duration-200 ease-in"
+                          leave-from-class="opacity-100 max-h-96"
+                          leave-to-class="opacity-0 max-h-0"
                         >
-                          Remove
-                        </button>
+                          <div v-if="milestone.showRubric" class="mt-4 overflow-hidden">
+                            <div class="overflow-x-auto">
+                              <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-100">
+                                  <tr>
+                                    <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Criteria</th>
+                                    <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Weightage</th>
+                                    <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">A (80-100)</th>
+                                    <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">B (60-79)</th>
+                                    <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">C (40-59)</th>
+                                    <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">F (0-39)</th>
+                                  </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                  <!-- Table content will go here -->
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </transition>
                       </div>
                     </div>
                   </div>
@@ -2008,7 +2051,8 @@ const addMilestone = () => {
       description: newMilestone.value.description.trim(),
       deadline: newMilestone.value.deadline,
       weightage: parseInt(newMilestone.value.weightage),
-      completed: false
+      completed: false,
+      showRubric: false // Add this line
     })
     newMilestone.value = { 
       description: '', 
