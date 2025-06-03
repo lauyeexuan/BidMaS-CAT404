@@ -149,27 +149,94 @@
 
           <!-- Feedback Form -->
           <form @submit.prevent="saveFeedback" class="space-y-6">
-            <!-- Rating -->
+            <!-- Grading Table (replaces Rating section) -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Rating</label>
-              <div class="flex items-center gap-2">
-                <template v-for="i in 5" :key="i">
-                  <button
-                    type="button"
-                    @click="feedbackData.rating = i"
-                    class="focus:outline-none"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      class="h-8 w-8"
-                      :class="i <= feedbackData.rating ? 'text-yellow-400' : 'text-gray-300'"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                    </svg>
-                  </button>
-                </template>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Grading</label>
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Criteria</th>
+                      <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Weightage</th>
+                      <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">A (80-100)</th>
+                      <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">B (60-79)</th>
+                      <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">C (40-59)</th>
+                      <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">F (0-39)</th>
+                      <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Grade</th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    <tr v-if="rubricLoading" class="text-center">
+                      <td colspan="7" class="px-4 py-4 text-sm text-gray-500">
+                        <div class="flex items-center justify-center">
+                          <svg class="animate-spin h-5 w-5 text-blue-500 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Loading rubric data...
+                        </div>
+                      </td>
+                    </tr>
+                    <tr v-else-if="rubricError" class="text-center">
+                      <td colspan="7" class="px-4 py-4">
+                        <div class="text-red-600">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mx-auto mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {{ rubricError }}
+                        </div>
+                      </td>
+                    </tr>
+                    <tr v-else-if="!rubricData.length" class="text-center">
+                      <td colspan="7" class="px-4 py-4 text-sm text-gray-500">
+                        No rubric criteria found for this milestone
+                      </td>
+                    </tr>
+                    <tr v-for="(criteria, index) in rubricData" :key="index" class="hover:bg-gray-50">
+                      <td class="px-4 py-2 text-sm text-gray-900">{{ criteria.name }}</td>
+                      <td class="px-4 py-2 text-sm text-gray-900">{{ criteria.weightage }}%</td>
+                      <td class="px-4 py-2 text-sm text-gray-600">{{ criteria.gradeA }}</td>
+                      <td class="px-4 py-2 text-sm text-gray-600">{{ criteria.gradeB }}</td>
+                      <td class="px-4 py-2 text-sm text-gray-600">{{ criteria.gradeC }}</td>
+                      <td class="px-4 py-2 text-sm text-gray-600">{{ criteria.gradeF }}</td>
+                      <td class="px-4 py-2">
+                        <input 
+                          type="number" 
+                          v-model="feedbackData.grades[index]" 
+                          class="w-20 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          min="0"
+                          max="100"
+                          @input="validateGrade($event, index)"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <!-- Add Overall Mark Display -->
+              <div class="mt-4 flex items-center space-x-6">
+                <div class="flex items-center">
+                  <span class="text-sm font-medium text-gray-700">Overall Mark:</span>
+                  <span class="ml-2 text-lg font-semibold" :class="{
+                    'text-green-600': overallMark >= 80,
+                    'text-blue-600': overallMark >= 60 && overallMark < 80,
+                    'text-yellow-600': overallMark >= 40 && overallMark < 60,
+                    'text-red-600': overallMark < 40
+                  }">
+                    {{ overallMark }}%
+                  </span>
+                </div>
+                <div class="flex items-center">
+                  <span class="text-sm font-medium text-gray-700">Grade:</span>
+                  <span class="ml-2 px-3 py-1 text-sm font-semibold rounded-full" :class="{
+                    'bg-green-100 text-green-800': overallGrade === 'A',
+                    'bg-blue-100 text-blue-800': overallGrade === 'B',
+                    'bg-yellow-100 text-yellow-800': overallGrade === 'C',
+                    'bg-red-100 text-red-800': overallGrade === 'F'
+                  }">
+                    {{ overallGrade }}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -754,11 +821,17 @@ export default {
     const feedbackSuccess = ref('')
     const feedbackData = ref({
       comment: '',
-      rating: 0,
+      grades: [],
       advice: '',
       attachment: null,
       attachmentUrl: null,
-      isDraft: false
+      attachmentName: null,
+      attachmentSize: null,
+      attachmentType: null,
+      attachmentPath: null,
+      isDraft: false,
+      mark: 0,
+      grade: ''
     })
 
     // Virtual list setup
@@ -1367,7 +1440,70 @@ export default {
       }
     };
 
-    // Modified loadExistingFeedback function
+    // Add new refs for rubric data
+    const rubricData = ref([])
+    const rubricLoading = ref(false)
+    const rubricError = ref(null)
+
+    // Add grade validation function
+    const validateGrade = (event, index) => {
+      let value = parseInt(event.target.value)
+      if (isNaN(value)) {
+        value = 0
+      }
+      value = Math.max(0, Math.min(100, value))
+      feedbackData.value.grades[index] = value
+    }
+
+    // Add function to load rubric data
+    const loadRubricData = async (submission) => {
+      if (!submission || !userStore.currentUser?.school) return
+
+      rubricLoading.value = true
+      rubricError.value = null
+
+      try {
+        // First, get the collection reference to the major
+        const majorCollectionRef = collection(
+          db,
+          'schools',
+          userStore.currentUser.school,
+          'projects',
+          submission.yearId,
+          submission.majorId
+        )
+
+        // Get all documents in the collection (should only be one)
+        const majorSnapshot = await getDocs(majorCollectionRef)
+        
+        if (majorSnapshot.empty) {
+          throw new Error('Major document not found')
+        }
+
+        // Get the first (and should be only) document
+        const majorDoc = majorSnapshot.docs[0]
+        const milestones = majorDoc.data().milestones || []
+        const milestone = milestones.find(m => m.description === submission.milestoneDescription)
+
+        if (!milestone || !milestone.rubric) {
+          throw new Error('Rubric not found for this milestone')
+        }
+
+        rubricData.value = milestone.rubric
+        
+        // Initialize grades array if needed
+        if (!feedbackData.value.grades || feedbackData.value.grades.length !== milestone.rubric.length) {
+          feedbackData.value.grades = new Array(milestone.rubric.length).fill(0)
+        }
+      } catch (error) {
+        console.error('Error loading rubric:', error)
+        rubricError.value = 'Failed to load rubric data'
+      } finally {
+        rubricLoading.value = false
+      }
+    }
+
+    // Modify loadExistingFeedback function
     const loadExistingFeedback = async (submission) => {
       if (!submission || !userStore.currentUser?.school) return
 
@@ -1375,6 +1511,9 @@ export default {
       feedbackError.value = null
 
       try {
+        // Load rubric data first
+        await loadRubricData(submission)
+
         const feedbackRef = collection(db, 'schools', userStore.currentUser.school, 'feedback')
         const q = query(
           feedbackRef,
@@ -1388,9 +1527,25 @@ export default {
         if (!feedbackSnapshot.empty) {
           const feedbackDoc = feedbackSnapshot.docs[0]
           const data = feedbackDoc.data()
+          console.log('Loaded feedback data:', data)
+
+          // Initialize grades array with zeros
+          const grades = new Array(rubricData.value.length).fill(0)
+
+          // If we have stored criteria marks, map them back to grades array
+          if (data.criteriaMarks && Array.isArray(data.criteriaMarks)) {
+            data.criteriaMarks.forEach(criteriaData => {
+              // Find the index of this criteria in current rubric
+              const index = rubricData.value.findIndex(r => r.name === criteriaData.name)
+              if (index !== -1) {
+                grades[index] = criteriaData.mark
+              }
+            })
+          }
+
           feedbackData.value = {
             comment: data.comment || '',
-            rating: data.rating || 0,
+            grades, // Use the mapped grades
             advice: data.advice || '',
             id: feedbackDoc.id,
             attachment: null,
@@ -1399,13 +1554,16 @@ export default {
             attachmentSize: data.attachmentSize || null,
             attachmentType: data.attachmentType || null,
             attachmentPath: data.attachmentPath || null,
-            isDraft: data.isDraft || false
+            isDraft: data.isDraft || false,
+            mark: data.mark || 0,
+            grade: data.grade || ''
           }
+          console.log('Set feedback data:', feedbackData.value)
         } else {
           // Reset form if no existing feedback
           feedbackData.value = {
             comment: '',
-            rating: 0,
+            grades: new Array(rubricData.value.length).fill(0),
             advice: '',
             attachment: null,
             attachmentUrl: null,
@@ -1413,7 +1571,9 @@ export default {
             attachmentSize: null,
             attachmentType: null,
             attachmentPath: null,
-            isDraft: false
+            isDraft: false,
+            mark: 0,
+            grade: ''
           }
         }
       } catch (error) {
@@ -1424,7 +1584,7 @@ export default {
       }
     }
 
-    // Modified saveFeedback function
+    // Add debug logs to saveFeedback and saveDraft
     const saveFeedback = async () => {
       if (!selectedSubmission.value || !userStore.currentUser?.school) return
 
@@ -1434,6 +1594,14 @@ export default {
 
       try {
         const feedbackRef = collection(db, 'schools', userStore.currentUser.school, 'feedback')
+        
+        // Create criteria marks array with names and marks
+        const criteriaMarks = rubricData.value.map((criteria, index) => ({
+          name: criteria.name,
+          weightage: criteria.weightage,
+          mark: feedbackData.value.grades[index] || 0
+        }))
+
         const feedbackPayload = {
           submissionId: selectedSubmission.value.id,
           lecturerId: userStore.currentUser.uid,
@@ -1443,12 +1611,16 @@ export default {
           milestoneDescription: selectedSubmission.value.milestoneDescription,
           projectId: selectedSubmission.value.projectId,
           comment: feedbackData.value.comment || '',
-          rating: feedbackData.value.rating,
+          mark: overallMark.value,
+          grade: overallGrade.value,
+          criteriaMarks, // Store individual criteria marks
           advice: feedbackData.value.advice || '',
           updatedAt: new Date(),
           isDraft: false,
-          role: currentRole.value  // Add role field
+          role: currentRole.value
         }
+
+        console.log('Saving feedback with payload:', feedbackPayload)
 
         // Handle file attachment
         let attachmentData = null;
@@ -1576,7 +1748,7 @@ export default {
       }
     }
 
-    // Add saveDraft function
+    // Modify saveDraft function
     const saveDraft = async () => {
       if (!selectedSubmission.value || !userStore.currentUser?.school) return
 
@@ -1586,6 +1758,14 @@ export default {
 
       try {
         const feedbackRef = collection(db, 'schools', userStore.currentUser.school, 'feedback')
+        
+        // Create criteria marks array with names and marks
+        const criteriaMarks = rubricData.value.map((criteria, index) => ({
+          name: criteria.name,
+          weightage: criteria.weightage,
+          mark: feedbackData.value.grades[index] || 0
+        }))
+
         const feedbackPayload = {
           submissionId: selectedSubmission.value.id,
           lecturerId: userStore.currentUser.uid,
@@ -1595,11 +1775,13 @@ export default {
           milestoneDescription: selectedSubmission.value.milestoneDescription,
           projectId: selectedSubmission.value.projectId,
           comment: feedbackData.value.comment || '',
-          rating: feedbackData.value.rating,
+          mark: overallMark.value,
+          grade: overallGrade.value,
+          criteriaMarks, // Store individual criteria marks
           advice: feedbackData.value.advice || '',
           updatedAt: new Date(),
           isDraft: true,
-          role: currentRole.value  // Add role field
+          role: currentRole.value
         }
 
         // Handle file attachment
@@ -1654,7 +1836,6 @@ export default {
       // Reset feedback form
       feedbackData.value = {
         comment: '',
-        rating: 0,
         advice: '',
         id: undefined,
         attachment: null,
@@ -1662,7 +1843,8 @@ export default {
         attachmentName: null,
         attachmentSize: null,
         attachmentType: null,
-        attachmentPath: null
+        attachmentPath: null,
+        grades: []
       }
     }
 
@@ -1796,6 +1978,33 @@ export default {
       fetchLatestYearMajors()
     })
 
+    // Add computed properties for overall mark and grade
+    const overallMark = computed(() => {
+      if (!rubricData.value.length || !feedbackData.value.grades.length) return 0
+
+      let totalWeightedMark = 0
+      let totalWeightage = 0
+
+      rubricData.value.forEach((criteria, index) => {
+        const grade = feedbackData.value.grades[index] || 0
+        const weightage = criteria.weightage || 0
+        totalWeightedMark += (grade * weightage)
+        totalWeightage += weightage
+      })
+
+      // Normalize by total weightage in case weightages don't sum to 100
+      const finalMark = totalWeightage ? Math.round((totalWeightedMark / totalWeightage) * 100) / 100 : 0
+      console.log('Calculated overall mark:', finalMark, 'from grades:', feedbackData.value.grades) // Debug log
+      return finalMark
+    })
+
+    const overallGrade = computed(() => {
+      const mark = overallMark.value
+      const grade = mark >= 80 ? 'A' : mark >= 60 ? 'B' : mark >= 40 ? 'C' : 'F'
+      console.log('Calculated grade:', grade, 'from mark:', mark) // Debug log
+      return grade
+    })
+
     return {
       userStore,
       selectedMajor,
@@ -1849,6 +2058,12 @@ export default {
       removeExistingAttachment,
       formatFileSize,
       filteredMajors,
+      rubricData,
+      rubricLoading,
+      rubricError,
+      validateGrade,
+      overallMark,
+      overallGrade,
     }
   }
 }
