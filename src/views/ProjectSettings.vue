@@ -575,7 +575,7 @@
                                 @click="openRubricWindow(milestone)"
                                 class="inline-flex items-center h-7 px-3 whitespace-nowrap text-sm font-medium bg-lime-100 text-lime-700 rounded-md hover:bg-lime-200 transition-colors"
                               >
-                                Set Rubric
+                                Rubric
                               </button>
                             </div>
                           </div>
