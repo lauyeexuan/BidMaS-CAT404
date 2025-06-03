@@ -572,7 +572,7 @@
                               <!-- Set Rubric Button -->
                               <button 
                                 v-if="milestone.description !== 'Project Bidding'"
-                                @click="milestone.showRubric = !milestone.showRubric"
+                                @click="openRubricWindow(milestone)"
                                 class="inline-flex items-center h-7 px-3 whitespace-nowrap text-sm font-medium bg-lime-100 text-lime-700 rounded-md hover:bg-lime-200 transition-colors"
                               >
                                 Set Rubric
@@ -1396,7 +1396,8 @@ const openHeadersModal = async (major, academicYear) => {
             deadline: dateString,
             required: m.description === 'Project Bidding', // Mark Project Bidding as required
             completed: m.completed || false,
-            weightage: m.weightage || 50 // Default weightage of 50% for existing milestones
+            weightage: m.weightage || 50, // Default weightage of 50% for existing milestones
+            rubric: m.rubric || [] // Preserve the rubric field
           };
         });
         
@@ -1610,28 +1611,33 @@ const saveMilestones = async () => {
           required: m.required || false,
           completed: m.completed || false,
           // Only include weightage for non-Project Bidding milestones
-          ...(m.description !== 'Project Bidding' && { weightage: parseInt(m.weightage) })
+          ...(m.description !== 'Project Bidding' && { weightage: parseInt(m.weightage) }),
+          // Preserve the rubric if it exists
+          ...(m.rubric && { rubric: m.rubric })
         }
       })
 
     // Use Maps for efficient change detection
-    const originalMap = new Map(originalMilestones.map(m => [m.description, m]));
-    const newMap = new Map(milestones.map(m => [m.description, m]));
+    const originalMap = new Map(originalMilestones.map(m => [m.description, m]))
+    const newMap = new Map(milestones.map(m => [m.description, m]))
     
     // Added: items in new map but not in original map
-    const addedMilestones = milestones.filter(m => !originalMap.has(m.description));
+    const addedMilestones = milestones.filter(m => !originalMap.has(m.description))
     
     // Removed: items in original map but not in new map
-    const removedMilestones = originalMilestones.filter(m => !newMap.has(m.description));
+    const removedMilestones = originalMilestones.filter(m => !newMap.has(m.description))
     
     // Modified: items in both maps but with different values
     const modifiedMilestones = milestones.filter(m => {
-      const original = originalMap.get(m.description);
-      return original && 
-             original.deadline && 
-             m.deadline && 
-             original.deadline.seconds !== m.deadline.seconds;
-    });
+      const original = originalMap.get(m.description)
+      if (!original) return false
+      
+      // Compare deadline and rubric
+      const deadlineChanged = original.deadline && m.deadline && original.deadline.seconds !== m.deadline.seconds
+      const rubricChanged = JSON.stringify(original.rubric) !== JSON.stringify(m.rubric)
+      
+      return deadlineChanged || rubricChanged
+    })
 
     // If applying to all majors is checked for this academic year
     if (applyToAllMajorsMap.value[currentMajor.value.academicYear]) {
@@ -1657,7 +1663,7 @@ const saveMilestones = async () => {
           await setDoc(majorRef, { 
             ...existingData,
             milestones
-          });
+          }, { merge: true })  // Use merge: true to preserve other fields
 
           // Update local state immediately
           const majorIndex = currentSetting.majors.findIndex(m => m.name === major.name)
@@ -1671,17 +1677,17 @@ const saveMilestones = async () => {
             userStore.currentUser.uid,
             major.name,
             milestones
-          );
-        });
+          )
+        })
         
         // Wait for all save operations to complete
-        await Promise.all(savePromises);
+        await Promise.all(savePromises)
         
         // Close the modal
-        showHeadersModal.value = false;
+        showHeadersModal.value = false
         
         // Show success message
-        showToast('Project milestones saved to all majors successfully');
+        showToast('Project milestones saved to all majors successfully')
         
         // Create notifications in the background (non-blocking)
         setTimeout(() => {
@@ -1695,9 +1701,9 @@ const saveMilestones = async () => {
               removedMilestones,
               modifiedMilestones,
               originalMap
-            );
-          });
-        }, 0);
+            )
+          })
+        }, 0)
       }
     } else {
       // Save milestones to just the current major
@@ -1719,7 +1725,7 @@ const saveMilestones = async () => {
       await setDoc(majorRef, { 
         ...existingData,
         milestones
-      });
+      }, { merge: true })  // Use merge: true to preserve other fields
 
       // Update local state immediately
       const currentSetting = existingSettings.value.find(s => s.academicYear === currentMajor.value.academicYear)
@@ -1736,13 +1742,13 @@ const saveMilestones = async () => {
         userStore.currentUser.uid,
         currentMajor.value.name,
         milestones
-      );
+      )
 
       // Close the modal
-      showHeadersModal.value = false;
+      showHeadersModal.value = false
       
       // Show success message
-      showToast('Project milestones saved successfully');
+      showToast('Project milestones saved successfully')
       
       // Create notifications in the background (non-blocking)
       setTimeout(() => {
@@ -1754,14 +1760,14 @@ const saveMilestones = async () => {
           removedMilestones,
           modifiedMilestones,
           originalMap
-        );
-      }, 0);
+        )
+      }, 0)
     }
   } catch (error) {
     console.error('Error saving milestones:', error)
     showToast('Failed to save project milestones', 'error')
   }
-};
+}
 
 const saveHeaders = async () => {
   try {
@@ -2084,6 +2090,54 @@ const isConfigurationComplete = (major) => {
                               major.milestones.some(m => m.description === 'Project Bidding');
   
   return headersConfigured && milestonesConfigured;
+}
+
+// Add the openRubricWindow function
+const openRubricWindow = (milestone) => {
+  // Calculate center position for the new window
+  const width = 1000;
+  const height = 800;
+  const left = (window.screen.width - width) / 2;
+  const top = (window.screen.height - height) / 2;
+
+  // Create URL with milestone data
+  const milestoneData = {
+    description: milestone.description,
+    deadline: milestone.deadline,
+    weightage: milestone.weightage,
+    academicYear: currentMajor.value.academicYear,
+    majorName: currentMajor.value.name,
+    rubric: milestone.rubric || []
+  };
+
+  const url = new URL('/rubric-editor.html', window.location.origin);
+  url.searchParams.set('data', encodeURIComponent(JSON.stringify(milestoneData)));
+
+  // Open new window with the standalone HTML file
+  const rubricWindow = window.open(
+    url.toString(),
+    'RubricEditor',
+    `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+  );
+
+  // Listen for messages from the rubric editor window
+  const messageHandler = (event) => {
+    if (event.data.type === 'RUBRIC_SAVED') {
+      // Update the milestone's rubric in the current window
+      milestone.rubric = event.data.rubric;
+      
+      // Save the updated milestone data
+      saveMilestones();
+      
+      // Show success message
+      showToast('Rubric updated successfully');
+      
+      // Remove the event listener
+      window.removeEventListener('message', messageHandler);
+    }
+  };
+
+  window.addEventListener('message', messageHandler, false);
 }
 </script>
   
