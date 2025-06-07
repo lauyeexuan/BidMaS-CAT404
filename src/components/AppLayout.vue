@@ -157,11 +157,13 @@ export default {
     const allMenuItems = [
       { name: "Dashboard", route: 'dashboard' },
       { name: "Project", route: 'Projects' },
-      { name: "Feedback", route: 'feedback' },
-      { name: "Track Progress", route: 'progress' },
+      { name: "Feedback", route: 'student-feedback', parentRoute: 'feedback' },
+      { name: "Feedback", route: 'lecturer-feedback', parentRoute: 'feedback' },
+      { name: "Track Progress", route: 'admin-progress' },
       { name: "Account Management", route: 'account-management' },
       { name: "Project Setting", route: 'project-settings' },
-      { name: "Profile", route: 'profile' }
+      { name: "Profile", route: 'profile' },
+      { name: "Community", route: 'community' }
     ]
 
     // Get current page title
