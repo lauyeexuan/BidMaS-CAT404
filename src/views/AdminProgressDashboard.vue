@@ -178,8 +178,8 @@
         </button>
       </div>
   
-      <!-- Milestone Submission View -->
-      <div v-if="activeTab === 'milestone'" class="bg-white rounded-lg shadow-md overflow-hidden">
+      <!-- Student Table View -->
+      <div class="bg-white rounded-lg shadow-md overflow-hidden">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
@@ -253,50 +253,6 @@
             </template>
           </tbody>
         </table>
-      </div>
-  
-      <!-- Student Cards View -->
-      <div v-if="activeTab === 'cards'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div v-for="student in displayData" :key="student.id" 
-             class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-          <div class="p-4">
-            <div class="flex justify-between items-start">
-              <div>
-                <div class="font-medium text-lg">{{ student.name }}</div>
-                <div class="text-sm">Project: {{ student.project }}</div>
-              </div>
-              <button @click="expandedStudentId = expandedStudentId === student.id ? null : student.id" 
-                      class="text-blue-600 hover:text-blue-800 focus:outline-none">
-                <span v-if="expandedStudentId !== student.id">Expand ▼</span>
-                <span v-else>Collapse ▲</span>
-              </button>
-            </div>
-            
-            <!-- Expanded Section -->
-            <div v-if="expandedStudentId === student.id" class="mt-4 pt-4 border-t border-gray-200">
-              <div class="grid grid-cols-2 gap-4 mb-3">
-                <div>
-                  <div class="text-xs text-gray-500">Supervisor</div>
-                  <div class="text-sm">{{ student.supervisor }}</div>
-                </div>
-                <div>
-                  <div class="text-xs text-gray-500">Examiner</div>
-                  <div class="text-sm">{{ student.examiner }}</div>
-                </div>
-              </div>
-              
-              <!-- Action Buttons -->
-              <div class="flex justify-end gap-2 mt-3">
-                <button class="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors">
-                  View Full Details
-                </button>
-                <button class="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition-colors">
-                  Send Message
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
   
       <!-- Examiner Assignment Modal -->
@@ -389,9 +345,7 @@
       const feedbackMap = ref(new Map())
       
       const tabs = [
-        { id: 'milestone', name: 'Milestone View' },
-        { id: 'cards', name: 'Student Cards' },
-        { id: 'analytics', name: 'Analytics' },
+        { id: 'milestone', name: 'Students' },
       ]
       
       // Function to fetch students by major
