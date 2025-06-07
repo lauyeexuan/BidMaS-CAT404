@@ -187,8 +187,8 @@
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supervisor</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Examiner</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Final Grade</th>
               <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Milestone Status</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Final Grade</th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
@@ -212,19 +212,6 @@
                   {{ student.examiner }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                  <div v-if="isMajorCompleted" 
-                       :class="{
-                         'text-red-600': Math.min(student.supervisorMark, student.examinerMark) < 40,
-                         'text-yellow-600': Math.min(student.supervisorMark, student.examinerMark) >= 40 && Math.min(student.supervisorMark, student.examinerMark) < 60,
-                         'text-blue-600': Math.min(student.supervisorMark, student.examinerMark) >= 60 && Math.min(student.supervisorMark, student.examinerMark) < 80,
-                         'text-green-600': Math.min(student.supervisorMark, student.examinerMark) >= 80
-                       }"
-                       class="font-medium">
-                    {{ student.supervisorMark }}% {{ student.examinerMark }}%
-                  </div>
-                  <div v-else class="text-gray-500">-</div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex justify-center space-x-2">
                     <div v-for="(milestone, index) in majorMilestones" 
                          :key="milestone.id" 
@@ -242,6 +229,25 @@
                            hasSubmittedMilestone(student.id, milestone.description) ? 'Submitted' : 'Missing Submission'}`">
                     </div>
                   </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div v-if="isMajorCompleted" class="font-medium">
+                    <span class="text-gray-900 font-normal">S: </span>
+                    <span :class="{
+                      'text-red-600': student.supervisorMark < 40,
+                      'text-yellow-600': student.supervisorMark >= 40 && student.supervisorMark < 60,
+                      'text-blue-600': student.supervisorMark >= 60 && student.supervisorMark < 80,
+                      'text-green-600': student.supervisorMark >= 80
+                    }" class="font-bold">{{ student.supervisorMark }}%</span>
+                    <span class="text-gray-900 font-normal"> E: </span>
+                    <span :class="{
+                      'text-red-600': student.examinerMark < 40,
+                      'text-yellow-600': student.examinerMark >= 40 && student.examinerMark < 60,
+                      'text-blue-600': student.examinerMark >= 60 && student.examinerMark < 80,
+                      'text-green-600': student.examinerMark >= 80
+                    }" class="font-bold">{{ student.examinerMark }}%</span>
+                  </div>
+                  <div v-else class="text-gray-500">-</div>
                 </td>
               </tr>
             </template>
@@ -1054,9 +1060,9 @@
             querySnapshot.forEach(doc => {
               const feedback = doc.data()
               if (feedback.role === 'supervisor') {
-                supervisorTotal += feedback.mark
+                supervisorTotal += feedback.weightedMark
               } else if (feedback.role === 'examiner') {
-                examinerTotal += feedback.mark
+                examinerTotal += feedback.weightedMark
               }
             })
 

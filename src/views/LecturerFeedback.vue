@@ -1584,7 +1584,49 @@ export default {
       }
     }
 
-    // Add debug logs to saveFeedback and saveDraft
+    // Add this new function before saveFeedback
+    const getMilestoneWeightage = async (submission) => {
+      try {
+        if (!userStore.currentUser?.school) return 0
+
+        // Get the major collection reference
+        const majorCollectionRef = collection(
+          db,
+          'schools',
+          userStore.currentUser.school,
+          'projects',
+          submission.yearId,
+          submission.majorId
+        )
+
+        // Get all documents in the collection (should only be one)
+        const majorSnapshot = await getDocs(majorCollectionRef)
+        
+        if (majorSnapshot.empty) {
+          console.error('Major document not found')
+          return 0
+        }
+
+        // Get the first document
+        const majorDoc = majorSnapshot.docs[0]
+        const milestones = majorDoc.data().milestones || []
+        
+        // Find the matching milestone
+        const milestone = milestones.find(m => m.description === submission.milestoneDescription)
+        
+        if (!milestone) {
+          console.error('Milestone not found')
+          return 0
+        }
+
+        return milestone.weightage || 0
+      } catch (error) {
+        console.error('Error getting milestone weightage:', error)
+        return 0
+      }
+    }
+
+    // Modify saveFeedback function
     const saveFeedback = async () => {
       if (!selectedSubmission.value || !userStore.currentUser?.school) return
 
@@ -1594,6 +1636,12 @@ export default {
 
       try {
         const feedbackRef = collection(db, 'schools', userStore.currentUser.school, 'feedback')
+        
+        // Get milestone weightage
+        const milestoneWeightage = await getMilestoneWeightage(selectedSubmission.value)
+        
+        // Calculate weighted mark
+        const weightedMark = (overallMark.value * milestoneWeightage) / 100
         
         // Create criteria marks array with names and marks
         const criteriaMarks = rubricData.value.map((criteria, index) => ({
@@ -1612,8 +1660,9 @@ export default {
           projectId: selectedSubmission.value.projectId,
           comment: feedbackData.value.comment || '',
           mark: overallMark.value,
+          weightedMark: weightedMark, // Add weighted mark
           grade: overallGrade.value,
-          criteriaMarks, // Store individual criteria marks
+          criteriaMarks,
           advice: feedbackData.value.advice || '',
           updatedAt: new Date(),
           isDraft: false,
@@ -1759,6 +1808,12 @@ export default {
       try {
         const feedbackRef = collection(db, 'schools', userStore.currentUser.school, 'feedback')
         
+        // Get milestone weightage
+        const milestoneWeightage = await getMilestoneWeightage(selectedSubmission.value)
+        
+        // Calculate weighted mark
+        const weightedMark = (overallMark.value * milestoneWeightage) / 100
+        
         // Create criteria marks array with names and marks
         const criteriaMarks = rubricData.value.map((criteria, index) => ({
           name: criteria.name,
@@ -1776,8 +1831,9 @@ export default {
           projectId: selectedSubmission.value.projectId,
           comment: feedbackData.value.comment || '',
           mark: overallMark.value,
+          weightedMark: weightedMark, // Add weighted mark
           grade: overallGrade.value,
-          criteriaMarks, // Store individual criteria marks
+          criteriaMarks,
           advice: feedbackData.value.advice || '',
           updatedAt: new Date(),
           isDraft: true,
