@@ -65,7 +65,7 @@
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl font-semibold text-gray-800">Program Milestones</h2>
           <div v-if="selectedMajor" class="text-sm font-medium px-3 py-1 bg-blue-50 text-blue-700 rounded-full">
-            {{ selectedMajor }}
+            Major: {{ selectedMajor }}
           </div>
         </div>
         
@@ -154,9 +154,9 @@
         
         <div class="flex justify-between mt-12 mb-2 text-sm">
           <div class="flex items-center">
-            <span class="font-semibold mr-2">Current Major:</span> 
+            <span class="font-semibold mr-2">Current Milestone:</span> 
             <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-md">
-              {{ selectedMajor }}
+              {{ majorMilestones.every(m => getMilestoneStatus(m) === 'completed') ? 'All Milestones Completed' : getCurrentMilestoneName() }}
             </span>
           </div>
           <div v-if="loading" class="text-gray-600">
@@ -187,6 +187,7 @@
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supervisor</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Examiner</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Final Grade</th>
               <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Milestone Status</th>
             </tr>
           </thead>
@@ -209,6 +210,19 @@
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {{ student.examiner }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div v-if="isMajorCompleted" 
+                       :class="{
+                         'text-red-600': Math.min(student.supervisorMark, student.examinerMark) < 40,
+                         'text-yellow-600': Math.min(student.supervisorMark, student.examinerMark) >= 40 && Math.min(student.supervisorMark, student.examinerMark) < 60,
+                         'text-blue-600': Math.min(student.supervisorMark, student.examinerMark) >= 60 && Math.min(student.supervisorMark, student.examinerMark) < 80,
+                         'text-green-600': Math.min(student.supervisorMark, student.examinerMark) >= 80
+                       }"
+                       class="font-medium">
+                    {{ student.supervisorMark }}% {{ student.examinerMark }}%
+                  </div>
+                  <div v-else class="text-gray-500">-</div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex justify-center space-x-2">
@@ -366,6 +380,7 @@
       const usersMap = ref(new Map())
       const loading = ref(false)
       const submissionsMap = ref(new Map())
+      const feedbackMap = ref(new Map())
       
       const tabs = [
         { id: 'milestone', name: 'Milestone View' },
@@ -617,20 +632,43 @@
         console.log('Major or year changed:', { major: newMajor, year: newYear })
         if (newMajor && newYear) {
           await loadData(newMajor)
+          if (isMajorCompleted.value) {
+            await fetchFeedback()
+          }
         }
       })
+
+      // Function to check if all milestones are completed
+      const hasCompletedAllMilestones = (studentId) => {
+        // Check if all milestones are completed for this student
+        return majorMilestones.value.every(milestone => {
+          if (milestone.deadline > currentDate) {
+            return true; // Future milestones don't count
+          }
+          return hasSubmittedMilestone(studentId, milestone.description);
+        });
+      }
+
+      // Function to generate a dummy final grade
+      const generateDummyGrade = () => {
+        // Generate a random grade between 65 and 95 for demonstration
+        return Math.floor(Math.random() * (95 - 65 + 1)) + 65;
+      }
 
       // Computed property for display data
       const displayData = computed(() => {
         const data = students.value.map(student => {
           const project = projectsMap.value.get(student.id)
+          const feedback = feedbackMap.value.get(student.id) || { supervisorMark: 0, examinerMark: 0 }
           console.log('Mapping student:', student.id, 'Project:', project)
           return {
             id: student.id,
             name: student.name,
             project: project?.Title || '-',
             supervisor: project?.userId ? usersMap.value.get(project.userId) || '-' : '-',
-            examiner: project?.examinerId ? usersMap.value.get(project.examinerId) || '-' : '-'
+            examiner: project?.examinerId ? usersMap.value.get(project.examinerId) || '-' : '-',
+            supervisorMark: feedback.supervisorMark,
+            examinerMark: feedback.examinerMark
           }
         })
         console.log('Display data:', data)
@@ -985,6 +1023,58 @@
         }
       })
       
+      // Add these new refs and computed properties in setup()
+      const isMajorCompleted = computed(() => {
+        return majorMilestones.value.every(milestone => milestone.deadline < currentDate)
+      })
+
+      // Function to fetch feedback for all students
+      const fetchFeedback = async () => {
+        try {
+          if (!userStore.currentUser?.school || !students.value.length) return
+
+          // Clear existing feedback map
+          feedbackMap.value = new Map()
+
+          // Create a batch of promises for each student
+          const promises = students.value.map(async student => {
+            const feedbackRef = collection(db, 'schools', userStore.currentUser.school, 'feedback')
+            const q = query(
+              feedbackRef,
+              where('studentId', '==', student.id)
+            )
+            
+            const querySnapshot = await getDocs(q)
+            
+            // Initialize marks for this student
+            let supervisorTotal = 0
+            let examinerTotal = 0
+
+            // Sum up marks by role
+            querySnapshot.forEach(doc => {
+              const feedback = doc.data()
+              if (feedback.role === 'supervisor') {
+                supervisorTotal += feedback.mark
+              } else if (feedback.role === 'examiner') {
+                examinerTotal += feedback.mark
+              }
+            })
+
+            // Store total marks in map
+            feedbackMap.value.set(student.id, {
+              supervisorMark: supervisorTotal,
+              examinerMark: examinerTotal
+            })
+          })
+
+          // Wait for all feedback queries to complete
+          await Promise.all(promises)
+          console.log('Feedback loaded:', Array.from(feedbackMap.value.entries()))
+        } catch (error) {
+          console.error('Error fetching feedback:', error)
+        }
+      }
+      
       return {
         activeTab,
         tabs,
@@ -1006,7 +1096,11 @@
         getLastCompletedPosition,
         getCurrentSegmentWidth,
         hasSubmittedMilestone,
-        submissionsMap
+        submissionsMap,
+        getCurrentMilestoneName,
+        hasCompletedAllMilestones,
+        isMajorCompleted,
+        feedbackMap
       }
     }
   }
