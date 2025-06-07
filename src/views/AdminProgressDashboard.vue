@@ -246,6 +246,11 @@
                       'text-blue-600': student.examinerMark >= 60 && student.examinerMark < 80,
                       'text-green-600': student.examinerMark >= 80
                     }" class="font-bold">{{ student.examinerMark }}%</span>
+                    <button 
+                      @click="showMarkDetails(student)"
+                      class="ml-2 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors">
+                      Detail
+                    </button>
                   </div>
                   <div v-else class="text-gray-500">-</div>
                 </td>
@@ -310,6 +315,73 @@
             </div>
             
             <!-- Other examiner options... -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Mark Details Modal -->
+      <div v-if="showMarkDetailsModal" 
+           class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+           @click.self="showMarkDetailsModal = false">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Mark Distribution - {{ selectedStudent?.name }}</h3>
+            <button @click="showMarkDetailsModal = false" class="text-gray-400 hover:text-gray-600">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="space-y-6">
+            <template v-for="milestone in majorMilestones" :key="milestone.description">
+              <div v-if="getMarksByMilestone(selectedStudent?.id, milestone.description).length > 0" 
+                   class="border rounded-lg p-4">
+                <h4 class="font-medium text-gray-800 mb-3">{{ milestone.description }}</h4>
+                
+                <!-- Supervisor Marks -->
+                <div v-if="getMarksByRole(selectedStudent?.id, milestone.description, 'supervisor').length > 0" 
+                     class="mb-4">
+                  <h5 class="text-sm font-medium text-gray-600 mb-2">Supervisor Marks:</h5>
+                  <div class="bg-gray-50 rounded p-3">
+                    <div v-for="mark in getMarksByRole(selectedStudent?.id, milestone.description, 'supervisor')" 
+                         :key="mark.id"
+                         class="flex justify-between items-center text-sm">
+                      <span>Original Mark: <span class="font-medium">{{ mark.mark }}%</span></span>
+                      <span>Weighted Mark: <span class="font-medium">{{ mark.weightedMark }}%</span></span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Examiner Marks -->
+                <div v-if="getMarksByRole(selectedStudent?.id, milestone.description, 'examiner').length > 0">
+                  <h5 class="text-sm font-medium text-gray-600 mb-2">Examiner Marks:</h5>
+                  <div class="bg-gray-50 rounded p-3">
+                    <div v-for="mark in getMarksByRole(selectedStudent?.id, milestone.description, 'examiner')" 
+                         :key="mark.id"
+                         class="flex justify-between items-center text-sm">
+                      <span>Original Mark: <span class="font-medium">{{ mark.mark }}%</span></span>
+                      <span>Weighted Mark: <span class="font-medium">{{ mark.weightedMark }}%</span></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- Total Weighted Marks -->
+            <div class="border-t pt-4 mt-6">
+              <h4 class="font-medium text-gray-800 mb-3">Total Weighted Marks</h4>
+              <div class="grid grid-cols-2 gap-4">
+                <div class="bg-blue-50 rounded p-4">
+                  <div class="text-sm font-medium text-gray-600 mb-1">Supervisor Total:</div>
+                  <div class="text-2xl font-bold text-blue-700">{{ getTotalWeightedMark(selectedStudent?.id, 'supervisor') }}%</div>
+                </div>
+                <div class="bg-green-50 rounded p-4">
+                  <div class="text-sm font-medium text-gray-600 mb-1">Examiner Total:</div>
+                  <div class="text-2xl font-bold text-green-700">{{ getTotalWeightedMark(selectedStudent?.id, 'examiner') }}%</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -993,7 +1065,7 @@
         try {
           if (!userStore.currentUser?.school || !students.value.length) return
 
-          // Clear existing feedback map
+          // Clear existing maps
           feedbackMap.value = new Map()
 
           // Create a batch of promises for each student
@@ -1006,35 +1078,80 @@
             
             const querySnapshot = await getDocs(q)
             
-            // Initialize marks for this student
+            // Initialize marks
             let supervisorTotal = 0
             let examinerTotal = 0
+            let studentFeedback = []
 
-            // Sum up marks by role
+            // Process each feedback document
             querySnapshot.forEach(doc => {
               const feedback = doc.data()
+              
+              // Add to total marks by role
               if (feedback.role === 'supervisor') {
                 supervisorTotal += feedback.weightedMark
               } else if (feedback.role === 'examiner') {
                 examinerTotal += feedback.weightedMark
               }
+
+              // Store detailed feedback
+              studentFeedback.push({
+                id: doc.id,
+                ...feedback
+              })
             })
 
-            // Store total marks in map
+            // Store total marks in feedbackMap
             feedbackMap.value.set(student.id, {
               supervisorMark: supervisorTotal,
               examinerMark: examinerTotal
             })
+
+            // Store detailed feedback in detailedFeedbackMap
+            detailedFeedbackMap.value.set(student.id, studentFeedback)
           })
 
           // Wait for all feedback queries to complete
           await Promise.all(promises)
-          console.log('Feedback loaded:', Array.from(feedbackMap.value.entries()))
+          console.log('Detailed feedback loaded:', Array.from(detailedFeedbackMap.value.entries()))
         } catch (error) {
           console.error('Error fetching feedback:', error)
         }
       }
       
+      const showMarkDetailsModal = ref(false)
+      const selectedStudent = ref(null)
+      const detailedFeedbackMap = ref(new Map())
+
+      // Function to show mark details modal
+      const showMarkDetails = (student) => {
+        selectedStudent.value = student
+        showMarkDetailsModal.value = true
+      }
+
+      // Function to get marks by milestone
+      const getMarksByMilestone = (studentId, milestoneDescription) => {
+        if (!studentId) return []
+        const feedback = detailedFeedbackMap.value.get(studentId) || []
+        return feedback.filter(f => f.milestoneDescription === milestoneDescription)
+      }
+
+      // Function to get marks by role for a specific milestone
+      const getMarksByRole = (studentId, milestoneDescription, role) => {
+        if (!studentId) return []
+        const milestoneFeedback = getMarksByMilestone(studentId, milestoneDescription)
+        return milestoneFeedback.filter(f => f.role === role)
+      }
+      
+      // Add this new function in the setup() section
+      const getTotalWeightedMark = (studentId, role) => {
+        if (!studentId) return 0
+        const feedback = detailedFeedbackMap.value.get(studentId) || []
+        const roleFeedback = feedback.filter(f => f.role === role)
+        const total = roleFeedback.reduce((sum, f) => sum + (f.weightedMark || 0), 0)
+        return total
+      }
+
       return {
         activeTab,
         tabs,
@@ -1060,7 +1177,13 @@
         getCurrentMilestoneName,
         hasCompletedAllMilestones,
         isMajorCompleted,
-        feedbackMap
+        feedbackMap,
+        showMarkDetailsModal,
+        selectedStudent,
+        showMarkDetails,
+        getMarksByMilestone,
+        getMarksByRole,
+        getTotalWeightedMark,
       }
     }
   }
