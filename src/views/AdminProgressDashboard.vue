@@ -34,37 +34,29 @@
       </div>
   
       <!-- Dashboard Overview Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div class="bg-white rounded-lg shadow-md p-6 flex flex-col items-center">
-          <div class="text-3xl font-bold text-green-600 mb-2">82%</div>
+          <div class="text-3xl font-bold text-green-600 mb-2">{{ studentStats.onTrack }}%</div>
           <div class="text-sm text-gray-600">Students On Track</div>
           <div class="mt-4 w-full bg-gray-200 rounded-full h-2.5">
-            <div class="bg-green-600 h-2.5 rounded-full" style="width: 82%"></div>
+            <div class="bg-green-600 h-2.5 rounded-full" :style="{ width: studentStats.onTrack + '%' }"></div>
           </div>
         </div>
   
         <div class="bg-white rounded-lg shadow-md p-6 flex flex-col items-center">
-          <div class="text-3xl font-bold text-yellow-500 mb-2">12%</div>
-          <div class="text-sm text-gray-600">Missing Current Milestone</div>
+          <div class="text-3xl font-bold text-yellow-500 mb-2">{{ studentStats.missingCurrent }}%</div>
+          <div class="text-sm text-gray-600">Pending Current Milestone</div>
           <div class="mt-4 w-full bg-gray-200 rounded-full h-2.5">
-            <div class="bg-yellow-500 h-2.5 rounded-full" style="width: 12%"></div>
+            <div class="bg-yellow-500 h-2.5 rounded-full" :style="{ width: studentStats.missingCurrent + '%' }"></div>
           </div>
         </div>
   
         <div class="bg-white rounded-lg shadow-md p-6 flex flex-col items-center">
-          <div class="text-3xl font-bold text-red-500 mb-2">6%</div>
-          <div class="text-sm text-gray-600">Multiple Milestones Missing</div>
+          <div class="text-3xl font-bold text-red-500 mb-2">{{ studentStats.multipleOverdue }}%</div>
+          <div class="text-sm text-gray-600">Missed Milestone</div>
           <div class="mt-4 w-full bg-gray-200 rounded-full h-2.5">
-            <div class="bg-red-500 h-2.5 rounded-full" style="width: 6%"></div>
+            <div class="bg-red-500 h-2.5 rounded-full" :style="{ width: studentStats.multipleOverdue + '%' }"></div>
           </div>
-        </div>
-  
-        <div class="bg-white rounded-lg shadow-md p-6 flex flex-col items-center">
-          <div class="text-3xl font-bold text-blue-600 mb-2">8</div>
-          <div class="text-sm text-gray-600">Pending Examiner Assignments</div>
-          <button @click="showExaminerModal = true" class="mt-3 px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors">
-            Assign Now
-          </button>
         </div>
       </div>
   
@@ -162,13 +154,13 @@
         
         <div class="flex justify-between mt-12 mb-2 text-sm">
           <div class="flex items-center">
-            <span class="font-semibold mr-2">Current Milestone:</span> 
-            <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-md">
-              {{ getCurrentMilestoneName() }}
+            <span class="font-semibold mr-2">Current Major:</span> 
+            <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-md">
+              {{ selectedMajor }}
             </span>
           </div>
-          <div class="text-yellow-600">
-            Next Deadline: {{ getNextMilestoneDate() }}
+          <div v-if="loading" class="text-gray-600">
+            Loading data...
           </div>
         </div>
       </div>
@@ -192,74 +184,65 @@
           <thead class="bg-gray-50">
             <tr>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Major</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
-              <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Milestone Status
-              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supervisor</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Examiner</th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Milestone Status</th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
-            <tr v-for="student in filteredStudents" :key="student.id" 
-                :class="{'bg-yellow-50': hasMissedCurrentMilestone(student), 'bg-red-50': hasMissedMultipleMilestones(student)}">
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="font-medium text-gray-900">{{ student.name }}</div>
-                <div class="text-sm text-gray-500">{{ student.email }}</div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                  {{ student.major === 'cs' ? 'Computer Science' : student.major === 'ee' ? 'Electrical Engineering' : 'Mechanical Engineering' }}
-                </span>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ student.project }}
-              </td>
-              <td class="px-3 py-4 whitespace-nowrap">
-                <div class="flex justify-center space-x-1">
-                  <div v-for="(milestone, index) in majorMilestones" :key="index" 
-                       class="w-3 h-3 rounded-full" 
-                       :class="getStudentMilestoneClass(student, milestone.id)"
-                       :title="milestone.name + ': ' + (hasCompletedMilestone(student, milestone.id) ? 'Completed' : 'Not Completed')">
-                  </div>
-                </div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ student.examiner || 'Not Assigned' }}
-                <button v-if="!student.examiner" @click="showExaminerModal = true" class="ml-2 text-xs text-blue-600 hover:text-blue-800">
-                  Assign
-                </button>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button @click="expandStudentDetails(student.id)" class="text-blue-600 hover:text-blue-900 mr-3">
-                  Details
-                </button>
-                <button class="text-gray-600 hover:text-gray-900">
-                  Message
-                </button>
+            <tr v-if="loading" class="animate-pulse">
+              <td colspan="5" class="px-6 py-4">
+                <div class="h-4 bg-gray-200 rounded w-3/4"></div>
               </td>
             </tr>
+            <template v-else>
+              <tr v-for="student in displayData" :key="student.id">
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="font-medium text-gray-900">{{ student.name }}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {{ student.project }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {{ student.supervisor }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {{ student.examiner }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="flex justify-center space-x-2">
+                    <div v-for="(milestone, index) in majorMilestones" 
+                         :key="milestone.id" 
+                         class="w-3 h-3 rounded-full"
+                         :class="{
+                           'bg-green-500': index === 0 ? student.project !== '-' : hasSubmittedMilestone(student.id, milestone.description),
+                           'bg-red-500': index === 0 ? student.project === '-' && milestone.deadline < currentDate : !hasSubmittedMilestone(student.id, milestone.description) && milestone.deadline < currentDate,
+                           'bg-yellow-500': index !== 0 && getMilestoneStatus(milestone) === 'current' && !hasSubmittedMilestone(student.id, milestone.description),
+                           'bg-gray-300': getMilestoneStatus(milestone) === 'upcoming'
+                         }"
+                         :title="index === 0 ? 
+                           (student.project !== '-' ? 'Project Assigned' : 'No Project Assigned') : 
+                           `${milestone.description} - ${getMilestoneStatus(milestone) === 'current' && !hasSubmittedMilestone(student.id, milestone.description) ? 'Pending Submission' : 
+                           getMilestoneStatus(milestone) === 'upcoming' ? 'Upcoming' : 
+                           hasSubmittedMilestone(student.id, milestone.description) ? 'Submitted' : 'Missing Submission'}`">
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
   
       <!-- Student Cards View -->
       <div v-if="activeTab === 'cards'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div v-for="student in filteredStudents" :key="student.id" 
-             class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
-             :class="{
-               'border-l-4 border-green-500': !hasMissedCurrentMilestone(student) && !hasMissedMultipleMilestones(student),
-               'border-l-4 border-yellow-500': hasMissedCurrentMilestone(student) && !hasMissedMultipleMilestones(student),
-               'border-l-4 border-red-500': hasMissedMultipleMilestones(student)
-             }">
+        <div v-for="student in displayData" :key="student.id" 
+             class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
           <div class="p-4">
             <div class="flex justify-between items-start">
               <div>
                 <div class="font-medium text-lg">{{ student.name }}</div>
-                <div class="text-sm text-gray-600 mb-1">
-                  {{ student.major === 'cs' ? 'Computer Science' : student.major === 'ee' ? 'Electrical Engineering' : 'Mechanical Engineering' }}
-                </div>
                 <div class="text-sm">Project: {{ student.project }}</div>
               </div>
               <button @click="expandedStudentId = expandedStudentId === student.id ? null : student.id" 
@@ -267,29 +250,6 @@
                 <span v-if="expandedStudentId !== student.id">Expand ▼</span>
                 <span v-else>Collapse ▲</span>
               </button>
-            </div>
-            
-            <!-- Milestone Status Bar -->
-            <div class="mt-4">
-              <div class="flex items-center w-full">
-                <div v-for="milestone in majorMilestones" :key="milestone.id" class="flex-1 flex flex-col items-center">
-                  <div class="w-6 h-6 rounded-full flex items-center justify-center"
-                       :class="hasCompletedMilestone(student, milestone.id) ? 'bg-green-500 text-white' : isMilestoneCurrent(milestone) ? 'border-2 border-blue-500' : isPastMilestone(milestone) ? 'border-2 border-red-500 bg-red-100' : 'border-2 border-gray-300'">
-                    <svg v-if="hasCompletedMilestone(student, milestone.id)" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                    </svg>
-                    <svg v-else-if="isPastMilestone(milestone) && !hasCompletedMilestone(student, milestone.id)" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                      <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                    </svg>
-                  </div>
-                  <div class="text-xs mt-1 text-center">{{ milestone.name }}</div>
-                  <div class="text-xs text-gray-500">{{ milestone.dueDate }}</div>
-                </div>
-              </div>
-              <div class="relative mt-1">
-                <div class="absolute top-0 left-0 w-full h-0.5 bg-gray-200"></div>
-                <div class="absolute top-0 left-0 h-0.5 bg-green-500" :style="`width: ${getStudentProgressPercentage(student)}%`"></div>
-              </div>
             </div>
             
             <!-- Expanded Section -->
@@ -301,34 +261,7 @@
                 </div>
                 <div>
                   <div class="text-xs text-gray-500">Examiner</div>
-                  <div class="text-sm">{{ student.examiner || 'Not assigned' }}</div>
-                  <button v-if="!student.examiner" @click="showExaminerModal = true"
-                          class="mt-1 px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 rounded transition-colors">
-                    Assign Examiner
-                  </button>
-                </div>
-              </div>
-              
-              <!-- Milestone Submission History -->
-              <div class="mt-3">
-                <div class="text-xs text-gray-500 mb-2 font-medium">Milestone Submission History</div>
-                <div class="space-y-2">
-                  <div v-for="submission in student.submissions" :key="submission.milestoneId" 
-                       class="p-2 rounded" 
-                       :class="submission.status === 'on-time' ? 'bg-green-50 border border-green-100' : submission.status === 'late' ? 'bg-yellow-50 border border-yellow-100' : 'bg-gray-50 border border-gray-100'">
-                    <div class="flex justify-between">
-                      <div class="text-sm font-medium">{{ getMilestoneName(submission.milestoneId) }}</div>
-                      <div class="text-xs" :class="submission.status === 'on-time' ? 'text-green-600' : submission.status === 'late' ? 'text-yellow-600' : 'text-gray-500'">
-                        {{ submission.status === 'on-time' ? 'On Time' : submission.status === 'late' ? 'Late' : 'Not Submitted' }}
-                      </div>
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ submission.submittedDate ? `Submitted: ${submission.submittedDate}` : 'No submission' }}
-                    </div>
-                    <div v-if="submission.feedback" class="mt-1 text-xs text-gray-600 italic">
-                      "{{ submission.feedback }}"
-                    </div>
-                  </div>
+                  <div class="text-sm">{{ student.examiner }}</div>
                 </div>
               </div>
               
@@ -412,7 +345,7 @@
   import { useUserStore } from '@/stores/userStore'
   import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
   import { db } from '@/firebase'
-  import { doc, getDoc } from 'firebase/firestore'
+  import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore'
   
   export default {
     name: 'AdminProgressDashboard',
@@ -427,11 +360,282 @@
       const majorMilestones = ref([])
       const currentDate = new Date()
       
+      // New state variables for real data
+      const students = ref([])
+      const projectsMap = ref(new Map())
+      const usersMap = ref(new Map())
+      const loading = ref(false)
+      const submissionsMap = ref(new Map())
+      
       const tabs = [
         { id: 'milestone', name: 'Milestone View' },
         { id: 'cards', name: 'Student Cards' },
         { id: 'analytics', name: 'Analytics' },
       ]
+      
+      // Function to fetch students by major
+      const fetchStudentsByMajor = async (major) => {
+        try {
+          if (!userStore.currentUser?.school) return
+
+          const studentsRef = collection(db, 'schools', userStore.currentUser.school, 'users')
+          const q = query(
+            studentsRef,
+            where('role', '==', 'student'),
+            where('major', '==', major)
+          )
+          const querySnapshot = await getDocs(q)
+          students.value = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }))
+        } catch (error) {
+          console.error('Error fetching students:', error)
+        }
+      }
+
+      // Function to fetch projects for major
+      const fetchProjectsForMajor = async (major, yearId, majorDocId) => {
+        try {
+          if (!userStore.currentUser?.school) return
+          console.log('Fetching projects with params:', { major, yearId, majorDocId, schoolId: userStore.currentUser.school })
+
+          // Log the full path we're querying
+          const path = `schools/${userStore.currentUser.school}/projects/${yearId}/${major}/${majorDocId}/projectsPerYear`
+          console.log('Querying path:', path)
+
+          const projectsRef = collection(
+            db, 
+            'schools', 
+            userStore.currentUser.school,
+            'projects',
+            yearId,
+            major,
+            majorDocId,
+            'projectsPerYear'
+          )
+
+          // Query using the composite index
+          const q = query(
+            projectsRef,
+            where('assignedTo', '!=', null),
+            orderBy('assignedTo'),
+            orderBy('Title')
+          )
+
+          // Get all projects that are assigned
+          const querySnapshot = await getDocs(q)
+          console.log('Raw projects found:', querySnapshot.size)
+          
+          // Log all projects for debugging
+          querySnapshot.docs.forEach(doc => {
+            console.log('Project document:', {
+              id: doc.id,
+              data: doc.data()
+            })
+          })
+          
+          // Clear existing projects map
+          projectsMap.value = new Map()
+          
+          // Create set of user IDs to fetch
+          const userIdsToFetch = new Set()
+          
+          // Process each project
+          querySnapshot.docs.forEach(doc => {
+            const projectData = doc.data()
+            console.log('Processing project:', {
+              id: doc.id,
+              assignedTo: projectData.assignedTo,
+              Title: projectData.Title,
+              userId: projectData.userId,
+              examinerId: projectData.examinerId
+            })
+
+            // Store project by assignedTo
+            projectsMap.value.set(projectData.assignedTo, {
+              id: doc.id,
+              ...projectData
+            })
+            if (projectData.userId) userIdsToFetch.add(projectData.userId)
+            if (projectData.examinerId) userIdsToFetch.add(projectData.examinerId)
+          })
+
+          console.log('Final projects map:', {
+            size: projectsMap.value.size,
+            entries: Array.from(projectsMap.value.entries()).map(([key, value]) => ({
+              studentId: key,
+              projectTitle: value.Title,
+              supervisorId: value.userId,
+              examinerId: value.examinerId
+            }))
+          })
+
+          // Fetch user names for supervisors and examiners
+          if (userIdsToFetch.size > 0) {
+            console.log('Fetching names for users:', Array.from(userIdsToFetch))
+            await fetchUserNames(Array.from(userIdsToFetch))
+          }
+        } catch (error) {
+          console.error('Error fetching projects:', error)
+        }
+      }
+
+      // Function to batch fetch user names
+      const fetchUserNames = async (userIds) => {
+        try {
+          if (!userStore.currentUser?.school || !userIds.length) return
+
+          // Clear existing users map
+          usersMap.value = new Map()
+
+          // Batch fetch users
+          const promises = userIds.map(userId => 
+            getDoc(doc(db, 'schools', userStore.currentUser.school, 'users', userId))
+          )
+          const userDocs = await Promise.all(promises)
+          
+          userDocs.forEach(userDoc => {
+            if (userDoc.exists()) {
+              usersMap.value.set(userDoc.id, userDoc.data().name)
+            }
+          })
+        } catch (error) {
+          console.error('Error fetching user names:', error)
+        }
+      }
+
+      // Function to format academic year
+      const formatAcademicYear = (year) => {
+        if (!year) return ''
+        // Convert something like "2023/2024" to "2324"
+        const years = year.split('/')
+        if (years.length === 2) {
+          return years[0].slice(-2) + years[1].slice(-2)
+        }
+        return year
+      }
+
+      // Function to fetch submissions for the selected major
+      const fetchSubmissions = async (major) => {
+        try {
+          if (!userStore.currentUser?.school) return
+          
+          const submissionsRef = collection(db, 'schools', userStore.currentUser.school, 'submissions')
+          const q = query(
+            submissionsRef,
+            where('majorId', '==', major)
+          )
+          
+          const querySnapshot = await getDocs(q)
+          
+          // Clear existing submissions map
+          submissionsMap.value = new Map()
+          
+          // Group submissions by student ID
+          querySnapshot.docs.forEach(doc => {
+            const submission = doc.data()
+            const studentId = submission.submittedBy
+            
+            if (!submissionsMap.value.has(studentId)) {
+              submissionsMap.value.set(studentId, [])
+            }
+            
+            submissionsMap.value.get(studentId).push({
+              id: doc.id,
+              ...submission
+            })
+          })
+          
+          console.log('Submissions loaded:', Array.from(submissionsMap.value.entries()))
+        } catch (error) {
+          console.error('Error fetching submissions:', error)
+        }
+      }
+
+      // Function to check if a student has submitted for a milestone
+      const hasSubmittedMilestone = (studentId, milestoneDescription) => {
+        const studentSubmissions = submissionsMap.value.get(studentId) || []
+        return studentSubmissions.some(submission => 
+          submission.milestoneDescription === milestoneDescription
+        )
+      }
+
+      // Load all data when major changes
+      const loadData = async (major) => {
+        loading.value = true
+        try {
+          console.log('Loading data for major:', major)
+          await fetchStudentsByMajor(major)
+          await fetchSubmissions(major)
+          console.log('Students loaded:', students.value.map(s => ({
+            id: s.id,
+            name: s.name,
+            major: s.major
+          })))
+          
+          // Format the academic year to match Firestore format
+          const formattedYear = formatAcademicYear(academicYear.value)
+          console.log('Formatted academic year:', { original: academicYear.value, formatted: formattedYear })
+          
+          // Get the major document ID
+          if (!userStore.currentUser?.school) return
+          const yearRef = doc(db, 'schools', userStore.currentUser.school, 'projects', formattedYear)
+          console.log('Checking year document:', formattedYear)
+          
+          const yearDoc = await getDoc(yearRef)
+          if (yearDoc.exists()) {
+            console.log('Year document found:', yearDoc.data())
+            const majorCollection = collection(yearRef, major)
+            console.log('Querying major collection:', major)
+            
+            const majorDocs = await getDocs(majorCollection)
+            console.log('Major docs found:', majorDocs.size)
+            
+            if (!majorDocs.empty) {
+              const majorDocId = majorDocs.docs[0].id
+              console.log('Using major doc:', {
+                id: majorDocId,
+                data: majorDocs.docs[0].data()
+              })
+              await fetchProjectsForMajor(major, formattedYear, majorDocId)
+            } else {
+              console.warn('No major documents found for major:', major)
+            }
+          } else {
+            console.warn('Year document not found:', formattedYear)
+          }
+        } catch (error) {
+          console.error('Error loading data:', error)
+        } finally {
+          loading.value = false
+        }
+      }
+
+      // Watch for major changes
+      watch([selectedMajor, academicYear], async ([newMajor, newYear]) => {
+        console.log('Major or year changed:', { major: newMajor, year: newYear })
+        if (newMajor && newYear) {
+          await loadData(newMajor)
+        }
+      })
+
+      // Computed property for display data
+      const displayData = computed(() => {
+        const data = students.value.map(student => {
+          const project = projectsMap.value.get(student.id)
+          console.log('Mapping student:', student.id, 'Project:', project)
+          return {
+            id: student.id,
+            name: student.name,
+            project: project?.Title || '-',
+            supervisor: project?.userId ? usersMap.value.get(project.userId) || '-' : '-',
+            examiner: project?.examinerId ? usersMap.value.get(project.examinerId) || '-' : '-'
+          }
+        })
+        console.log('Display data:', data)
+        return data
+      })
       
       // Get milestones from session storage
       const getMilestonesFromSessionStorage = (majorId) => {
@@ -446,11 +650,15 @@
           
           const parsedData = JSON.parse(storedData)
           
-          // Convert ISO strings back to Date objects
-          return parsedData.milestones.map(milestone => ({
-            ...milestone,
-            deadline: new Date(milestone.deadline)
-          }))
+          // Convert ISO strings back to Date objects and sort by deadline
+          const sortedMilestones = parsedData.milestones
+            .map(milestone => ({
+              ...milestone,
+              deadline: new Date(milestone.deadline)
+            }))
+            .sort((a, b) => a.deadline - b.deadline)
+
+          return sortedMilestones
         } catch (err) {
           console.error('Error retrieving milestone data from session storage:', err)
           return null
@@ -462,6 +670,10 @@
         if (newMajor) {
           const storedMilestones = getMilestonesFromSessionStorage(newMajor)
           if (storedMilestones) {
+            console.log('Sorted milestones by deadline:', storedMilestones.map(m => ({
+              description: m.description,
+              deadline: m.deadline.toLocaleString()
+            })))
             majorMilestones.value = storedMilestones
           }
         }
@@ -517,129 +729,10 @@
         initializeDashboard()
       })
       
-      // Student data with milestone submissions
-      const students = [
-        {
-          id: 1,
-          name: 'John Smith',
-          email: 'john.smith@university.edu',
-          major: 'cs',
-          project: 'Blockchain-Based Supply Chain Tracking',
-          supervisor: 'Dr. Robert Johnson',
-          examiner: 'Dr. Emma Wilson',
-          submissions: [
-            { milestoneId: 'proposal', status: 'on-time', submittedDate: 'Sept 28, 2023', feedback: 'Well-structured proposal.' },
-            { milestoneId: 'literature', status: 'on-time', submittedDate: 'Oct 29, 2023', feedback: 'Good review, but could include more recent papers.' },
-            { milestoneId: 'methodology', status: 'not-submitted', submittedDate: null, feedback: null }
-          ]
-        },
-        {
-          id: 2,
-          name: 'Amy Brown',
-          email: 'amy.brown@university.edu',
-          major: 'ee',
-          project: 'Smart Grid Optimization with IoT',
-          supervisor: 'Dr. Tasha Rivera',
-          examiner: 'Dr. Henry Zhang',
-          submissions: [
-            { milestoneId: 'proposal', status: 'on-time', submittedDate: 'Sept 25, 2023', feedback: 'Excellent proposal, very clear objectives.' },
-            { milestoneId: 'literature', status: 'on-time', submittedDate: 'Oct 30, 2023', feedback: 'Comprehensive review.' },
-            { milestoneId: 'methodology', status: 'not-submitted', submittedDate: null, feedback: null }
-          ]
-        },
-        {
-          id: 3,
-          name: 'Michael Chen',
-          email: 'michael.chen@university.edu',
-          major: 'me',
-          project: 'Autonomous Drone Navigation System',
-          supervisor: 'Dr. James Wilson',
-          examiner: null,
-          submissions: [
-            { milestoneId: 'proposal', status: 'late', submittedDate: 'Oct 5, 2023', feedback: 'Good content but submitted late. Please adhere to deadlines.' },
-            { milestoneId: 'literature', status: 'late', submittedDate: 'Nov 10, 2023', feedback: 'Review needs more depth.' },
-            { milestoneId: 'methodology', status: 'not-submitted', submittedDate: null, feedback: null }
-          ]
-        },
-        {
-          id: 4,
-          name: 'Eric Lee',
-          email: 'eric.lee@university.edu',
-          major: 'cs',
-          project: 'Neural Networks for Image Recognition',
-          supervisor: 'Dr. James Chen',
-          examiner: null,
-          submissions: [
-            { milestoneId: 'proposal', status: 'on-time', submittedDate: 'Sept 29, 2023', feedback: 'Very innovative approach.' },
-            { milestoneId: 'literature', status: 'on-time', submittedDate: 'Oct 25, 2023', feedback: 'Excellent literature review.' },
-            { milestoneId: 'methodology', status: 'not-submitted', submittedDate: null, feedback: null }
-          ]
-        },
-        {
-          id: 5,
-          name: 'Tim Garcia',
-          email: 'tim.garcia@university.edu',
-          major: 'cs',
-          project: 'Secure Cloud Authentication Methods',
-          supervisor: 'Dr. Alicia Moore',
-          examiner: 'Dr. Jason Clark',
-          submissions: [
-            { milestoneId: 'proposal', status: 'on-time', submittedDate: 'Sept 27, 2023', feedback: 'Good proposal, but objectives could be clearer.' },
-            { milestoneId: 'literature', status: 'not-submitted', submittedDate: null, feedback: null },
-            { milestoneId: 'methodology', status: 'not-submitted', submittedDate: null, feedback: null }
-          ]
-        },
-        {
-          id: 6,
-          name: 'Sophia Williams',
-          email: 'sophia.williams@university.edu',
-          major: 'ee',
-          project: 'Renewable Energy Integration Systems',
-          supervisor: 'Dr. Martin Rodriguez',
-          examiner: 'Dr. Laura Kim',
-          submissions: [
-            { milestoneId: 'proposal', status: 'not-submitted', submittedDate: null, feedback: null },
-            { milestoneId: 'literature', status: 'not-submitted', submittedDate: null, feedback: null },
-            { milestoneId: 'methodology', status: 'not-submitted', submittedDate: null, feedback: null }
-          ]
-        },
-        {
-          id: 7,
-          name: 'Sarah Wong',
-          email: 'sarah.wong@university.edu',
-          major: 'cs',
-          project: 'AI-Powered Educational Assessment',
-          supervisor: 'Dr. James Chen',
-          examiner: null,
-          submissions: [
-            { milestoneId: 'proposal', status: 'on-time', submittedDate: 'Sept 20, 2023', feedback: 'Outstanding proposal, clearly defined scope.' },
-            { milestoneId: 'literature', status: 'on-time', submittedDate: 'Oct 15, 2023', feedback: 'Excellent literature review with comprehensive analysis.' },
-            { milestoneId: 'methodology', status: 'on-time', submittedDate: 'Nov 10, 2023', feedback: 'Very well-designed methodology with clear approach.' }
-          ]
-        },
-        {
-          id: 8,
-          name: 'David Park',
-          email: 'david.park@university.edu',
-          major: 'cs',
-          project: 'Quantum Computing Algorithms',
-          supervisor: 'Dr. Lisa Wang',
-          examiner: 'Dr. Mark Johnson',
-          submissions: [
-            { milestoneId: 'proposal', status: 'on-time', submittedDate: 'Sept 29, 2023', feedback: 'Excellent proposal.' },
-            { milestoneId: 'literature', status: 'on-time', submittedDate: 'Oct 28, 2023', feedback: 'Very thorough literature review.' },
-            { milestoneId: 'methodology', status: 'not-submitted', submittedDate: null, feedback: null }
-          ]
-        }
-      ]
-      
       // Filter students based on selected major
       const filteredStudents = computed(() => {
-        if (selectedMajor.value === 'all') {
-          return students
-        } else {
-          return students.filter(student => student.major === selectedMajor.value)
-        }
+        // Always return all students regardless of major
+        return students.value
       })
       
       // Get milestone name by ID
@@ -842,36 +935,78 @@
         return currentPosition - lastCompletedPos
       }
       
+      // Add these computed properties for statistics
+      const studentStats = computed(() => {
+        if (!displayData.value.length) return { onTrack: 0, missingCurrent: 0, multipleOverdue: 0 }
+        
+        let onTrackCount = 0
+        let missingCurrentCount = 0
+        let multipleOverdueCount = 0
+        
+        displayData.value.forEach(student => {
+          let redCount = 0
+          let hasYellow = false
+          let allGreen = true
+          
+          majorMilestones.value.forEach((milestone, index) => {
+            // For first milestone (Project Bidding)
+            if (index === 0) {
+              if (student.project === '-' && milestone.deadline < currentDate) {
+                redCount++
+                allGreen = false
+              }
+            } 
+            // For other milestones
+            else {
+              const status = getMilestoneStatus(milestone)
+              const hasSubmitted = hasSubmittedMilestone(student.id, milestone.description)
+              
+              if (!hasSubmitted && milestone.deadline < currentDate) {
+                redCount++
+                allGreen = false
+              }
+              if (status === 'current' && !hasSubmitted) {
+                hasYellow = true
+                allGreen = false
+              }
+            }
+          })
+          
+          if (allGreen) onTrackCount++
+          if (hasYellow) missingCurrentCount++
+          if (redCount > 0) multipleOverdueCount++
+        })
+        
+        const total = displayData.value.length
+        return {
+          onTrack: Math.round((onTrackCount / total) * 100),
+          missingCurrent: Math.round((missingCurrentCount / total) * 100),
+          multipleOverdue: Math.round((multipleOverdueCount / total) * 100)
+        }
+      })
+      
       return {
         activeTab,
         tabs,
         majorMilestones,
-        students,
-        filteredStudents,
+        displayData,
         expandedStudentId,
         showExaminerModal,
         selectedMajor,
         availableMajors,
         academicYear,
+        loading,
+        studentStats,
         // Functions
-        getMilestoneName,
-        hasCompletedMilestone,
-        isMilestoneCurrent,
-        isPastMilestone,
-        getCurrentMilestoneName,
-        getNextMilestoneDate,
-        getMilestoneStatusClass,
-        getStudentMilestoneClass,
-        getStudentProgressPercentage,
-        hasMissedCurrentMilestone,
-        hasMissedMultipleMilestones,
         expandStudentDetails,
         assignExaminer,
         milestoneCompletionPercentage,
         currentDate,
         getMilestoneStatus,
         getLastCompletedPosition,
-        getCurrentSegmentWidth
+        getCurrentSegmentWidth,
+        hasSubmittedMilestone,
+        submissionsMap
       }
     }
   }
