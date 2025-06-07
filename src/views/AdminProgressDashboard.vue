@@ -3,17 +3,33 @@
       <!-- Page Header -->
       <div class="flex justify-between items-center mb-8">
         <h1 class="text-3xl font-bold text-gray-800">Student Progress Dashboard</h1>
-        <div class="flex gap-4">
-          <select v-model="selectedMajor" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-            <option value="all">All Majors</option>
-            <option value="cs">Computer Science</option>
-            <option value="ee">Electrical Engineering</option>
-            <option value="me">Mechanical Engineering</option>
-          </select>
-          <select v-model="selectedYear" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-            <option value="2023">Academic Year 2023-2024</option>
-            <option value="2022">Academic Year 2022-2023</option>
-          </select>
+        <div class="flex items-center gap-6 bg-white px-6 py-3 rounded-lg shadow-sm">
+          <!-- Major Selector -->
+          <div class="flex items-center">
+            <span class="text-sm font-medium text-gray-500 mr-3">Major:</span>
+            <select 
+              v-model="selectedMajor" 
+              class="rounded-full px-4 py-1.5 text-sm font-medium border-2 border-blue-200 text-blue-700 bg-blue-50 hover:border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all cursor-pointer"
+              :class="{'opacity-50 cursor-not-allowed': availableMajors.length === 0}"
+              :disabled="availableMajors.length === 0"
+            >
+              <option 
+                v-for="major in availableMajors" 
+                :key="major" 
+                :value="major"
+              >
+                {{ major }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Academic Year Display -->
+          <div class="flex items-center border-l border-gray-200 pl-6">
+            <span class="text-sm font-medium text-gray-500 mr-3">Academic Year:</span>
+            <span class="px-4 py-1.5 bg-green-50 text-green-700 font-medium rounded-full border-2 border-green-200">
+              {{ academicYear }}
+            </span>
+          </div>
         </div>
       </div>
   
@@ -56,34 +72,60 @@
       <div class="bg-white rounded-lg shadow-md p-6 mb-8">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl font-semibold text-gray-800">Program Milestones</h2>
-          <div v-if="selectedMajor !== 'all'" class="text-sm text-gray-600">
-            {{ selectedMajor === 'cs' ? 'Computer Science' : selectedMajor === 'ee' ? 'Electrical Engineering' : 'Mechanical Engineering' }} 
-            Major
+          <div v-if="selectedMajor" class="text-sm font-medium px-3 py-1 bg-blue-50 text-blue-700 rounded-full">
+            {{ selectedMajor }}
           </div>
         </div>
         
-        <div class="w-full overflow-x-auto">
-          <div class="relative py-8">
-            <!-- Timeline line -->
-            <div class="absolute h-1 bg-gray-200 w-full top-1/2 transform -translate-y-1/2">
+        <!-- Loading State -->
+        <div v-if="!majorMilestones.length" class="py-8 text-center">
+          <div class="animate-pulse flex flex-col items-center">
+            <div class="h-2 bg-gray-200 rounded w-3/4 mb-8"></div>
+            <div class="flex justify-between w-full">
+              <div v-for="n in 6" :key="n" class="flex flex-col items-center">
+                <div class="w-4 h-4 bg-gray-200 rounded-full mb-2"></div>
+                <div class="h-2 bg-gray-200 rounded w-20"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Milestone Timeline -->
+        <div class="w-full px-24">
+          <div class="relative py-12">
+            <!-- Timeline lines -->
+            <div class="absolute h-1 bg-gray-200 w-full top-1/2 transform -translate-y-1/2 z-0">
               <!-- Completed portion of the line -->
-              <div class="absolute h-full bg-green-500 w-[28.5%]"></div>
+              <div 
+                class="absolute h-full bg-green-500 transition-all duration-500" 
+                :style="`width: ${milestoneCompletionPercentage}%`"
+              ></div>
+              <!-- Current portion of the line -->
+              <div 
+                class="absolute h-full bg-yellow-500 transition-all duration-500" 
+                :style="`left: ${getLastCompletedPosition()}%; width: ${getCurrentSegmentWidth()}%`"
+              ></div>
             </div>
             
             <!-- Milestones -->
-            <div class="relative flex justify-between">
-              <div v-for="milestone in majorMilestones" 
+            <div class="relative flex">
+              <div v-for="(milestone, index) in majorMilestones" 
                    :key="milestone.id" 
-                   class="flex flex-col items-center relative"
-                   style="flex: 1">
+                   class="absolute flex flex-col items-center"
+                   :style="{ 
+                     left: `${index * (100 / (majorMilestones.length - 1))}%`,
+                     transform: 'translateX(-50%)',
+                     top: '50%',
+                     marginTop: '-12px'
+                   }">
                 <!-- Circle -->
-                <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center z-10 bg-white"
+                <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors duration-300"
                      :class="{
-                       'bg-green-500 border-green-500': milestone.id === 'proposal' || milestone.id === 'literature',
-                       'bg-yellow-500 border-yellow-500': milestone.id === 'methodology',
-                       'bg-white border-gray-300': !['proposal', 'literature', 'methodology'].includes(milestone.id)
+                       'bg-green-500 border-green-500 text-white': getMilestoneStatus(milestone) === 'completed',
+                       'bg-white border-yellow-500': getMilestoneStatus(milestone) === 'current',
+                       'bg-white border-gray-300': getMilestoneStatus(milestone) === 'upcoming'
                      }">
-                  <svg v-if="milestone.id === 'proposal' || milestone.id === 'literature'" 
+                  <svg v-if="getMilestoneStatus(milestone) === 'completed'" 
                        class="w-4 h-4 text-white" 
                        fill="none" 
                        stroke="currentColor" 
@@ -97,16 +139,20 @@
                 </div>
                 
                 <!-- Label above -->
-                <div class="absolute -top-8 w-full text-center">
-                  <div class="text-xs font-medium text-gray-600">{{ milestone.name }}</div>
+                <div class="absolute w-40 text-center" style="top: -36px; left: -5rem">
+                  <div class="text-xs font-medium text-gray-600 whitespace-nowrap">{{ milestone.description }}</div>
                 </div>
                 
-                <!-- Date below -->
-                <div class="absolute -bottom-8 w-full text-center">
-                  <div class="text-xs text-gray-500">{{ milestone.dueDate }}</div>
-                  <div v-if="milestone.id === 'methodology'" 
-                       class="text-xs font-semibold text-yellow-600 mt-1">
-                    Current
+                <!-- Date and Status below -->
+                <div class="absolute w-40 text-center flex flex-col items-center gap-1" style="top: 36px; left: -5rem">
+                  <div class="text-xs text-gray-500">{{ milestone.deadline.toLocaleDateString() }}</div>
+                  <div v-if="getMilestoneStatus(milestone) !== 'completed'" 
+                       class="text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap"
+                       :class="{
+                         'bg-yellow-100 text-yellow-600': getMilestoneStatus(milestone) === 'current',
+                         'bg-gray-100 text-gray-500': getMilestoneStatus(milestone) === 'upcoming'
+                       }">
+                    {{ getMilestoneStatus(milestone) === 'current' ? 'Current' : 'Upcoming' }}
                   </div>
                 </div>
               </div>
@@ -362,19 +408,24 @@
   </template>
   
   <script>
-  import { ref, computed } from 'vue'
+  import { ref, computed, onMounted, watch } from 'vue'
+  import { useUserStore } from '@/stores/userStore'
+  import { getLatestAcademicYear } from '@/utils/latestAcademicYear'
+  import { db } from '@/firebase'
+  import { doc, getDoc } from 'firebase/firestore'
   
   export default {
     name: 'AdminProgressDashboard',
     setup() {
+      const userStore = useUserStore()
       const activeTab = ref('milestone')
       const expandedStudentId = ref(null)
       const showExaminerModal = ref(false)
-      const selectedMajor = ref('all')
-      const selectedYear = ref('2023')
-      
-      // Current date for milestone status calculation
-      const currentDate = new Date('2023-11-15') // Mid-November for this example
+      const selectedMajor = ref('')
+      const availableMajors = ref([])
+      const academicYear = ref('')
+      const majorMilestones = ref([])
+      const currentDate = new Date()
       
       const tabs = [
         { id: 'milestone', name: 'Milestone View' },
@@ -382,51 +433,89 @@
         { id: 'analytics', name: 'Analytics' },
       ]
       
-      // Define milestone structure with due dates
-      const majorMilestones = [
-        { 
-          id: 'proposal', 
-          name: 'Project Proposal', 
-          dueDate: 'Sept 30, 2023',
-          dueDateObj: new Date('2023-09-30')
-        },
-        { 
-          id: 'literature', 
-          name: 'Literature Review', 
-          dueDate: 'Oct 31, 2023',
-          dueDateObj: new Date('2023-10-31')
-        },
-        { 
-          id: 'methodology', 
-          name: 'Methodology', 
-          dueDate: 'Nov 30, 2023',
-          dueDateObj: new Date('2023-11-30')
-        },
-        { 
-          id: 'implementation', 
-          name: 'Implementation', 
-          dueDate: 'Jan 15, 2024',
-          dueDateObj: new Date('2024-01-15')
-        },
-        { 
-          id: 'evaluation', 
-          name: 'Evaluation', 
-          dueDate: 'Feb 28, 2024',
-          dueDateObj: new Date('2024-02-28')
-        },
-        { 
-          id: 'thesis', 
-          name: 'Final Thesis', 
-          dueDate: 'Apr 15, 2024',
-          dueDateObj: new Date('2024-04-15')
-        },
-        { 
-          id: 'defense', 
-          name: 'Defense', 
-          dueDate: 'May 1, 2024',
-          dueDateObj: new Date('2024-05-01')
+      // Get milestones from session storage
+      const getMilestonesFromSessionStorage = (majorId) => {
+        try {
+          if (!userStore.currentUser?.uid) return null
+          
+          // Create user and major specific key
+          const userMajorKey = `${userStore.currentUser.uid}_${majorId}_milestones`
+          const storedData = sessionStorage.getItem(userMajorKey)
+          
+          if (!storedData) return null
+          
+          const parsedData = JSON.parse(storedData)
+          
+          // Convert ISO strings back to Date objects
+          return parsedData.milestones.map(milestone => ({
+            ...milestone,
+            deadline: new Date(milestone.deadline)
+          }))
+        } catch (err) {
+          console.error('Error retrieving milestone data from session storage:', err)
+          return null
         }
-      ]
+      }
+
+      // Watch for changes in selected major
+      watch(selectedMajor, (newMajor) => {
+        if (newMajor) {
+          const storedMilestones = getMilestonesFromSessionStorage(newMajor)
+          if (storedMilestones) {
+            majorMilestones.value = storedMilestones
+          }
+        }
+      })
+
+      // Function to initialize the dashboard data
+      const initializeDashboard = async () => {
+        try {
+          if (!userStore.currentUser?.school) {
+            throw new Error('School information not found')
+          }
+
+          const school = userStore.currentUser.school
+          
+          // Get latest academic year
+          const yearData = await getLatestAcademicYear(school)
+          if (!yearData) {
+            throw new Error('Failed to get latest academic year')
+          }
+
+          // Set the academic year display
+          academicYear.value = yearData.academicYear
+
+          // Get available majors from the year document
+          const yearRef = doc(db, 'schools', school, 'projects', yearData.yearId)
+          const yearDoc = await getDoc(yearRef)
+          
+          if (!yearDoc.exists()) {
+            throw new Error('Year document not found')
+          }
+
+          // Set available majors
+          availableMajors.value = yearDoc.data().majors || []
+          
+          // Set initial selected major
+          if (availableMajors.value.length > 0) {
+            selectedMajor.value = availableMajors.value[0]
+          }
+        } catch (err) {
+          console.error('Error initializing dashboard:', err)
+        }
+      }
+
+      // Computed property to get milestone completion percentage
+      const milestoneCompletionPercentage = computed(() => {
+        if (!majorMilestones.value.length) return 0
+        const completedMilestones = majorMilestones.value.filter(m => m.deadline < currentDate).length
+        return (completedMilestones / majorMilestones.value.length) * 100
+      })
+
+      // Initialize on component mount
+      onMounted(() => {
+        initializeDashboard()
+      })
       
       // Student data with milestone submissions
       const students = [
@@ -555,7 +644,7 @@
       
       // Get milestone name by ID
       const getMilestoneName = (milestoneId) => {
-        const milestone = majorMilestones.find(m => m.id === milestoneId)
+        const milestone = majorMilestones.value.find(m => m.id === milestoneId)
         return milestone ? milestone.name : 'Unknown'
       }
       
@@ -568,9 +657,9 @@
       // Check if a milestone is the current active one
       const isMilestoneCurrent = (milestone) => {
         // Current milestone is the first one whose due date is in the future
-        for (let i = 0; i < majorMilestones.length; i++) {
-          if (majorMilestones[i].dueDateObj > currentDate) {
-            return milestone.id === majorMilestones[i].id
+        for (let i = 0; i < majorMilestones.value.length; i++) {
+          if (majorMilestones.value[i].deadline > currentDate) {
+            return majorMilestones.value[i].id === milestone.id
           }
         }
         return false
@@ -578,32 +667,31 @@
       
       // Check if a milestone is in the past
       const isPastMilestone = (milestone) => {
-        return milestone.dueDateObj < currentDate
+        const isPast = milestone.deadline < currentDate
+        console.log('isPastMilestone check:', {
+          description: milestone.description,
+          deadline: milestone.deadline,
+          currentDate: currentDate,
+          isPast: isPast
+        })
+        return isPast
       }
       
       // Get the name of the current milestone
       const getCurrentMilestoneName = () => {
-        for (let i = 0; i < majorMilestones.length; i++) {
-          if (majorMilestones[i].dueDateObj > currentDate) {
-            return majorMilestones[i].name
-          }
-        }
-        return 'All milestones completed'
+        const currentMilestone = majorMilestones.value.find(m => getMilestoneStatus(m) === 'current')
+        return currentMilestone ? currentMilestone.description : 'All milestones completed'
       }
       
       // Get the date of the next milestone
       const getNextMilestoneDate = () => {
-        for (let i = 0; i < majorMilestones.length; i++) {
-          if (majorMilestones[i].dueDateObj > currentDate) {
-            return majorMilestones[i].dueDate
-          }
-        }
-        return 'No upcoming deadlines'
+        const currentMilestone = majorMilestones.value.find(m => getMilestoneStatus(m) === 'current')
+        return currentMilestone ? currentMilestone.deadline.toLocaleDateString() : 'No upcoming deadlines'
       }
       
       // Get CSS class for milestone status in the timeline
       const getMilestoneStatusClass = (milestone, index) => {
-        if (milestone.dueDateObj < currentDate) {
+        if (milestone.deadline < currentDate) {
           return 'bg-gray-400' // Past milestone
         } else if (isMilestoneCurrent(milestone)) {
           return 'bg-blue-500' // Current milestone
@@ -614,11 +702,11 @@
       
       // Get CSS class for student milestone status indicator dots
       const getStudentMilestoneClass = (student, milestoneId) => {
-        const milestone = majorMilestones.find(m => m.id === milestoneId)
+        const milestone = majorMilestones.value.find(m => m.id === milestoneId)
         
         if (hasCompletedMilestone(student, milestoneId)) {
           return 'bg-green-500' // Completed
-        } else if (milestone.dueDateObj < currentDate) {
+        } else if (milestone.deadline < currentDate) {
           return 'bg-red-500' // Missed
         } else if (isMilestoneCurrent(milestone)) {
           return 'bg-blue-500' // Current
@@ -633,8 +721,8 @@
         let totalPastMilestones = 0
         
         // Count completed milestones and total past milestones
-        majorMilestones.forEach(milestone => {
-          if (milestone.dueDateObj <= currentDate) {
+        majorMilestones.value.forEach(milestone => {
+          if (milestone.deadline <= currentDate) {
             totalPastMilestones++
             if (hasCompletedMilestone(student, milestone.id)) {
               completedMilestones++
@@ -646,7 +734,7 @@
         if (totalPastMilestones === 0) return 0
         
         // Calculate percentage based on past milestones
-        return (completedMilestones / majorMilestones.length) * 100
+        return (completedMilestones / majorMilestones.value.length) * 100
       }
       
       // Check if student has missed the current milestone
@@ -654,13 +742,13 @@
         let currentMilestoneId = null
         
         // Find the current milestone
-        for (let i = 0; i < majorMilestones.length; i++) {
-          if (majorMilestones[i].dueDateObj > currentDate) {
+        for (let i = 0; i < majorMilestones.value.length; i++) {
+          if (majorMilestones.value[i].deadline > currentDate) {
             // If this is the first milestone, then there's no previous one to miss
             if (i === 0) return false
             
             // Check if the previous milestone was completed
-            return !hasCompletedMilestone(student, majorMilestones[i-1].id)
+            return !hasCompletedMilestone(student, majorMilestones.value[i-1].id)
           }
         }
         
@@ -671,8 +759,8 @@
       const hasMissedMultipleMilestones = (student) => {
         let missedCount = 0
         
-        majorMilestones.forEach(milestone => {
-          if (milestone.dueDateObj < currentDate && !hasCompletedMilestone(student, milestone.id)) {
+        majorMilestones.value.forEach(milestone => {
+          if (milestone.deadline < currentDate && !hasCompletedMilestone(student, milestone.id)) {
             missedCount++
           }
         })
@@ -696,6 +784,64 @@
         console.log(`Assigned ${examinerName} as an examiner`)
       }
       
+      // Update milestone status logic
+      const getMilestoneStatus = (milestone) => {
+        // Find index of current milestone in the array
+        const currentIndex = majorMilestones.value.findIndex(m => 
+          m.deadline.getTime() === milestone.deadline.getTime() && 
+          m.description === milestone.description
+        )
+        
+        console.log('Checking milestone:', {
+          description: milestone.description,
+          deadline: milestone.deadline,
+          currentDate: currentDate,
+          currentIndex: currentIndex
+        })
+        
+        // First check if the milestone is already past
+        if (isPastMilestone(milestone)) {
+          console.log('Milestone is completed:', milestone.description)
+          return 'completed'
+        }
+        
+        // Find the first future milestone index
+        const nextMilestoneIndex = majorMilestones.value.findIndex(m => m.deadline > currentDate)
+        console.log('Next milestone index:', nextMilestoneIndex)
+        
+        // If this is the first future milestone, it's current
+        if (nextMilestoneIndex !== -1 && currentIndex === nextMilestoneIndex) {
+          console.log('Milestone is current:', milestone.description)
+          return 'current'
+        }
+        
+        // If we get here, the milestone is in the future but not the next one
+        console.log('Milestone is upcoming:', milestone.description)
+        return 'upcoming'
+      }
+      
+      // Update these functions in the setup() return statement
+      const getLastCompletedPosition = () => {
+        const completedCount = majorMilestones.value.filter(m => isPastMilestone(m)).length
+        if (completedCount === 0) return 0
+        if (completedCount === majorMilestones.value.length) return 100
+        return (completedCount / (majorMilestones.value.length - 1)) * 100
+      }
+      
+      const getCurrentSegmentWidth = () => {
+        const totalMilestones = majorMilestones.value.length
+        if (totalMilestones <= 1) return 0
+        
+        const segmentWidth = 100 / (totalMilestones - 1)
+        const lastCompletedPos = getLastCompletedPosition()
+        const currentIndex = majorMilestones.value.findIndex(m => getMilestoneStatus(m) === 'current')
+        
+        if (currentIndex === -1) return 0
+        
+        const currentPosition = (currentIndex / (totalMilestones - 1)) * 100
+        return currentPosition - lastCompletedPos
+      }
+      
       return {
         activeTab,
         tabs,
@@ -705,7 +851,8 @@
         expandedStudentId,
         showExaminerModal,
         selectedMajor,
-        selectedYear,
+        availableMajors,
+        academicYear,
         // Functions
         getMilestoneName,
         hasCompletedMilestone,
@@ -719,7 +866,12 @@
         hasMissedCurrentMilestone,
         hasMissedMultipleMilestones,
         expandStudentDetails,
-        assignExaminer
+        assignExaminer,
+        milestoneCompletionPercentage,
+        currentDate,
+        getMilestoneStatus,
+        getLastCompletedPosition,
+        getCurrentSegmentWidth
       }
     }
   }
