@@ -6,7 +6,7 @@ import websocketService from './websocket';
 
 // Create axios instance with base configuration
 const api = axios.create({
-    baseURL: 'http://localhost:4000/api/community',
+    baseURL: `${import.meta.env.VITE_API_URL}/api/community`,
     headers: {
         'Content-Type': 'application/json'
     }
