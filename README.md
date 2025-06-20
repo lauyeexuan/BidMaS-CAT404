@@ -1,6 +1,6 @@
 # BidMaS (Bidding Management System)
 
-BidMaS is a comprehensive web application developed with Vue 3, Firebase, and Express.js to streamline academic project bidding, allocation, and management processes. The system facilitates connections between students and lecturers, providing a structured workflow for project selection, progress tracking, and submission evaluation.
+BidMaS is a comprehensive web application developed with Vue 3 and Firebases to streamline academic project bidding, allocation, and management processes. The system facilitates connections between students and lecturers, providing a structured workflow for project selection, progress tracking, and submission evaluation.
 
 ![image](https://github.com/user-attachments/assets/f98d34fa-5763-420c-abee-382945330b74)
 
@@ -27,7 +27,7 @@ Visit the live application at [https://bidmas.vercel.app](https://bidmas.vercel.
 - Interactive progress visualization
 
 ### 4. Feedback System
-- Structured feedback from lecturers and examiners
+- Structured feedback from supervisors and examiners
 - Rating and comment-based evaluation
 - Support for draft feedback before finalizing
 
