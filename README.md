@@ -2,7 +2,8 @@
 
 BidMaS is a comprehensive web application developed with Vue 3, Firebase, and Express.js to streamline academic project bidding, allocation, and management processes. The system facilitates connections between students and lecturers, providing a structured workflow for project selection, progress tracking, and submission evaluation.
 
-![BidMaS Screenshot](https://your-screenshot-url-here.png) 
+![image](https://github.com/user-attachments/assets/f98d34fa-5763-420c-abee-382945330b74)
+
 
 ## Live Demo
 
